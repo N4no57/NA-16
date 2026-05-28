@@ -10,6 +10,10 @@ i16 get_register_encoding(registers_t reg) {
         return reg;
     }
 
+    if (reg >= PC) {
+        return reg - PC + 1;
+    }
+
     return -1; // idfk what to do with the rest of the registers
 }
 
