@@ -3,13 +3,54 @@
 #include "../lib/error.h"
 #include "analyser.h"
 
+i32 validate_registers(const NodeInstruction* inst, const InstructionSpec* spec) {
+    if (strcmp(spec->mnemonic, "MOVSR") == 0) {
+        if (inst->operands[0].reg >= PC) {
+            error(inst->operands[0].pos, "Invalid register (Must be a GP Register)");
+            return 0;
+        }
+
+        if (inst->operands[1].reg < PC) {
+            error(inst->operands[1].pos, "Invalid register (Must be a SP Register)");
+            return 0;
+        }
+
+        return 1;
+    }
+
+    if (strcmp(spec->mnemonic, "MOVRS") == 0) {
+        if (inst->operands[0].reg < PC) {
+            error(inst->operands[0].pos, "Invalid register (Must be a SP Register)");
+            return 0;
+        }
+
+        if (inst->operands[1].reg >= PC) {
+            error(inst->operands[1].pos, "Invalid register (Must be a GP Register)");
+            return 0;
+        }
+
+        return 1;
+    }
+
+    for (u64 i = 0; i < inst->operand_count; i++) {
+        if (inst->operands[i].reg >= PC) {
+            error(inst->operands[0].pos, "Invalid register (Must be a GP Register)");
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
 i32 validate_instruction(const NodeInstruction* inst) {
     InstructionSpec spec = get_spec((char *)inst->mnemonic);
 
     if (spec.mnemonic == nullptr) return 0;
 
     for (i32 j = 0; j < spec.signature_count; j++) {
-        if (match_signature(inst, &spec.signatures[j])) return 1;
+        if (match_signature(inst, &spec.signatures[j])) {
+            return validate_registers(inst, &spec);
+        }
     }
 
     return 0;
