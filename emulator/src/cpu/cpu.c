@@ -32,6 +32,12 @@ void set_reg(CPU *cpu, const u8 reg, const u16 value) {
         case 0x7:
             cpu->R7 = value;
             break;
+        case 0x8:
+            cpu->PC = value;
+        case 0x9:
+            cpu->SP = value;
+        case 0xA:
+            cpu->BP = value;
         default:
             break;
     }
@@ -55,6 +61,12 @@ u16 read_reg(const CPU *cpu, const u8 reg) {
             return cpu->R6;
         case 0x7:
             return cpu->R7;
+        case 0x8:
+            return cpu->PC;
+        case 0x9:
+            return cpu->SP;
+        case 0xA:
+            return cpu->BP;
         default:
             break;
     }
