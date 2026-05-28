@@ -23,7 +23,4 @@ add_executable(Emulator src/main.c
         src/cpu/instructions/handlers/data_movement/lea.c
 
         src/cpu/instructions/handlers/control_flow/jmp.c
-
-        src/cpu/instructions/handlers/system_instructions/nop.c
-        src/cpu/instructions/handlers/system_instructions/hlt.c
 )
