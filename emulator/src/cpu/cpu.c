@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-void set_reg(CPU *cpu, const u8 reg, const u16 value) {
+void set_reg(CPU *cpu, const u16 reg, const u16 value) {
     switch (reg) {
         case 0x0: // R0
             cpu->R0 = value;
@@ -32,18 +32,18 @@ void set_reg(CPU *cpu, const u8 reg, const u16 value) {
         case 0x7:
             cpu->R7 = value;
             break;
-        case 0x40:
+        case 0x1 << 6:
             cpu->PC = value;
-        case 0x41:
+        case 0x2 << 6:
             cpu->SP = value;
-        case 0x42:
+        case 0x3 << 6:
             cpu->BP = value;
         default:
             break;
     }
 }
 
-u16 read_reg(const CPU *cpu, const u8 reg) {
+u16 read_reg(const CPU *cpu, const u16 reg) {
     switch (reg) {
         case 0x0: // R0
             return cpu->R0;
@@ -61,11 +61,11 @@ u16 read_reg(const CPU *cpu, const u8 reg) {
             return cpu->R6;
         case 0x7:
             return cpu->R7;
-        case 0x40:
+        case 0x1 << 6:
             return cpu->PC;
-        case 0x41:
+        case 0x2 << 6:
             return cpu->SP;
-        case 0x42:
+        case 0x3 << 6:
             return cpu->BP;
         default:
             break;

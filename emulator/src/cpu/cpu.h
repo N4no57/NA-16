@@ -86,8 +86,8 @@ typedef struct {
     InstructionHandler handler;
 } InstructionDef;
 
-void set_reg(CPU *cpu, u8 reg, u16 value);
-u16 read_reg(const CPU *cpu, u8 reg);
+void set_reg(CPU *cpu, u16 reg, u16 value);
+u16 read_reg(const CPU *cpu, u16 reg);
 
 void cpu_init(CPU *cpu);
 void cpu_reset(CPU *cpu);
