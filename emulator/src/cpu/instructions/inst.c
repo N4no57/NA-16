@@ -82,10 +82,28 @@ void operand_write(CPU *cpu, const Operand op, const u16 value) {
 }
 
 InstructionDef instruction_table[] = {
+    // class 0: ALU ops
     [ADD] = {"ADD", 3, add_handler},
     [SUB] = {"SUB", 3, sub_handler},
+    [AND] = {"AND", 3, and_handler}, // TODO
+    [OR] = {"OR", 3, or_handler},
+    [XOR] = {"XOR", 3, xor_handler},
+    [NOT] = {"NOT", 2, not_handler},
+
+    // class 1: data movement
     [MOV] = {"MOV", 2, mov_handler},
+    [MOVSR] = {"MOVSR", 2, movsr_handler},
+    [MOVRS] = {"MOVRSR", 2, movrs_handler},
+    [PUSH] = {"PUSH", 1, push_handler},
+    [POP] = {"POP", 1, pop_handler},
+    [LEA] = {"LEA", 2, lea_handler},
+
+    // class 2: control flow
     [JMP] = {"JMP", 1, jmp_handler},
+
+    // class 3: system instructions
+    [NOP] = {"NOP", 1, nullptr},
+    [HLT] = {"HLT", 1, nullptr},
 };
 
 InstructionDef *fetch_InstDef(const Ops idx) {
