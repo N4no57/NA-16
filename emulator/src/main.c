@@ -25,7 +25,5 @@ int main() {
 
     free(program);
 
-    while (1) {
-        execute(&cpu);
-    }
+    execute(&cpu);
 }
