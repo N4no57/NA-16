@@ -3,8 +3,6 @@
 
 #include <string.h>
 
-#include "../lib/error.h"
-
 char *pseudo_op_table[] = {
     [MOV] = "MOV"
 };
@@ -45,7 +43,7 @@ void lower_mov(NodeInstruction *inst) {
     }
 
     if (is_SPR[0] && is_SPR[1]) {
-        error(inst->pos, "WHAT THE FU- *KABOOOOOOOOM*");
+        inst->mnemonic = strdup("MOVS");
     }
 }
 
