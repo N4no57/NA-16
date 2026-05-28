@@ -93,7 +93,7 @@ InstructionDef instruction_table[] = {
     // class 1: data movement
     [MOV] = {"MOV", 2, mov_handler},
     [MOVSR] = {"MOVSR", 2, movsr_handler},
-    [MOVRS] = {"MOVRSR", 2, movrs_handler},
+    [MOVRS] = {"MOVRS", 2, movrs_handler},
     [PUSH] = {"PUSH", 1, push_handler},
     [POP] = {"POP", 1, pop_handler},
     [LEA] = {"LEA", 2, lea_handler},
