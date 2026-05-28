@@ -210,11 +210,9 @@ InstructionSpec ISA[] = {
         0x1,
         {
             {2, {REGISTER, REGISTER}},
-            {2, {IMMEDIATE, REGISTER}},
-            {2, {SYMBOL, REGISTER}},
             {2, {REG_INDIRECT, REGISTER}},
         },
-        4
+        2
     },
     {
         "MOVRS",
@@ -223,6 +221,8 @@ InstructionSpec ISA[] = {
         {
             {2, {REGISTER, REGISTER}},
             {2, {REGISTER, REG_INDIRECT}},
+            {2, {REGISTER, IMMEDIATE}},
+            {2, {REGISTER, SYMBOL}},
         },
         4
     },
