@@ -85,7 +85,7 @@ InstructionDef instruction_table[] = {
     // class 0: ALU ops
     [ADD] = {"ADD", 3, add_handler},
     [SUB] = {"SUB", 3, sub_handler},
-    [AND] = {"AND", 3, and_handler}, // TODO
+    [AND] = {"AND", 3, and_handler},
     [OR] = {"OR", 3, or_handler},
     [XOR] = {"XOR", 3, xor_handler},
     [NOT] = {"NOT", 2, not_handler},
