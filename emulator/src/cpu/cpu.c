@@ -74,8 +74,16 @@ void cpu_reset(CPU *cpu) {
     cpu->PC = read_word(cpu, cpu->PC);
 }
 
-void execute(CPU *cpu) {
+bool should_stop = false;
+
+void execute_inst(CPU *cpu) {
     Instruction inst = decode(cpu);
+
+    if (inst.opcode == NOP) return;
+    if (inst.opcode == HLT) {
+        should_stop = true;
+        return;
+    }
 
     const InstructionDef *def = fetch_InstDef(inst.opcode);
 
@@ -85,4 +93,10 @@ void execute(CPU *cpu) {
     }
 
     def->handler(cpu, &inst);
+}
+
+void execute(CPU *cpu) {
+    while (!should_stop) {
+        execute_inst(cpu);
+    }
 }
