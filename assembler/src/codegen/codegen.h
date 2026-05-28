@@ -13,7 +13,7 @@ typedef struct {
     u64 size;
 } SymbolTable;
 
-void push_symbol(SymbolTable *table, NodeSymbol symbol);
+NodeSymbol *find_symbol(SymbolTable *table, char *symbol);
 
 void symbol_pass(NodeProgram *ast, SymbolTable *symtbl);
 void generate_code(NodeProgram *ast, bytes *code);
