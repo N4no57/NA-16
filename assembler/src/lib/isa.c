@@ -171,6 +171,20 @@ InstructionSpec ISA[] = {
         },
         25
     },
+    {
+        "NOT",
+        0,
+        0x5,
+        {
+            {2, {REGISTER, REGISTER}},
+            {2, {REGISTER, IMMEDIATE}},
+            {2, {REGISTER, REG_INDIRECT}},
+            {2, {REGISTER, SYMBOL}},
+            {2, {REG_INDIRECT, REGISTER}},
+            {2, {REG_INDIRECT, IMMEDIATE}},
+        },
+        6
+    },
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// class 1: data movement
