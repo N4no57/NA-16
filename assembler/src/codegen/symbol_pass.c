@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 
 #include "codegen.h"
 
@@ -17,6 +18,15 @@ void push_symbol(SymbolTable *table, NodeSymbol symbol) {
 }
 
 void visit_NodeOperand(const NodeOperand *operand, bool use_16bits, u8 *buff, u8 *idx);
+NodeSymbol *find_symbol(SymbolTable *table, char *symbol) {
+    for (u64 i = 0; i < table->count; i++) {
+        if (strcmp(table->symbols[i].symbol_name, symbol) == 0) {
+            return &table->symbols[i];
+        }
+    }
+    return nullptr;
+}
+
 
 void visit_NodeInstruction(const NodeInstruction *node, bytes *code);
 
