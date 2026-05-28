@@ -69,11 +69,24 @@ typedef struct {
 
 #define MEMORY_SIZE 0x10000
 
+typedef union {
+    struct {
+        uint8_t C : 1;
+        uint8_t Z : 1;
+        uint8_t O : 1;
+        uint8_t N : 1;
+        uint8_t I : 1;
+    };
+    uint8_t flags;
+} flags;
+
 typedef struct {
     u16 PC;
     u16 SP;
     u16 BP;
     u16 R0, R1, R2, R3, R4, R5, R6, R7;
+
+    flags FR;
 
     u8 memory[MEMORY_SIZE];
 } CPU;
