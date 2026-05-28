@@ -23,9 +23,25 @@ InstructionDef *fetch_InstDef(Ops idx);
 Instruction decode(CPU *cpu);
 
 // Instruction handlers
+// class 0: ALU ops
 void add_handler(CPU *cpu, Instruction *inst);
 void sub_handler(CPU *cpu, Instruction *inst);
+void and_handler(CPU *cpu, Instruction *inst);
+void or_handler(CPU *cpu, Instruction *inst);
+void xor_handler(CPU *cpu, Instruction *inst);
+void not_handler(CPU *cpu, Instruction *inst);
+
+// class 1: data movement
 void mov_handler(CPU *cpu, Instruction *inst);
+void movsr_handler(CPU *cpu, Instruction *inst);
+void movrs_handler(CPU *cpu, Instruction *inst);
+void push_handler(CPU *cpu, Instruction *inst);
+void pop_handler(CPU *cpu, Instruction *inst);
+void lea_handler(CPU *cpu, Instruction *inst);
+
+// class 2: control flow
 void jmp_handler(CPU *cpu, Instruction *inst);
+
+// class 3: system instructions
 
 #endif //NA_16_INST_H
