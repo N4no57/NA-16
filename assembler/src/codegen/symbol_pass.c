@@ -98,7 +98,7 @@ void visit_NodeSymbol1(NodeSymbol *node, SymbolTable *table, const u64 *byte_pos
         error(node->pos, "Reused symbol");
     }
 
-    if (node->value == -1) { // it's a label
+    if (node->kind == SK_LABEL) { // it's a label
         node->value = *(i32 *)byte_pos;
     }
 
@@ -117,34 +117,85 @@ void visit_NodeStatement1(NodeStatement *node, SymbolTable *table, u64 *byte_pos
 /// Symbol table usage
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void visit_NodeOperand2(NodeOperand *operand) {
+void visit_NodeOperand2(NodeOperand *operand, SymbolTable *table, bool use_16bits, u64 *byte_pos) {
     if (operand->kind == REGISTER || operand->kind == REG_INDIRECT) {
         return;
     }
 
     if (operand->kind == SYMBOL) {
-        return;
+        NodeSymbol *symbol = find_symbol(table, operand->symbol_name);
+        if (symbol->value > 255) {
+            u8 inc_by = 0;
+            if (!use_16bits) inc_by++;
+            inc_by++;
+
+            for (u64 i = 0; i < table->count; i++) {
+                NodeSymbol *sym = &table->symbols[i];
+                if (sym->kind == SK_LABEL) {
+                    sym->value += inc_by;
+                }
+            }
+
+            *byte_pos += inc_by;
+        }
+
+        operand->kind = IMMEDIATE;
+        operand->immediate = symbol->value;
     }
 
     if (operand->kind == IMMEDIATE) {
-        return;
+        if (!use_16bits) {
+            (*byte_pos)++;
+        } else {
+            *byte_pos += 2;
+        }
+    } else {
+        error(operand->pos, "Invalid operand type");
     }
-
-    error(operand->pos, "Invalid operand type");
 }
 
-void visit_NodeInstruction2(NodeInstruction *node, SymbolTable *table) {
+void visit_NodeInstruction2(NodeInstruction *node, SymbolTable *table, u64 *byte_pos) {
     InstructionSpec info = get_spec(node->mnemonic);
 
+    u64 sig_id = 0;
+    InstructionSignature *sig = &info.signatures[sig_id];
+    for (sig_id = 0; sig_id < info.signature_count; sig_id++) {
+        if (match_signature(node, sig)) break;
+        sig = &info.signatures[sig_id+1];
+    }
+
+    if (sig_id > 0) {
+        *byte_pos += 2;
+    }
+
+    bool use_16bits = false;
+    if (node->operand_size == 0) {
+        for (i32 i = 0; i < sig->operand_count; i++) {
+            if (sig->kinds[i] == IMMEDIATE) {
+                use_16bits = node->operands[i].immediate > 255 ? true : false;
+                if (use_16bits) break;
+            }
+        }
+    } else {
+        if (node->operand_size == 2) {
+            use_16bits = true;
+        }
+    }
+
+    if (use_16bits) {
+        (*byte_pos)++;
+    }
+
+    *byte_pos += 2; // instruction encoding
 
     for (int i = 0; i < node->operand_count; i++) {
-        visit_NodeOperand2(&node->operands[i]);
+        visit_NodeOperand2(&node->operands[i], table, use_16bits, byte_pos);
     }
 }
 
-void visit_NodeStatement2(NodeStatement *node, SymbolTable *table) {
+void visit_NodeStatement2(NodeStatement *node, SymbolTable *table, u64 *byte_pos) {
     if (node->kind == ST_INSTRUCTION) {
-        visit_NodeInstruction2(&node->instruction, table);
+        visit_NodeInstruction2(&node->instruction, table, byte_pos);
     }
 }
 
@@ -162,5 +213,8 @@ void symbol_pass(NodeProgram *ast, SymbolTable *table) {
     }
 
     // replace symbols with values
-
+    byte_pos = 0;
+    for (u64 i = 0; i < ast->count; i++) {
+        visit_NodeStatement2(&ast->statements[i], table, &byte_pos);
+    }
 }
