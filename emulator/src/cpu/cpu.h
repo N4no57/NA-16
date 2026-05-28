@@ -49,7 +49,7 @@ typedef enum {
 typedef struct {
     OperandMode mode;
     struct {
-        u8 reg;
+        u16 reg;
         u16 immediate;
     };
     u8 size;
