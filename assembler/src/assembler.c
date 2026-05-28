@@ -4,6 +4,7 @@
 
 #include "assembler.h"
 #include "codegen/codegen.h"
+#include "instruction_selection/inst_selector.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
 #include "semantic_analyser/analyser.h"
@@ -44,6 +45,8 @@ int assemble(const char *in, const char *out) {
     parse(&ast, &tokens);
 
     analyse(&ast);
+
+    lowerer(&ast);
 
     if (error_count > 0 ) {
         if (error_count == 1) printf("Found 1 error:\n");
