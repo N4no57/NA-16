@@ -13,4 +13,5 @@ add_executable(Assembler src/main.c
         src/lib/error.c src/lib/error.h
         src/assembler.c src/assembler.h
         src/codegen/symbol_pass.c
+        src/lib/isa.c
 )
