@@ -87,21 +87,6 @@ u64 issizespec(const u8 *string) {
     return 0;
 }
 
-i64 getmnemonic(u8 *string) {
-    constexpr u64 size = sizeof(ISA) / sizeof(ISA[0]);
-
-    char buff[MAXTEMPSIZE];
-    strcpy(buff, (char *)string);
-    toUpper((u8 *)buff);
-
-    for (i64 i = 0; i < size; i++) {
-        if (strcmp(ISA[i].mnemonic, buff) == 0) {
-            return i;
-        }
-    }
-    return -1;
-}
-
 i64 getregister(const u8 *string) {
     u8 tmp[MAXTEMPSIZE];
     strcpy((char *)tmp, (char *)string);

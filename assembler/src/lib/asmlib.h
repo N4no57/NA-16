@@ -76,7 +76,6 @@ u64 ismnemonic(u8 *string);
 u64 isregister(const u8 *string);
 u64 issizespec(const u8 *string);
 
-i64 getmnemonic(u8 *string);
 i64 getregister(const u8 *string);
 i64 getsizespec(const u8 *string);
 
