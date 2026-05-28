@@ -1,7 +1,9 @@
 #ifndef NA_16_AST_H
 #define NA_16_AST_H
 
-typedef struct Node_Operand {
+#include "../lib/asmlib.h"
+
+typedef struct {
     struct {
         registers_t reg;
         i64 immediate;
@@ -12,7 +14,7 @@ typedef struct Node_Operand {
     Position pos;
 } NodeOperand;
 
-typedef struct Node_Instruction {
+typedef struct {
     char *mnemonic;
     NodeOperand operands[3];
     u8 operand_count;
@@ -20,7 +22,7 @@ typedef struct Node_Instruction {
     Position pos;
 } NodeInstruction;
 
-typedef enum StatementKind {
+typedef enum {
     ST_NONE,
     ST_INSTRUCTION,
     ST_SYMBOL
@@ -31,14 +33,14 @@ typedef enum {
     SK_LABEL
 } SymbolKind;
 
-typedef struct Node_Symbol {
+typedef struct {
     char *symbol_name;
     i32 value;
     SymbolKind kind;
     Position pos;
 } NodeSymbol;
 
-typedef struct Node_Statement {
+typedef struct {
     union {
         NodeInstruction instruction;
         NodeSymbol symbol;
@@ -46,7 +48,7 @@ typedef struct Node_Statement {
     StatementKind kind;
 } NodeStatement;
 
-typedef struct Node_Program {
+typedef struct {
     NodeStatement *statements;
     u64 count;
     u64 size;
