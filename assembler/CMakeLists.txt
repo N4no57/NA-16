@@ -12,4 +12,5 @@ add_executable(Assembler src/main.c
         src/codegen/codegen.c src/codegen/codegen.h
         src/lib/error.c src/lib/error.h
         src/assembler.c src/assembler.h
+        src/codegen/symbol_pass.c
 )
