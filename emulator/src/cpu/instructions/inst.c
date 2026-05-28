@@ -81,6 +81,27 @@ void operand_write(CPU *cpu, const Operand op, const u16 value) {
     }
 }
 
+void set_flags(CPU *cpu, const u32 value, const u32 values[2], const u8 mask, u8 size) {
+    // mask = 0b0000, 1 - O, 2 - C, 3 - N, 4 - Z
+    u32 width_mask = size == 4 ? 0xFFFFFFFF : size == 2 ? 0xFFFF : 0xFF;
+
+    u32 sign_bit = 1u << (size * 8 - 1);
+
+    if (mask & 0b1) cpu->FR.Z = (value & width_mask) == 0;
+
+    if (mask & 0b10) cpu->FR.N = (value & sign_bit) != 0;
+
+    if (mask & 0b100) cpu->FR.C = value > width_mask;
+
+    if (mask & 0b1000) {
+        u32 a = values[0];
+        u32 b = values[1];
+        u32 r = value;
+
+        cpu->FR.O = (~(a ^ b) & (a ^ r) & sign_bit) != 0;
+    }
+}
+
 InstructionDef instruction_table[] = {
     // class 0: ALU ops
     [ADD] = {"ADD", 3, add_handler},
