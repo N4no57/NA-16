@@ -16,10 +16,14 @@ typedef int32_t i32;
 typedef int64_t i64;
 
 typedef enum {
+    // class 0: ALU ops
     ADD = 0x00,
     SUB = 0x01,
+    // class 1: data movement
     MOV = 0x10,
+    // class 2: control flow
     JMP = 0x20
+    // class 3: system instructions
 } Ops;
 
 typedef enum {
