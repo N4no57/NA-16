@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "codegen.h"
+#include "../lib/error.h"
 
 void push_symbol(SymbolTable *table, NodeSymbol symbol) {
     if (table->count >= table->size) {
@@ -27,9 +28,31 @@ NodeSymbol *find_symbol(SymbolTable *table, char *symbol) {
     return nullptr;
 }
 
-void visit_NodeOperand1(const NodeOperand *operand, bool use_16bits);
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Symbol table generation
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void visit_NodeInstruction1(const NodeInstruction *node, SymbolTable *table, u64 *byte_pos) {
+void visit_NodeOperand1(NodeOperand *operand, bool use_16bits, u64 *byte_pos) {
+    if (operand->kind == REGISTER || operand->kind == REG_INDIRECT) {
+        return;
+    }
+
+    if (operand->kind == SYMBOL) {
+        return;
+    }
+
+    if (operand->kind == IMMEDIATE) {
+        if (!use_16bits) {
+            (*byte_pos)++;
+        } else {
+            *byte_pos += 2;
+        }
+    } else {
+        error(operand->pos, "Invalid operand type");
+    }
+}
+
+void visit_NodeInstruction1(NodeInstruction *node, SymbolTable *table, u64 *byte_pos) {
     InstructionSpec info = get_spec(node->mnemonic);
 
     u64 sig_id = 0;
@@ -41,6 +64,30 @@ void visit_NodeInstruction1(const NodeInstruction *node, SymbolTable *table, u64
 
     if (sig_id > 0) {
         *byte_pos += 2;
+    }
+
+    bool use_16bits = false;
+    if (node->operand_size == 0) {
+        for (i32 i = 0; i < sig->operand_count; i++) {
+            if (sig->kinds[i] == IMMEDIATE) {
+                use_16bits = node->operands[i].immediate > 255 ? true : false;
+                if (use_16bits) break;
+            }
+        }
+    } else {
+        if (node->operand_size == 2) {
+            use_16bits = true;
+        }
+    }
+
+    if (use_16bits) {
+        (*byte_pos)++;
+    }
+
+    *byte_pos += 2; // instruction encoding
+
+    for (int i = 0; i < node->operand_count; i++) {
+        visit_NodeOperand1(&node->operands[i], use_16bits, byte_pos);
     }
 }
 
@@ -66,10 +113,54 @@ void visit_NodeStatement1(NodeStatement *node, SymbolTable *table, u64 *byte_pos
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Symbol table usage
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void visit_NodeOperand2(NodeOperand *operand) {
+    if (operand->kind == REGISTER || operand->kind == REG_INDIRECT) {
+        return;
+    }
+
+    if (operand->kind == SYMBOL) {
+        return;
+    }
+
+    if (operand->kind == IMMEDIATE) {
+        return;
+    }
+
+    error(operand->pos, "Invalid operand type");
+}
+
+void visit_NodeInstruction2(NodeInstruction *node, SymbolTable *table) {
+    InstructionSpec info = get_spec(node->mnemonic);
+
+
+    for (int i = 0; i < node->operand_count; i++) {
+        visit_NodeOperand2(&node->operands[i]);
+    }
+}
+
+void visit_NodeStatement2(NodeStatement *node, SymbolTable *table) {
+    if (node->kind == ST_INSTRUCTION) {
+        visit_NodeInstruction2(&node->instruction, table);
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Symbol Pass
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void symbol_pass(NodeProgram *ast, SymbolTable *table) {
     if (!ast) return;
 
+    // generate symbol table
+    u64 byte_pos = 0;
     for (u64 i = 0; i < ast->count; i++) {
-        Visit
+        visit_NodeStatement1(&ast->statements[i], table, &byte_pos);
     }
+
+    // replace symbols with values
+
 }

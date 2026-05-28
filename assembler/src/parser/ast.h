@@ -26,9 +26,15 @@ typedef enum StatementKind {
     ST_SYMBOL
 } StatementKind;
 
+typedef enum {
+    SK_CONSTANT,
+    SK_LABEL
+} SymbolKind;
+
 typedef struct Node_Symbol {
     char *symbol_name;
     i32 value;
+    SymbolKind kind;
     Position pos;
 } NodeSymbol;
 

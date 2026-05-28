@@ -89,6 +89,7 @@ void parse_symbol(NodeSymbol *sym, TokenList *tokens, u64 *idx, Token *tok) {
     if (tok->type == TT_COLON) {
         consume(tokens, idx, tok);
         sym->value = -1;
+        sym->kind = SK_LABEL;
     } else if (tok->type == TT_EQUALS) {
         consume(tokens, idx, tok);
 
@@ -97,6 +98,7 @@ void parse_symbol(NodeSymbol *sym, TokenList *tokens, u64 *idx, Token *tok) {
         }
 
         sym->value = *(i32 *)tok->value;
+        sym->kind = SK_CONSTANT;
         consume(tokens, idx, tok);
     } else {
         error(tok->pos, "Expected ':' or '=' followed by an immediate");

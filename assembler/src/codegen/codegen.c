@@ -1,6 +1,7 @@
 #include "codegen.h"
 #include "../lib/error.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -198,6 +199,17 @@ void visit_NodeStatement(const NodeStatement *node, bytes *code) {
 
 void generate_code(NodeProgram *ast, bytes *code) {
     if (!ast) return;
+
+    SymbolTable table = {0};
+
+    symbol_pass(ast, &table);
+
+    if (error_count > 0 ) {
+        if (error_count == 1) printf("Found 1 error:\n");
+        else printf("Found %d errors:\n", error_count);
+
+        exit(EXIT_FAILURE);
+    }
 
     for (u64 i = 0; i < ast->count; i++) {
         visit_NodeStatement(&ast->statements[i], code);
