@@ -47,8 +47,20 @@ InstructionSpec ISA[] = {
             {3, {REG_INDIRECT, IMMEDIATE, REGISTER}},
             {3, {REG_INDIRECT, REGISTER, IMMEDIATE}},
             {3, {REG_INDIRECT, IMMEDIATE, IMMEDIATE}},
+            {3, {REGISTER, SYMBOL, REGISTER}},
+            {3, {REGISTER, REGISTER, SYMBOL}},
+            {3, {REGISTER, SYMBOL, SYMBOL}},
+            {3, {REGISTER, REGISTER, REG_INDIRECT}},
+            {3, {REGISTER, REG_INDIRECT, REGISTER}},
+            {3, {REGISTER, REG_INDIRECT, REG_INDIRECT}},
+            {3, {REGISTER, SYMBOL, REG_INDIRECT}},
+            {3, {REGISTER, REG_INDIRECT, SYMBOL}},
+            {3, {REG_INDIRECT, REGISTER, REGISTER}},
+            {3, {REG_INDIRECT, SYMBOL, REGISTER}},
+            {3, {REG_INDIRECT, REGISTER, SYMBOL}},
+            {3, {REG_INDIRECT, SYMBOL, SYMBOL}},
         },
-        49-36
+        25
     },
     {
         "SUB",
@@ -68,9 +80,21 @@ InstructionSpec ISA[] = {
             {3, {REG_INDIRECT, IMMEDIATE, REGISTER}},
             {3, {REG_INDIRECT, REGISTER, IMMEDIATE}},
             {3, {REG_INDIRECT, IMMEDIATE, IMMEDIATE}},
+            {3, {REGISTER, SYMBOL, REGISTER}},
+            {3, {REGISTER, REGISTER, SYMBOL}},
+            {3, {REGISTER, SYMBOL, SYMBOL}},
+            {3, {REGISTER, REGISTER, REG_INDIRECT}},
+            {3, {REGISTER, REG_INDIRECT, REGISTER}},
+            {3, {REGISTER, REG_INDIRECT, REG_INDIRECT}},
+            {3, {REGISTER, SYMBOL, REG_INDIRECT}},
+            {3, {REGISTER, REG_INDIRECT, SYMBOL}},
+            {3, {REG_INDIRECT, REGISTER, REGISTER}},
+            {3, {REG_INDIRECT, SYMBOL, REGISTER}},
+            {3, {REG_INDIRECT, REGISTER, SYMBOL}},
+            {3, {REG_INDIRECT, SYMBOL, SYMBOL}},
+            },
+            25
         },
-        70-57
-    },
     {
         "MOV",
         1,
@@ -79,18 +103,23 @@ InstructionSpec ISA[] = {
             {2, {REGISTER, REGISTER}},
             {2, {REGISTER, IMMEDIATE}},
             {2, {REGISTER, REG_INDIRECT}},
+            {2, {REGISTER, SYMBOL}},
             {2, {REG_INDIRECT, REGISTER}},
             {2, {REG_INDIRECT, IMMEDIATE}},
-        }
+        },
+        6
     },
         {
         "JMP",
         2,
         0,
-        {1,{
-
-            }
-        }
+        {
+            {1, {REGISTER}},
+            {1, {IMMEDIATE}},
+            {1, {REG_INDIRECT}},
+            {1, {SYMBOL}}
+        },
+        4
     }
 };
 
