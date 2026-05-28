@@ -8,8 +8,8 @@ i32 validate_instruction(const NodeInstruction* inst) {
 
     if (spec.mnemonic == nullptr) return 0;
 
-    if (match_signature(inst, &spec.signature)) {
-        return 1;
+    for (i32 j = 0; j < spec.signature_count; j++) {
+        if (match_signature(inst, &spec.signatures[j])) return 1;
     }
 
     error(inst->pos, "Invalid instruction \"%s\"", inst->mnemonic);
