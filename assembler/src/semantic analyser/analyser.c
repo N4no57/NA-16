@@ -12,14 +12,20 @@ i32 validate_instruction(const NodeInstruction* inst) {
         if (match_signature(inst, &spec.signatures[j])) return 1;
     }
 
-    error(inst->pos, "Invalid instruction \"%s\"", inst->mnemonic);
     return 0;
 }
 
 void analyse(const NodeProgram* ast) {
     for (u64 i = 0; i < ast->count; i++) {
         if (ast->statements[i].kind == ST_INSTRUCTION) {
-            validate_instruction(&ast->statements[i].instruction);
+            i32 old_error_count = error_count;
+            i32 status = validate_instruction(&ast->statements[i].instruction);
+            if (status == 0 && old_error_count == error_count) {
+                error(ast->statements[i].instruction.pos,
+                    "Invalid instruction \"%s\"",
+                    ast->statements[i].instruction.mnemonic
+                );
+            }
         }
     }
 }
