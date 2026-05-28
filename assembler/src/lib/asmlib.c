@@ -54,37 +54,42 @@ void toLower(u8 *str) {
     }
 }
 
-u64 ismnemonic(u8 *string) {
+bool ismnemonic(u8 *string) {
     InstructionSpec spec = get_spec((char *)string);
     if (spec.signature_count == -1) {
-        return 0;
+        return false;
     }
-    return 1;
+    return true;
 }
 
-u64 isregister(const u8 *string) {
+bool isregister(const u8 *string) {
     u8 tmp[MAXTEMPSIZE];
     strcpy((char *)tmp, (char *)string);
     toUpper(tmp);
     for (int i = 0; i < sizeof(registers) / sizeof(registers[0]); i++) {
         if (strcmp((char *)tmp, registers[i]) == 0) {
-            return 1;
+            return true;
         }
     }
-    return 0;
+    return false;
 }
 
-u64 issizespec(const u8 *string) {
+bool isSPR(registers_t reg) {
+    if (reg == NONE) return false;
+    return reg >= PC ? true : false;
+}
+
+bool issizespec(const u8 *string) {
     u8 tmp[MAXTEMPSIZE];
     strcpy((char *)tmp, (char *)string);
     toUpper(tmp);
     for (int i = 0; i < sizeof(size_specs) / sizeof(size_specs[0]); i++) {
         if (size_specs[i] == nullptr) continue;
         if (strcmp((char *)tmp, size_specs[i]) == 0) {
-            return 1;
+            return true;
         }
     }
-    return 0;
+    return false;
 }
 
 i64 getregister(const u8 *string) {

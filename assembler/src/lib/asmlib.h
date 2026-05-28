@@ -72,9 +72,10 @@ InstructionSpec get_spec(const char *mnemonic);
 void toUpper(u8 *str);
 void toLower(u8 *str);
 
-u64 ismnemonic(u8 *string);
-u64 isregister(const u8 *string);
-u64 issizespec(const u8 *string);
+bool ismnemonic(u8 *string);
+bool isregister(const u8 *string);
+bool isSPR(registers_t reg);
+bool issizespec(const u8 *string);
 
 i64 getregister(const u8 *string);
 i64 getsizespec(const u8 *string);
