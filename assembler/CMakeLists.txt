@@ -8,7 +8,7 @@ add_executable(Assembler src/main.c
         src/lib/asmlib.c src/lib/asmlib.h
         src/parser/parser.c src/parser/parser.h
         src/parser/ast.h
-        "src/semantic analyser/analyser.c" "src/semantic analyser/analyser.h"
+        src/semantic_analyser/analyser.c src/semantic_analyser/analyser.h
         src/codegen/codegen.c src/codegen/codegen.h
         src/lib/error.c src/lib/error.h
         src/assembler.c src/assembler.h

@@ -8,31 +8,7 @@ i32 validate_registers(const NodeInstruction* inst, const InstructionSpec* spec)
     strcpy(buff, spec->mnemonic);
     toUpper((u8 *)buff);
 
-    if (strcmp(buff, "MOVSR") == 0) {
-        if (inst->operands[0].reg >= PC) {
-            error(inst->operands[0].pos, "Invalid register (Must be a GP Register)");
-            return 0;
-        }
-
-        if (inst->operands[1].reg < PC) {
-            error(inst->operands[1].pos, "Invalid register (Must be a SP Register)");
-            return 0;
-        }
-
-        return 1;
-    }
-
-    if (strcmp(buff, "MOVRS") == 0) {
-        if (inst->operands[0].reg < PC) {
-            error(inst->operands[0].pos, "Invalid register (Must be a SP Register)");
-            return 0;
-        }
-
-        if (inst->operands[1].reg >= PC) {
-            error(inst->operands[1].pos, "Invalid register (Must be a GP Register)");
-            return 0;
-        }
-
+    if (strcmp(buff, "MOV") == 0) {
         return 1;
     }
 
