@@ -19,11 +19,25 @@ typedef enum {
     // class 0: ALU ops
     ADD = 0x00,
     SUB = 0x01,
+    AND = 0x02,
+    OR = 0x03,
+    XOR = 0x04,
+    NOT = 0x05,
+
     // class 1: data movement
     MOV = 0x10,
+    MOVSR = 0x11,
+    MOVRS = 0x12,
+    PUSH = 0x13,
+    POP = 0x14,
+    LEA = 0x15,
+
     // class 2: control flow
-    JMP = 0x20
+    JMP = 0x20,
+
     // class 3: system instructions
+    NOP = 0x30,
+    HLT = 0x31
 } Ops;
 
 typedef enum {
