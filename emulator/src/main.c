@@ -20,7 +20,8 @@ int main() {
     fread(program, 1, size, f);
     fclose(f);
 
-    memcpy(&cpu.memory[0xF000], program, size);
+    memcpy(&cpu.memory[0x0000], program, size);
+    cpu.PC = 0x0000;
 
     free(program);
 
