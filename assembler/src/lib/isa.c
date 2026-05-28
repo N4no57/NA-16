@@ -285,6 +285,8 @@ InstructionSpec ISA[] = {
     }
 };
 
+u64 isa_size = sizeof(ISA) / sizeof(ISA[0]);
+
 InstructionSpec get_spec(const char *mnemonic) {
     char buff[MAXTEMPSIZE];
     strcpy(buff, mnemonic);
