@@ -4,7 +4,11 @@
 #include "analyser.h"
 
 i32 validate_registers(const NodeInstruction* inst, const InstructionSpec* spec) {
-    if (strcmp(spec->mnemonic, "MOVSR") == 0) {
+    char buff[MAXTEMPSIZE];
+    strcpy(buff, spec->mnemonic);
+    toUpper((u8 *)buff);
+
+    if (strcmp(buff, "MOVSR") == 0) {
         if (inst->operands[0].reg >= PC) {
             error(inst->operands[0].pos, "Invalid register (Must be a GP Register)");
             return 0;
@@ -18,7 +22,7 @@ i32 validate_registers(const NodeInstruction* inst, const InstructionSpec* spec)
         return 1;
     }
 
-    if (strcmp(spec->mnemonic, "MOVRS") == 0) {
+    if (strcmp(buff, "MOVRS") == 0) {
         if (inst->operands[0].reg < PC) {
             error(inst->operands[0].pos, "Invalid register (Must be a SP Register)");
             return 0;

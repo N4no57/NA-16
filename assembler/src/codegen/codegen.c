@@ -89,7 +89,19 @@ u16 pack_registers(const InstructionSignature *sig, u8 **op, u8 op_count) {
     return reg_pack;
 }
 
-void fold(const InstructionSignature *sig, bool use_16bits, u8 inst_slot, u8 *buff, u8 *idx) {
+void fold(const char *mnemonic, const InstructionSignature *sig, bool use_16bits, u8 inst_slot, u8 *buff, u8 *idx) {
+    char mnemonic_buff[MAXTEMPSIZE];
+    strcpy(mnemonic_buff, mnemonic);
+    toUpper((u8 *)mnemonic_buff);
+
+    if (strcmp(mnemonic_buff, "HLT") == 0) {
+        return;
+    }
+
+    if (strcmp(mnemonic_buff, "NOP") == 0) {
+        return;
+    }
+
     if (sig->operand_count == 0) {
         fatal((Position){nullptr, nullptr, 0, 0, 0}, "AAAAAAAAAAAAAAAAAAAAAAAAAA");
     }
@@ -190,7 +202,7 @@ void visit_NodeInstruction(const NodeInstruction *node, bytes *code) {
 
     buff[inst_slot] |= (info.class & 0x7) << 5 | (info.opcode & 0xF) << 1;
 
-    fold(sig, use_16bits, inst_slot, buff, &buff_idx);
+    fold(node->mnemonic, sig, use_16bits, inst_slot, buff, &buff_idx);
 
     push_bytes(code, buff, &buff_idx);
 }
