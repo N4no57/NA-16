@@ -6,7 +6,7 @@
 #include "codegen/codegen.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
-#include "semantic analyser/analyser.h"
+#include "semantic_analyser/analyser.h"
 #include "lib/error.h"
 
 void write_binary(const char *file, const bytes code) {
