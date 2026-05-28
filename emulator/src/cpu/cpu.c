@@ -34,10 +34,13 @@ void set_reg(CPU *cpu, const u16 reg, const u16 value) {
             break;
         case 0x1 << 6:
             cpu->PC = value;
+            break;
         case 0x2 << 6:
             cpu->SP = value;
+            break;
         case 0x3 << 6:
             cpu->BP = value;
+            break;
         default:
             break;
     }
