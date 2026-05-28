@@ -1,4 +1,4 @@
-#include "../inst.h"
+#include "../../inst.h"
 
 void add_handler(CPU *cpu, Instruction *inst) {
     const u16 l = operand_read(cpu, inst->ops[1]);
