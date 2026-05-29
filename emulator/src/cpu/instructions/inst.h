@@ -40,6 +40,9 @@ void movrs_handler(CPU *cpu, Instruction *inst);
 void push_handler(CPU *cpu, Instruction *inst);
 void pop_handler(CPU *cpu, Instruction *inst);
 void lea_handler(CPU *cpu, Instruction *inst);
+void movs_handler(CPU *cpu, Instruction *inst);
+void pushs_handler(CPU *cpu, Instruction *inst);
+void pops_handler(CPU *cpu, Instruction *inst);
 
 // class 2: control flow
 void jmp_handler(CPU *cpu, Instruction *inst);

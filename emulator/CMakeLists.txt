@@ -23,4 +23,7 @@ add_executable(Emulator src/main.c
         src/cpu/instructions/handlers/data_movement/lea.c
 
         src/cpu/instructions/handlers/control_flow/jmp.c
+        src/cpu/instructions/handlers/data_movement/pushs.c
+        src/cpu/instructions/handlers/data_movement/movs.c
+        src/cpu/instructions/handlers/data_movement/pops.c
 )

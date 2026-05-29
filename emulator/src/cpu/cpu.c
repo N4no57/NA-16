@@ -111,7 +111,8 @@ void execute_inst(CPU *cpu) {
 }
 
 void execute(CPU *cpu) {
-    while (!should_stop) {
+    while (1) {
         execute_inst(cpu);
+        if (should_stop) break;
     }
 }
