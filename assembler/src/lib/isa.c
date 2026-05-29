@@ -265,6 +265,24 @@ InstructionSpec ISA[] = {
             {2, {REGISTER, REGISTER}},
         }
     },
+    {
+        "PUSHS",
+        1,
+        0x7,
+        {
+            {1, {REGISTER}},
+            {1, {REG_INDIRECT}},
+        }
+    },
+    {
+        "POPS",
+        1,
+        0x8,
+        {
+            {1, {REGISTER}},
+            {1, {REG_INDIRECT}},
+        }
+    },
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// class 2: control flow
