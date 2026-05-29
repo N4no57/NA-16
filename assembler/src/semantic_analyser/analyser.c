@@ -12,6 +12,14 @@ i32 validate_registers(const NodeInstruction* inst, const InstructionSpec* spec)
         return 1;
     }
 
+    if (strcmp(buff, "PUSH") == 0) {
+        return 1;
+    }
+
+    if (strcmp(buff, "POP") == 0) {
+        return 1;
+    }
+
     for (u64 i = 0; i < inst->operand_count; i++) {
         if (inst->operands[i].reg >= PC) {
             error(inst->operands[0].pos, "Invalid register (Must be a GP Register)");
