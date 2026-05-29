@@ -118,6 +118,9 @@ InstructionDef instruction_table[] = {
     [PUSH] = {"PUSH", 1, push_handler},
     [POP] = {"POP", 1, pop_handler},
     [LEA] = {"LEA", 2, lea_handler},
+    [MOVS] = {"MOVS", 2, movs_handler},
+    [PUSHS] = {"PUSHS", 1, pushs_handler},
+    [POPS] = {"POPS", 1, pops_handler},
 
     // class 2: control flow
     [JMP] = {"JMP", 1, jmp_handler},

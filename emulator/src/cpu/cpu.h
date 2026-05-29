@@ -31,6 +31,9 @@ typedef enum {
     PUSH = 0x13,
     POP = 0x14,
     LEA = 0x15,
+    MOVS = 0x16,
+    PUSHS = 0x17,
+    POPS = 0x18,
 
     // class 2: control flow
     JMP = 0x20,
