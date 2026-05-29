@@ -13,9 +13,9 @@ typedef struct {
     u64 size;
 } SymbolTable;
 
-NodeSymbol *find_symbol(SymbolTable *table, char *symbol);
+NodeSymbol *find_symbol(const SymbolTable *table, const char *symbol);
 
-void symbol_pass(NodeProgram *ast, SymbolTable *symtbl);
+void symbol_pass(NodeProgram *ast);
 void generate_code(NodeProgram *ast, bytes *code);
 
 #endif //NA_16_CODEGEN_H
