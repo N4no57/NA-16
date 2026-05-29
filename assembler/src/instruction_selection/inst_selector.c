@@ -53,6 +53,14 @@ void lower_mov(NodeInstruction *inst) {
     }
 }
 
+void lower_push(NodeInstruction *inst) {
+
+}
+
+void lower_pop(NodeInstruction *inst) {
+
+}
+
 void lower_instruction(NodeInstruction *inst) {
     pseudo_op op = get_pseudo_op(inst->mnemonic);
     if (op == PSO_NONE) return;
