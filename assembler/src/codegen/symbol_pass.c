@@ -302,6 +302,6 @@ void symbol_pass(NodeProgram *ast) {
     // replace symbols with values
     byte_pos = 0;
     for (u64 i = 0; i < ast->count; i++) {
-        visit_NodeStatement2(&ast->statements[i], &old, &byte_pos);
+        visit_NodeStatement2(&ast->statements[i], old_ptr, &byte_pos);
     }
 }
