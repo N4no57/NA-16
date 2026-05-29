@@ -4,7 +4,9 @@
 #include <string.h>
 
 char *pseudo_op_table[] = {
-    [MOV] = "MOV"
+    [MOV] = "MOV",
+    [PUSH] = "PUSH",
+    [POP] = "POP",
 };
 
 u64 table_size = sizeof(pseudo_op_table)/sizeof(pseudo_op_table[0]);

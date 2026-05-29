@@ -5,6 +5,8 @@
 
 typedef enum {
     MOV,
+    PUSH,
+    POP,
     PSO_NONE
 } pseudo_op;
 
