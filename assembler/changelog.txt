@@ -1,5 +1,6 @@
 1.5.3:
- - 
+ - added special register usage of push and pop
+ - movsr and movrs now can use SPR in register indirect
 
 1.5.2:
  - added architecture for pseudo ops

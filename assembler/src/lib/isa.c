@@ -205,17 +205,19 @@ InstructionSpec ISA[] = {
         6
     },
     {
-        "MOVSR",
+        "MOVSR", // dest is GPR and source is a usage of an SPR
         1,
         0x1,
         {
             {2, {REGISTER, REGISTER}},
             {2, {REG_INDIRECT, REGISTER}},
+            {2, {REGISTER, REG_INDIRECT}},
+            {2, {REG_INDIRECT, REG_INDIRECT}},
         },
-        2
+        4
     },
     {
-        "MOVRS",
+        "MOVRS", // dest is usage of SPR and source is SPR/immediate/memory...
         1,
         0x2,
         {
@@ -223,8 +225,11 @@ InstructionSpec ISA[] = {
             {2, {REGISTER, REG_INDIRECT}},
             {2, {REGISTER, IMMEDIATE}},
             {2, {REGISTER, SYMBOL}},
+            {2, {REG_INDIRECT, REGISTER}},
+            {2, {REG_INDIRECT, IMMEDIATE}},
+            {2, {REG_INDIRECT, SYMBOL}},
         },
-        4
+        7
     },
     {
         "PUSH",
