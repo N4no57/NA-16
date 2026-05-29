@@ -1,3 +1,8 @@
+1.5.4:
+ - fix the entire 2 pass symbol resolver
+ - make 2 pass symbol resolver 3 pass
+ - add ability to have '_' at the start and anywhere else in an identifier
+
 1.5.3:
  - added special register usage of push and pop
  - movsr and movrs now can use SPR in register indirect
