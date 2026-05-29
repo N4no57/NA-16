@@ -23,14 +23,18 @@ pseudo_op get_pseudo_op(char *mnemonic) {
     return PSO_NONE;
 }
 
-void lower_mov(NodeInstruction *inst) {
-    bool is_SPR[2] = {false, false};
-
+void get_SPR_usage(NodeInstruction *inst, bool *is_SPR) {
     for (u8 i = 0; i < inst->operand_count; i++) {
-        if (inst->operands[i].kind == REGISTER) {
+        if (inst->operands[i].kind == REGISTER || inst->operands[i].kind == REG_INDIRECT) {
             is_SPR[i] = isSPR(inst->operands[i].reg);
         }
     }
+}
+
+void lower_mov(NodeInstruction *inst) {
+    bool is_SPR[2] = {false, false};
+
+    get_SPR_usage(inst, is_SPR);
 
     if (!is_SPR[0] && !is_SPR[1]) return;
 
