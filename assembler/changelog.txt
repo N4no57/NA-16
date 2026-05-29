@@ -1,0 +1,12 @@
+1.5.3:
+ - 
+
+1.5.2:
+ - added architecture for pseudo ops
+ - MOV instruction can be used on all instructions and assembler corrects it
+
+1.5.1:
+ - fixed minor bug with symbols
+
+1.5.0:
+ - added symbols to assembler so that labels and constants can be used
