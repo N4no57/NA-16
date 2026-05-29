@@ -114,33 +114,31 @@ void visit_NodeStatement1(NodeStatement *node, SymbolTable *table, u64 *byte_pos
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// Symbol table usage
+/// Symbol table correction
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void visit_NodeOperand2(NodeOperand *operand, SymbolTable *table, bool use_16bits, u64 *byte_pos) {
+void visit_NodeOperandRecalc(NodeOperand *operand, SymbolTable *table, bool use_16bits, u64 *byte_pos) {
     if (operand->kind == REGISTER || operand->kind == REG_INDIRECT) {
         return;
     }
 
     if (operand->kind == SYMBOL) {
         NodeSymbol *symbol = find_symbol(table, operand->symbol_name);
-        if (symbol->value > 255) {
-            u8 inc_by = 0;
-            if (!use_16bits) inc_by++;
-            inc_by++;
 
-            for (u64 i = 0; i < table->count; i++) {
-                NodeSymbol *sym = &table->symbols[i];
-                if (sym->kind == SK_LABEL) {
-                    sym->value += inc_by;
-                }
+        u8 inc_by = 0;
+        if (!use_16bits && symbol->value > 255) inc_by += 2; // account for new prefix and extra byte for the symbol
+        else if (use_16bits) inc_by++;
+        inc_by++;
+
+        for (u64 i = 0; i < table->count; i++) {
+            NodeSymbol *sym = &table->symbols[i];
+            if (sym->kind == SK_LABEL && sym->value >= *byte_pos) {
+                sym->value += inc_by;
             }
-
-            *byte_pos += inc_by;
         }
 
-        operand->kind = IMMEDIATE;
-        operand->immediate = symbol->value;
+        *byte_pos += inc_by;
+        return;
     }
 
     if (operand->kind == IMMEDIATE) {
@@ -154,7 +152,7 @@ void visit_NodeOperand2(NodeOperand *operand, SymbolTable *table, bool use_16bit
     }
 }
 
-void visit_NodeInstruction2(NodeInstruction *node, SymbolTable *table, u64 *byte_pos) {
+void visit_NodeInstructionRecalc(NodeInstruction *node, SymbolTable *table, u64 *byte_pos) {
     InstructionSpec info = get_spec(node->mnemonic);
 
     u64 sig_id = 0;
@@ -189,7 +187,43 @@ void visit_NodeInstruction2(NodeInstruction *node, SymbolTable *table, u64 *byte
     *byte_pos += 2; // instruction encoding
 
     for (int i = 0; i < node->operand_count; i++) {
-        visit_NodeOperand2(&node->operands[i], table, use_16bits, byte_pos);
+        visit_NodeOperandRecalc(&node->operands[i], table, use_16bits, byte_pos);
+    }
+}
+
+void visit_NodeStatementRecalc(NodeStatement *node, SymbolTable *table, u64 *byte_pos) {
+    if (node->kind == ST_INSTRUCTION) {
+        visit_NodeInstructionRecalc(&node->instruction, table, byte_pos);
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Symbol table usage
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void visit_NodeOperand2(NodeOperand *operand, SymbolTable *table) {
+    if (operand->kind == REGISTER || operand->kind == REG_INDIRECT) {
+        return;
+    }
+
+    if (operand->kind == SYMBOL) {
+        NodeSymbol *symbol = find_symbol(table, operand->symbol_name);
+
+        operand->kind = IMMEDIATE;
+        operand->immediate = symbol->value;
+        return;
+    }
+
+    if (operand->kind == IMMEDIATE) {
+        return;
+    }
+
+    error(operand->pos, "Invalid operand type");
+}
+
+void visit_NodeInstruction2(NodeInstruction *node, SymbolTable *table, u64 *byte_pos) {
+    for (int i = 0; i < node->operand_count; i++) {
+        visit_NodeOperand2(&node->operands[i], table);
     }
 }
 
@@ -210,6 +244,12 @@ void symbol_pass(NodeProgram *ast, SymbolTable *table) {
     u64 byte_pos = 0;
     for (u64 i = 0; i < ast->count; i++) {
         visit_NodeStatement1(&ast->statements[i], table, &byte_pos);
+    }
+
+    // recalculate and correct symbols
+    byte_pos = 0;
+    for (u64 i = 0; i < ast->count; i++) {
+        visit_NodeStatementRecalc(&ast->statements[i], table, &byte_pos);
     }
 
     // replace symbols with values
