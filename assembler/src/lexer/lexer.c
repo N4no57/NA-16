@@ -151,14 +151,14 @@ void tokenise(TokenList *list, u8 *filename, u8 *string) {
             continue;
         }
 
-        if (isalpha(string[*i])) {
+        if (isalpha(string[*i]) || string[*i] == '_') {
             t.pos = pos;
 
             u64 buf_capacity = 16;
             u64 buf_len = 0;
             u8 *buff = malloc(buf_capacity * sizeof(u8));
 
-            while (isalnum(string[*i])) {
+            while (isalnum(string[*i]) || string[*i] == '_') {
                 if (buf_len + 1 >= buf_capacity) {
                     buf_capacity *= 2;
                     void *tmp = realloc(buff, buf_capacity * sizeof(u8));
