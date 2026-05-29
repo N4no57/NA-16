@@ -54,11 +54,23 @@ void lower_mov(NodeInstruction *inst) {
 }
 
 void lower_push(NodeInstruction *inst) {
+    bool is_SPR = false;
 
+    get_SPR_usage(inst, &is_SPR);
+
+    if (is_SPR) {
+        inst->mnemonic = strdup("PUSHS");
+    }
 }
 
 void lower_pop(NodeInstruction *inst) {
+    bool is_SPR = false;
 
+    get_SPR_usage(inst, &is_SPR);
+
+    if (is_SPR) {
+        inst->mnemonic = strdup("POPS");
+    }
 }
 
 void lower_instruction(NodeInstruction *inst) {
@@ -67,6 +79,16 @@ void lower_instruction(NodeInstruction *inst) {
 
     if (op == MOV) {
         lower_mov(inst);
+        return;
+    }
+
+    if (op == PUSH) {
+        lower_push(inst);
+        return;
+    }
+
+    if (op == POP) {
+        lower_pop(inst);
         return;
     }
 }
