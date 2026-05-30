@@ -81,7 +81,7 @@ u16 pack_registers(const InstructionSignature *sig, u8 **op, u8 op_count) {
     u16 reg_pack = 0;
 
     for (i32 i = 0; i < op_count; i++) {
-        if (sig->kinds[i] == REGISTER) {
+        if (sig->kinds[i] == REGISTER || sig->kinds[i] == REG_INDIRECT) {
             reg_pack |= (*op[i] & 0x7) << (6 - 3 * i);
         }
     }
