@@ -353,7 +353,18 @@ u64 cond_jump_size = sizeof(cond_jump) / sizeof(cond_jump[0]);
 
 u64 isa_size = sizeof(ISA) / sizeof(ISA[0]);
 
-i64 is_cond_jump(const char *mnemonic) {
+bool is_cond_jump(const char *mnemonic) {
+    char buff[MAXTEMPSIZE];
+    strcpy(buff, mnemonic);
+    toUpper((u8 *)buff);
+
+    for (u64 i = 0; i < cond_jump_size; i++) {
+        if (strcmp(cond_jump[i], buff) == 0) return true;
+    }
+    return false;
+}
+
+i64 get_cond_jump(const char *mnemonic) {
     char buff[MAXTEMPSIZE];
     strcpy(buff, mnemonic);
     toUpper((u8 *)buff);
@@ -380,8 +391,8 @@ InstructionSpec get_spec(const char *mnemonic) {
     strcpy(buff, mnemonic);
     toUpper((u8 *)buff);
 
-    i64 cond_jump_idx;
-    if ((cond_jump_idx = is_cond_jump(buff)) >= 0) {
+    if (is_cond_jump(buff)) {
+        i64 cond_jump_idx = get_cond_jump(buff);
         InstructionSpec ret = {0};
         memcpy(ret.mnemonic, &cond_jump_template, sizeof(InstructionSpec));
         ret.mnemonic = strdup(cond_jump[cond_jump_idx]);
