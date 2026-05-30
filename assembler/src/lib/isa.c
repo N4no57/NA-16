@@ -359,15 +359,43 @@ i64 is_cond_jump(const char *mnemonic) {
     toUpper((u8 *)buff);
 
     for (u64 i = 0; i < cond_jump_size; i++) {
-        if (strcmp(cond_jump[i], buff) == 0) return i;
+        if (strcmp(cond_jump[i], buff) == 0) return (i64)i;
     }
     return -1;
 }
+
+InstructionSpec cond_jump_template = {
+    nullptr,
+    2,
+    0x0,
+    {
+        {1, {DISPLACEMENT}},
+        {1, {SYMBOL}},
+    },
+    2
+};
 
 InstructionSpec get_spec(const char *mnemonic) {
     char buff[MAXTEMPSIZE];
     strcpy(buff, mnemonic);
     toUpper((u8 *)buff);
+
+    i64 cond_jump_idx;
+    if ((cond_jump_idx = is_cond_jump(buff)) >= 0) {
+        InstructionSpec ret = {0};
+        memcpy(ret.mnemonic, &cond_jump_template, sizeof(InstructionSpec));
+        ret.mnemonic = strdup(cond_jump[cond_jump_idx]);
+
+        if (cond_jump_idx == 0 || cond_jump_idx == 1) {
+            ret.opcode = 1;
+        } else if (cond_jump_idx == 2 || cond_jump_idx == 3) {
+            ret.opcode = 2;
+        } else {
+            ret.opcode = cond_jump_idx - 1;
+        }
+
+        return ret;
+    }
 
     for (u64 i = 0; i < isa_size; i++) {
         if (strcmp(ISA[i].mnemonic, buff) == 0) {
