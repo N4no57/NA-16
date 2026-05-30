@@ -25,6 +25,23 @@ void parse_operand(NodeOperand *operand, TokenList *tokens, u64 *idx, Token *tok
         operand->kind = IMMEDIATE;
         operand->immediate = *(i64 *)tok->value;
         consume(tokens, idx, tok); // consume immediate
+    } else if (tok->type == TT_PLUS || tok->type == TT_MINUS) {
+        // special shit for conditional jumps
+        operand->kind = DISPLACEMENT;
+        bool sign = tok->type == TT_MINUS;
+        consume(tokens, idx, tok); // consume '+'/'-'
+
+        if (tok->type != TT_IMMEDIATE) {
+            error(tok->pos, "Expected an immediate after '+'/'-'");
+            return;
+        }
+
+        operand->immediate = *(i64 *)tok->value;
+        if (sign) {
+            operand->immediate *= -1;
+        }
+
+        consume(tokens, idx, tok); // consume number
     } else if (tok->type == TT_L_SQUARE_BRACKET) {
         // register indirect only (for now)
         operand->kind = REG_INDIRECT;
