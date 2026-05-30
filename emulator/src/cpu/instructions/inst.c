@@ -38,9 +38,14 @@ void collect_operands(CPU *cpu, Instruction *inst, const u8 *inst_ops) { // curr
 
     if (is_cond_jump(inst)) {
         if (inst->ops[0].size == 1) {
-            inst->ops[0].displacement = (i16)fetch_byte(cpu);
+            i8 value = (i8)fetch_byte(cpu);
+            inst->ops[0].displacement = (i16)value;
         } else {
-            inst->ops[0].displacement = ((i16)fetch_byte(cpu)) | ((i16)fetch_byte(cpu) << 8);
+            u8 bytes[2];
+            bytes[0] = fetch_byte(cpu);
+            bytes[1] = fetch_byte(cpu);
+            u16 u = (u16)bytes[0] | ((u16)bytes[1] << 8);
+            inst->ops[0].displacement = (i16)u;
         }
         return;
     }

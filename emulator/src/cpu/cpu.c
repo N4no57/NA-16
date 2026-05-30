@@ -94,13 +94,13 @@ bool should_stop = false;
 void execute_inst(CPU *cpu) {
     Instruction inst = decode(cpu);
 
+    const InstructionDef *def = fetch_InstDef(inst.opcode);
+
     if (inst.opcode == NOP) return;
     if (inst.opcode == HLT) {
         should_stop = true;
         return;
     }
-
-    const InstructionDef *def = fetch_InstDef(inst.opcode);
 
     if (!def->handler) {
         fprintf(stderr, "Either invalid instruction or an instruction has no handler\n");
