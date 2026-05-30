@@ -168,7 +168,7 @@ void visit_NodeInstruction(const NodeInstruction *node, bytes *code) {
         }
 
         if (MEX_prefix == 0) {
-            fatal(node->pos, "Excuse me what the actual fuck are you doing in my house");
+            fatal(node->pos, "MEX prefix error\n");
         }
 
         buff[buff_idx++] = (MEX_prefix & 0xFF00) >> 8;
