@@ -41,6 +41,7 @@ typedef enum operand_types {
     REGISTER,
     IMMEDIATE,
     REG_INDIRECT,
+    DISPLACEMENT,
     SYMBOL
 } operand_types;
 
