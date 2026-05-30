@@ -117,6 +117,22 @@ void tokenise(TokenList *list, u8 *filename, u8 *string) {
             continue;
         }
 
+        if (string[*i] == '+') {
+            t.pos = pos;
+            t.type = TT_PLUS;
+            token_push(list, t);
+            advance(&pos, string);
+            continue;
+        }
+
+        if (string[*i] == '_') {
+            t.pos = pos;
+            t.type = TT_MINUS;
+            token_push(list, t);
+            advance(&pos, string);
+            continue;
+        }
+
         if (string[*i] == ',') {
             t.pos = pos;
             t.type = TT_COMMA;
