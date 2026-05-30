@@ -330,6 +330,27 @@ InstructionSpec ISA[] = {
     }
 };
 
+char *cond_jump[] = {
+    "JZ", "JE",     // ZF = 1
+    "JNZ", "JNE",   // ZF = 0
+    "JC",           // CF = 1
+    "JNC",          // CF = 0
+    "JO",           // OF = 1
+    "JNO",          // OF = 0
+    "JS",           // SF = 1
+    "JNS",          // SF = 0
+    "JA",           // ZF = 0 and CF = 0
+    "JAE",          // CF = 0
+    "JB",           // CD = 1
+    "JBE",          // ZF = 1 or CF = 1
+    "JG",           // ZF = 0 and SF = OF
+    "JGE",          // SF = OF
+    "JL",           // SF != OF
+    "JLE",          // ZF = 1 or sf != OF
+};
+
+u64 cond_jump_size = sizeof(cond_jump) / sizeof(cond_jump[0]);
+
 u64 isa_size = sizeof(ISA) / sizeof(ISA[0]);
 
 InstructionSpec get_spec(const char *mnemonic) {
