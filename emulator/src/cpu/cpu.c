@@ -103,7 +103,7 @@ void execute_inst(CPU *cpu) {
     const InstructionDef *def = fetch_InstDef(inst.opcode);
 
     if (!def->handler) {
-        fprintf(stderr, "Either invalid instruction or an instruction has no handler?\n");
+        fprintf(stderr, "Either invalid instruction or an instruction has no handler\n");
         exit(EXIT_FAILURE);
     }
 
