@@ -37,6 +37,20 @@ typedef enum {
 
     // class 2: control flow
     JMP = 0x20,
+    JZ = 0x21, // JE = 0x21,
+    JNZ = 0x22, // JNE = 0x22,
+    JC = 0x23, // JB = 0x23,
+    JNC = 0x24, // JAE = 0x24,
+    JO = 0x25,
+    JNO = 0x26,
+    JS = 0x27,
+    JNS = 0x28,
+    JA = 0x29,
+    JBE = 0x2A,
+    JG = 0x2B,
+    JGE = 0x2C,
+    JL = 0x2D,
+    JLE = 0x2E,
 
     // class 3: system instructions
     NOP = 0x30,

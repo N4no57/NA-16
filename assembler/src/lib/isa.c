@@ -333,15 +333,13 @@ InstructionSpec ISA[] = {
 char *cond_jump[] = {
     "JZ", "JE",     // ZF = 1
     "JNZ", "JNE",   // ZF = 0
-    "JC",           // CF = 1
-    "JNC",          // CF = 0
+    "JC", "JB",     // CF = 1
+    "JNC", "JAE",   // CF = 0
     "JO",           // OF = 1
     "JNO",          // OF = 0
     "JS",           // SF = 1
     "JNS",          // SF = 0
     "JA",           // ZF = 0 and CF = 0
-    "JAE",          // CF = 0
-    "JB",           // CD = 1
     "JBE",          // ZF = 1 or CF = 1
     "JG",           // ZF = 0 and SF = OF
     "JGE",          // SF = OF
@@ -396,6 +394,27 @@ InstructionSpec get_spec(const char *mnemonic) {
         InstructionSpec ret = {0};
         memcpy(&ret, &cond_jump_template, sizeof(InstructionSpec));
         ret.mnemonic = strdup(cond_jump[cond_jump_idx]);
+
+        switch (cond_jump_idx) {
+            case 0:
+            case 1:
+                ret.opcode = 1;
+                break;
+            case 2:
+            case 3:
+                ret.opcode = 2;
+                break;
+            case 4:
+            case 5:
+                ret.opcode = 3;
+                break;
+            case 6:
+            case 7:
+                ret.opcode = 4;
+                break;
+            default:
+                ret.opcode = cond_jump_idx - 5;
+        }
 
         if (cond_jump_idx == 0 || cond_jump_idx == 1) {
             ret.opcode = 1;
