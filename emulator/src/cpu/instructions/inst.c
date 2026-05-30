@@ -9,6 +9,12 @@ bool has_AEX(const Instruction *inst) {
     return (inst->prefixes.AEX & 0xF0) == 0x90 ? true : false;
 }
 
+bool is_cond_jump(const Instruction *inst) {
+    if (inst->opcode >= JZ && inst->opcode <= JLE) return true;
+
+    return false;
+}
+
 void collect_operands(CPU *cpu, Instruction *inst, const u8 *inst_ops) { // current implementation 3 operand only
     if (has_MEX(inst)) {
         for (u8 i = 0; i < inst->op_count; i++) {
@@ -28,6 +34,15 @@ void collect_operands(CPU *cpu, Instruction *inst, const u8 *inst_ops) { // curr
         for (u8 i = 0; i < inst->op_count; i++) {
             inst->ops[i].size = 1;
         }
+    }
+
+    if (is_cond_jump(inst)) {
+        if (inst->ops[0].size == 1) {
+            inst->ops[0].displacement = (i16)fetch_byte(cpu);
+        } else {
+            inst->ops[0].displacement = ((i16)fetch_byte(cpu)) | ((i16)fetch_byte(cpu) << 8);
+        }
+        return;
     }
 
     for (u64 i = 0; i < inst->op_count; i++) {

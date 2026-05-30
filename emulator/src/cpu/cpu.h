@@ -68,6 +68,7 @@ typedef struct {
     struct {
         u16 reg;
         u16 immediate;
+        i16 displacement;
     };
     u8 size;
 } Operand;

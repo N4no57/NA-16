@@ -2,7 +2,6 @@
 
 void jbe_handler(CPU *cpu, Instruction *inst) {
     if (!cpu->FR.Z && !cpu->FR.C) return;
-    const u16 address = operand_read(cpu, inst->ops[0]);
 
-    cpu->PC = address;
+    cpu->PC += inst->ops[0].displacement;
 }
