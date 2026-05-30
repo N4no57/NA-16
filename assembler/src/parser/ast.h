@@ -35,7 +35,7 @@ typedef enum {
 
 typedef struct {
     char *symbol_name;
-    i32 value;
+    i64 value;
     SymbolKind kind;
     Position pos;
 } NodeSymbol;

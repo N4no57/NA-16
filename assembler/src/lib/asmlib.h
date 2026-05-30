@@ -73,6 +73,7 @@ InstructionSpec get_spec(const char *mnemonic);
 void toUpper(u8 *str);
 void toLower(u8 *str);
 
+bool is_cond_jump(const char *mnemonic);
 bool ismnemonic(u8 *string);
 bool isregister(const u8 *string);
 bool isSPR(registers_t reg);

@@ -394,7 +394,7 @@ InstructionSpec get_spec(const char *mnemonic) {
     if (is_cond_jump(buff)) {
         i64 cond_jump_idx = get_cond_jump(buff);
         InstructionSpec ret = {0};
-        memcpy(ret.mnemonic, &cond_jump_template, sizeof(InstructionSpec));
+        memcpy(&ret, &cond_jump_template, sizeof(InstructionSpec));
         ret.mnemonic = strdup(cond_jump[cond_jump_idx]);
 
         if (cond_jump_idx == 0 || cond_jump_idx == 1) {

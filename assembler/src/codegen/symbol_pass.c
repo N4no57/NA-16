@@ -39,70 +39,40 @@ bool is_stable(SymbolTable *old, SymbolTable *new) {
     return ret_val;
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// Symbol table generation
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void visit_NodeOperand1(NodeOperand *operand, bool use_16bits, u64 *byte_pos) {
-    if (operand->kind == REGISTER || operand->kind == REG_INDIRECT) {
-        return;
-    }
-
-    if (operand->kind == SYMBOL) {
-        return;
-    }
-
-    if (operand->kind == IMMEDIATE) {
-        if (!use_16bits) {
-            (*byte_pos)++;
-        } else {
-            *byte_pos += 2;
-        }
-    } else {
-        error(operand->pos, "Invalid operand type");
-    }
+bool wont_fit_u8(u64 value)
+{
+    return value > UINT8_MAX;   // 255
 }
 
-void visit_NodeInstruction1(NodeInstruction *node, SymbolTable *table, u64 *byte_pos) {
-    InstructionSpec info = get_spec(node->mnemonic);
+bool wont_fit_s8(i64 value)
+{
+    return value < INT8_MIN || value > INT8_MAX;   // -128 to 127
+}
 
-    u64 sig_id = 0;
-    InstructionSignature *sig = &info.signatures[sig_id];
-    for (sig_id = 0; sig_id < info.signature_count; sig_id++) {
-        if (match_signature(node, sig)) break;
-        sig = &info.signatures[sig_id+1];
-    }
-
-    if (sig_id > 0) {
-        *byte_pos += 2;
-    }
-
+bool require_16_bits(const NodeInstruction *node, const InstructionSignature *sig) {
     bool use_16bits = false;
     if (node->operand_size == 0) {
         for (i32 i = 0; i < sig->operand_count; i++) {
             if (sig->kinds[i] == IMMEDIATE) {
-                use_16bits = node->operands[i].immediate > 255 ? true : false;
-                if (use_16bits) break;
+                use_16bits = wont_fit_u8(node->operands[i].immediate);
+            } else if (sig->kinds[i] == DISPLACEMENT) {
+                use_16bits = wont_fit_s8(node->operands[i].immediate);
             }
+            if (use_16bits) break;
         }
     } else {
         if (node->operand_size == 2) {
             use_16bits = true;
         }
     }
-
-    if (use_16bits) {
-        (*byte_pos)++;
-    }
-
-    *byte_pos += 2; // instruction encoding
-
-    for (int i = 0; i < node->operand_count; i++) {
-        visit_NodeOperand1(&node->operands[i], use_16bits, byte_pos);
-    }
+    return use_16bits;
 }
 
-void visit_NodeSymbol1(NodeSymbol *node, SymbolTable *table, const u64 *byte_pos) {
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Symbol table generation
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void capture_symbol(NodeSymbol *node, SymbolTable *table) {
     NodeSymbol *symbol = find_symbol(table, node->symbol_name);
 
     if (symbol) {
@@ -110,17 +80,20 @@ void visit_NodeSymbol1(NodeSymbol *node, SymbolTable *table, const u64 *byte_pos
     }
 
     if (node->kind == SK_LABEL) { // it's a label
-        node->value = *(i32 *)byte_pos;
+        node->value = 0;
     }
 
     push_symbol(table, *node);
 }
 
-void visit_NodeStatement1(NodeStatement *node, SymbolTable *table, u64 *byte_pos) {
+void visit_NodeStatement1
+(NodeStatement *node, SymbolTable *table) {
     if (node->kind == ST_INSTRUCTION) {
-        visit_NodeInstruction1(&node->instruction, table, byte_pos);
-    } else if (node->kind == ST_SYMBOL) {
-        visit_NodeSymbol1(&node->symbol, table, byte_pos);
+        return;
+    }
+
+    if (node->kind == ST_SYMBOL) {
+        capture_symbol(&node->symbol, table);
     }
 }
 
@@ -128,7 +101,7 @@ void visit_NodeStatement1(NodeStatement *node, SymbolTable *table, u64 *byte_pos
 /// Symbol table correction
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void visit_NodeOperandRecalc(const NodeOperand *operand, const SymbolTable *table, const bool use_16bits, u64 *size) {
+void visit_NodeOperandRecalc(const char *mnemonic, const NodeOperand *operand, const SymbolTable *table, const bool use_16bits, u64 *size) {
     if (operand->kind == REGISTER || operand->kind == REG_INDIRECT) {
         return;
     }
@@ -137,23 +110,34 @@ void visit_NodeOperandRecalc(const NodeOperand *operand, const SymbolTable *tabl
         NodeSymbol *symbol = find_symbol(table, operand->symbol_name);
 
         u8 inc_by = 0;
-        if (!use_16bits && symbol->value > 255) inc_by += 2; // account for new prefix and extra byte for the symbol
-        else if (use_16bits) inc_by++;
+        if (!use_16bits) {
+            bool need_aex = false;
+            if (is_cond_jump(mnemonic)) {
+                need_aex = wont_fit_s8(symbol->value);
+            } else {
+                need_aex = wont_fit_u8(symbol->value);
+            }
+            inc_by += need_aex == true ? 2 : 0; // adding 2 accounts for new prefix and extra byte for the symbol
+        } else {
+            inc_by++;
+        }
+
         inc_by++;
 
         *size += inc_by;
         return;
     }
 
-    if (operand->kind == IMMEDIATE) {
+    if (operand->kind == IMMEDIATE || operand->kind == DISPLACEMENT) {
         if (!use_16bits) {
             (*size)++;
         } else {
             *size += 2;
         }
-    } else {
-        error(operand->pos, "Invalid operand type");
+        return;
     }
+
+    error(operand->pos, "Invalid operand type");
 }
 
 u64 visit_NodeInstructionRecalc(const NodeInstruction *node, const SymbolTable *table) {
@@ -167,23 +151,11 @@ u64 visit_NodeInstructionRecalc(const NodeInstruction *node, const SymbolTable *
         sig = &info.signatures[sig_id+1];
     }
 
-    if (sig_id > 0) {
+    if (sig_id > 0 && !is_cond_jump(node->mnemonic)) {
         ret_val += 2;
     }
 
-    bool use_16bits = false;
-    if (node->operand_size == 0) {
-        for (i32 i = 0; i < sig->operand_count; i++) {
-            if (sig->kinds[i] == IMMEDIATE) {
-                use_16bits = node->operands[i].immediate > 255 ? true : false;
-                if (use_16bits) break;
-            }
-        }
-    } else {
-        if (node->operand_size == 2) {
-            use_16bits = true;
-        }
-    }
+    bool use_16bits = require_16_bits(node, sig);
 
     if (use_16bits) {
         ret_val++;
@@ -192,7 +164,7 @@ u64 visit_NodeInstructionRecalc(const NodeInstruction *node, const SymbolTable *
     ret_val += 2; // instruction encoding
 
     for (int i = 0; i < node->operand_count; i++) {
-        visit_NodeOperandRecalc(&node->operands[i], table, use_16bits, &ret_val);
+        visit_NodeOperandRecalc(node->mnemonic, &node->operands[i], table, use_16bits, &ret_val);
     }
 
     return ret_val;
@@ -236,7 +208,7 @@ void recalc_layout(const NodeProgram *ast, const SymbolTable *old, SymbolTable *
 /// Symbol table usage
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void visit_NodeOperand2(NodeOperand *operand, SymbolTable *table) {
+void visit_NodeOperand2(const char *mnemonic, NodeOperand *operand, SymbolTable *table, const u64 *byte_pos) {
     if (operand->kind == REGISTER || operand->kind == REG_INDIRECT) {
         return;
     }
@@ -246,26 +218,58 @@ void visit_NodeOperand2(NodeOperand *operand, SymbolTable *table) {
 
         operand->kind = IMMEDIATE;
         operand->immediate = symbol->value;
+
+        if (is_cond_jump(mnemonic)) {
+            operand->kind = DISPLACEMENT;
+            if (symbol->kind == SK_LABEL) {
+                operand->immediate = symbol->value - *(i64 *)byte_pos;
+            }
+        }
+
         return;
     }
 
-    if (operand->kind == IMMEDIATE) {
+    if (operand->kind == IMMEDIATE || operand->kind == DISPLACEMENT) {
         return;
     }
 
     error(operand->pos, "Invalid operand type");
 }
 
-void visit_NodeInstruction2(NodeInstruction *node, SymbolTable *table, u64 *byte_pos) {
+void visit_NodeInstruction2(NodeInstruction *node, SymbolTable *table, const u64 *byte_pos) {
     for (int i = 0; i < node->operand_count; i++) {
-        visit_NodeOperand2(&node->operands[i], table);
+        visit_NodeOperand2(node->mnemonic, &node->operands[i], table, byte_pos);
     }
 }
 
-void visit_NodeStatement2(NodeStatement *node, SymbolTable *table, u64 *byte_pos) {
+void visit_NodeStatement2(NodeStatement *node, SymbolTable *table, const u64 *byte_pos) {
     if (node->kind == ST_INSTRUCTION) {
         visit_NodeInstruction2(&node->instruction, table, byte_pos);
     }
+}
+
+void patch_symbols(const NodeProgram *ast, SymbolTable *table) {
+    SymbolTable tmp = {0};
+    tmp.count = table->count;
+    tmp.size = table->size;
+    tmp.symbols = malloc(tmp.size * sizeof(NodeSymbol));
+    memcpy(tmp.symbols, table->symbols, table->size * sizeof(NodeSymbol));
+
+    u64 *sizes = malloc(ast->count * sizeof(u64));
+
+    for (u64 i = 0; i < ast->count; i++) {
+        sizes[i] = visit_NodeStatementRecalc(&ast->statements[i], &tmp);
+    }
+    free(tmp.symbols);
+
+    u64 byte_pos = 0;
+
+    for (u64 i = 0; i < ast->count; i++) {
+        byte_pos += sizes[i]; // set byte pos to the end of the instruction in which we are visiting
+        visit_NodeStatement2(&ast->statements[i], table, &byte_pos);
+    }
+
+    free(sizes);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -279,9 +283,8 @@ void symbol_pass(NodeProgram *ast) {
     SymbolTable *old_ptr = &old, *new_ptr = &new;
 
     // generate symbol table
-    u64 byte_pos = 0;
     for (u64 i = 0; i < ast->count; i++) {
-        visit_NodeStatement1(&ast->statements[i], &old, &byte_pos);
+        visit_NodeStatement1(&ast->statements[i], old_ptr);
     }
 
     // recalculate and correct symbols
@@ -300,8 +303,5 @@ void symbol_pass(NodeProgram *ast) {
     old_ptr = new_ptr;
 
     // replace symbols with values
-    byte_pos = 0;
-    for (u64 i = 0; i < ast->count; i++) {
-        visit_NodeStatement2(&ast->statements[i], old_ptr, &byte_pos);
-    }
+    patch_symbols(ast, old_ptr);
 }

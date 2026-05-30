@@ -1,3 +1,8 @@
+1.6.0:
+ - all new conditional branching instructions
+ - '+' and '-' tokens added to lexer
+ - DISPLACEMENT operand type for all new conditional branching instructions
+
 1.5.5:
  - made symbol resolver make as many passes as required to resolve all symbol values
 

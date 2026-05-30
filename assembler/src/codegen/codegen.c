@@ -41,7 +41,7 @@ void visit_NodeOperand(const NodeOperand *operand, bool use_16bits, u8 *buff, u8
             error(operand->pos, "Invalid register");
         }
         buff[(*idx)++] = status;
-    } else if (operand->kind == IMMEDIATE) {
+    } else if (operand->kind == IMMEDIATE || operand->kind == DISPLACEMENT) {
         if (!use_16bits) {
             buff[(*idx)++] = operand->immediate & 0xFF;
         } else {
@@ -64,7 +64,7 @@ OperandLayout layout_for(const InstructionSignature *sig, bool use_16bits) {
     for (i32 i = 0; i < sig->operand_count; i++) {
         if (sig->kinds[i] == REGISTER || sig->kinds[i] == REG_INDIRECT) {
             l.size[i] = 1;
-        } else if (sig->kinds[i] == IMMEDIATE) {
+        } else if (sig->kinds[i] == IMMEDIATE || sig->kinds[i] == DISPLACEMENT) {
             l.size[i] = use_16bits ? 2 : 1;
         }
     }
@@ -130,7 +130,7 @@ void fold(const char *mnemonic, const InstructionSignature *sig, bool use_16bits
 
     for (i32 i = 0; i < sig->operand_count; i++) {
         if (reg_count_behind[i] > 0) {
-            if (sig->kinds[i] == IMMEDIATE) {
+            if (sig->kinds[i] == IMMEDIATE || sig->kinds[i] == DISPLACEMENT) {
                 memcpy(op[i]-reg_count_behind[i], op[i], l.size[i]);
             }
         }
@@ -157,7 +157,7 @@ void visit_NodeInstruction(const NodeInstruction *node, bytes *code) {
         sig = &info.signatures[sig_id+1];
     }
 
-    if (sig_id > 0) {
+    if (sig_id > 0 && !is_cond_jump(node->mnemonic)) {
         u16 MEX_prefix = 0;
         if (sig->operand_count == 3) {
             MEX_prefix = GEN_MEX(sig->kinds[0], sig->kinds[1], sig->kinds[2]);
@@ -175,19 +175,7 @@ void visit_NodeInstruction(const NodeInstruction *node, bytes *code) {
         buff[buff_idx++] = MEX_prefix & 0xFF;
     }
 
-    bool use_16bits = false;
-    if (node->operand_size == 0) {
-        for (i32 i = 0; i < sig->operand_count; i++) {
-            if (sig->kinds[i] == IMMEDIATE) {
-                use_16bits = node->operands[i].immediate > 255 ? true : false;
-                if (use_16bits) break;
-            }
-        }
-    } else {
-        if (node->operand_size == 2) {
-            use_16bits = true;
-        }
-    }
+    bool use_16bits = require_16_bits(node, sig);
 
     if (use_16bits) {
         buff[buff_idx++] = GEN_AEX;
