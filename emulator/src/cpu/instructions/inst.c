@@ -124,6 +124,20 @@ InstructionDef instruction_table[] = {
 
     // class 2: control flow
     [JMP] = {"JMP", 1, jmp_handler},
+    [JZ] = {"JZ", 1, jz_handler},
+    [JNZ] = {"JNZ", 1, jnz_handler},
+    [JC] = {"JC", 1, jc_handler},
+    [JNC] = {"JNC", 1, jnc_handler},
+    [JO] = {"JO", 1, jo_handler},
+    [JNO] = {"JNO", 1, jno_handler},
+    [JS] = {"JS", 1, js_handler},
+    [JNS] = {"JNS", 1, jns_handler},
+    [JA] = {"JA", 1, ja_handler},
+    [JBE] = {"JBE", 1, jbe_handler},
+    [JG] = {"JG", 1, jg_handler},
+    [JGE] = {"JGE", 1, jge_handler},
+    [JL] = {"JL", 1, jl_handler},
+    [JLE] = {"JLE", 1, jle_handler},
 
     // class 3: system instructions
     [NOP] = {"NOP", 1, nullptr},
