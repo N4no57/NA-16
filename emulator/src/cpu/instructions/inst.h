@@ -46,6 +46,20 @@ void pops_handler(CPU *cpu, Instruction *inst);
 
 // class 2: control flow
 void jmp_handler(CPU *cpu, Instruction *inst);
+void jz_handler(CPU *cpu, Instruction *inst);
+void jnz_handler(CPU *cpu, Instruction *inst);
+void jc_handler(CPU *cpu, Instruction *inst);
+void jnc_handler(CPU *cpu, Instruction *inst);
+void jo_handler(CPU *cpu, Instruction *inst);
+void jno_handler(CPU *cpu, Instruction *inst);
+void js_handler(CPU *cpu, Instruction *inst);
+void jns_handler(CPU *cpu, Instruction *inst);
+void ja_handler(CPU *cpu, Instruction *inst);
+void jbe_handler(CPU *cpu, Instruction *inst);
+void jg_handler(CPU *cpu, Instruction *inst);
+void jge_handler(CPU *cpu, Instruction *inst);
+void jl_handler(CPU *cpu, Instruction *inst);
+void jle_handler(CPU *cpu, Instruction *inst);
 
 // class 3: system instructions
 
