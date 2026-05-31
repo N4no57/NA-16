@@ -16,48 +16,6 @@ typedef int32_t i32;
 typedef int64_t i64;
 
 typedef enum {
-    // class 0: ALU ops
-    ADD = 0x00,
-    SUB = 0x01,
-    AND = 0x02,
-    OR = 0x03,
-    XOR = 0x04,
-    NOT = 0x05,
-
-    // class 1: data movement
-    MOV = 0x10,
-    MOVSR = 0x11,
-    MOVRS = 0x12,
-    PUSH = 0x13,
-    POP = 0x14,
-    LEA = 0x15,
-    MOVS = 0x16,
-    PUSHS = 0x17,
-    POPS = 0x18,
-
-    // class 2: control flow
-    JMP = 0x20,
-    JZ = 0x21, // JE = 0x21,
-    JNZ = 0x22, // JNE = 0x22,
-    JC = 0x23, // JB = 0x23,
-    JNC = 0x24, // JAE = 0x24,
-    JO = 0x25,
-    JNO = 0x26,
-    JS = 0x27,
-    JNS = 0x28,
-    JA = 0x29,
-    JBE = 0x2A,
-    JG = 0x2B,
-    JGE = 0x2C,
-    JL = 0x2D,
-    JLE = 0x2E,
-
-    // class 3: system instructions
-    NOP = 0x30,
-    HLT = 0x31
-} Ops;
-
-typedef enum {
     OP_REG,
     OP_IMM,
     OP_REG_IND
@@ -76,6 +34,7 @@ typedef struct {
 typedef struct {
     u16 MEX;
     u8 AEX;
+    bool has_escape_byte;
 } Prefixes;
 
 typedef struct {

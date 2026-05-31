@@ -185,6 +185,12 @@ Instruction decode(CPU *cpu) {
             ret.prefixes.AEX = fetch_byte(cpu);
             continue;
         }
+
+        if ((byte & 0xF0) == 0xF0) {
+            ret.prefixes.has_escape_byte = true;
+            cpu->PC++;
+            continue;
+        }
     }
 
     u16 instruction = fetch_byte(cpu) << 8;
