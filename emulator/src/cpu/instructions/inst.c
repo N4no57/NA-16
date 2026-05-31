@@ -123,6 +123,7 @@ void set_flags(CPU *cpu, const u32 value, const u32 values[2], const u8 mask, u8
 }
 
 InstructionDef instruction_table[] = {
+    // op table 1
     // class 0: ALU ops
     [ADD] = {"ADD", 3, add_handler},
     [SUB] = {"SUB", 3, sub_handler},
@@ -158,13 +159,25 @@ InstructionDef instruction_table[] = {
     [JGE] = {"JGE", 1, jge_handler},
     [JL] = {"JL", 1, jl_handler},
     [JLE] = {"JLE", 1, jle_handler},
+    [RET] = {"RET", 1, nullptr},
 
     // class 3: system instructions
     [NOP] = {"NOP", 1, nullptr},
     [HLT] = {"HLT", 1, nullptr},
+
+    // op table 2
+    // class 0: ALU ops
+
+    // class 1: data movement
+    [CALL] = {"CALL", 1, nullptr},
+
+    // class 2: control flow
+
+    // class 3: system instructions
 };
 
-InstructionDef *fetch_InstDef(const Ops idx) {
+InstructionDef *fetch_InstDef(const Ops idx, bool has_escape_byte) {
+    if (has_escape_byte) return &instruction_table[idx+0x100];
     return &instruction_table[idx];
 }
 

@@ -16,6 +16,7 @@ typedef int32_t i32;
 typedef int64_t i64;
 
 typedef enum {
+    // op table 1
     // class 0: ALU ops
     ADD = 0x00,
     SUB = 0x01,
@@ -55,7 +56,17 @@ typedef enum {
 
     // class 3: system instructions
     NOP = 0x30,
-    HLT = 0x31
+    HLT = 0x31,
+
+    // op table 2
+    // class 0: ALU ops
+
+    // class 1: data movement
+    CALL = 0x120,
+
+    // class 2: control flow
+
+    // class 3: system instructions
 } Ops;
 
 void collect_operands(CPU *cpu, Instruction *inst, const u8 *inst_ops);
@@ -64,7 +75,7 @@ void operand_write(CPU *cpu, Operand op, u16 value);
 
 void set_flags(CPU *cpu, u32 value, const u32 values[2], u8 mask, u8 size);
 
-InstructionDef *fetch_InstDef(Ops idx);
+InstructionDef *fetch_InstDef(Ops idx, bool has_escape_byte);
 Instruction decode(CPU *cpu);
 
 // Instruction handlers

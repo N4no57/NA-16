@@ -94,7 +94,7 @@ bool should_stop = false;
 void execute_inst(CPU *cpu) {
     Instruction inst = decode(cpu);
 
-    const InstructionDef *def = fetch_InstDef(inst.opcode);
+    const InstructionDef *def = fetch_InstDef(inst.opcode, inst.prefixes.has_escape_byte);
 
     if (inst.opcode == NOP) return;
     if (inst.opcode == HLT) {
