@@ -109,6 +109,10 @@ void visit_NodeOperandRecalc(const char *mnemonic, const NodeOperand *operand, c
     if (operand->kind == SYMBOL) {
         NodeSymbol *symbol = find_symbol(table, operand->symbol_name);
 
+        if (symbol == nullptr) { // undefined symbol reference; oooh scary
+            fatal(operand->pos, "Undefined symbol reference \"%s\"", operand->symbol_name);
+        }
+
         u8 inc_by = 0;
         if (!use_16bits) {
             bool need_aex = false;

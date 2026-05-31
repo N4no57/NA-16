@@ -1,3 +1,7 @@
+1.6.3:
+ - added handling for undefined symbol references
+ - using new library for stuff
+
 1.6.2:
  - cmp and test instructions
  - call and ret instructions
