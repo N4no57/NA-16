@@ -103,7 +103,10 @@ void execute_inst(CPU *cpu) {
     }
 
     if (!def->handler) {
-        fprintf(stderr, "Either invalid instruction or an instruction has no handler\n");
+        if (def->name != nullptr)
+            fprintf(stderr, "\"%s\" has no handler\n", def->name);
+        else
+            fprintf(stderr, "Either invalid instruction or an instruction has no handler\n");
         exit(EXIT_FAILURE);
     }
 
