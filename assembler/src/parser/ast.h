@@ -2,6 +2,7 @@
 #define NA_16_AST_H
 
 #include "../lib/asmlib.h"
+#include "../lexer/lexer.h"
 
 typedef struct {
     struct {
@@ -25,7 +26,8 @@ typedef struct {
 typedef enum {
     ST_NONE,
     ST_INSTRUCTION,
-    ST_SYMBOL
+    ST_SYMBOL,
+    ST_DIRECTIVE,
 } StatementKind;
 
 typedef enum {
@@ -41,9 +43,16 @@ typedef struct {
 } NodeSymbol;
 
 typedef struct {
+    char *name;
+    TokenList args;
+    Position pos;
+} NodeDirective;
+
+typedef struct {
     union {
         NodeInstruction instruction;
         NodeSymbol symbol;
+        NodeDirective directive;
     };
     StatementKind kind;
 } NodeStatement;

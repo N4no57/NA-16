@@ -1,6 +1,8 @@
 #include "asmlib.h"
 #include "../parser/ast.h"
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 char *registers[] = {
@@ -115,4 +117,21 @@ i64 getsizespec(const u8 *string) {
         }
     }
     return SS_NONE;
+}
+
+char *read_assembly(const char *file) {
+    FILE *f = fopen(file, "r");
+
+    fseek(f, 0, SEEK_END);
+    const u64 len = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    char *code = malloc(len+10);
+    memset(code, 0, len+10);
+
+    fread(code, 1, len, f);
+
+    fclose(f);
+
+    return code;
 }

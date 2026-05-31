@@ -18,23 +18,6 @@ void write_binary(const char *file, const bytes code) {
     fclose(f);
 }
 
-char *read_assembly(const char *file) {
-    FILE *f = fopen(file, "r");
-
-    fseek(f, 0, SEEK_END);
-    const u64 len = ftell(f);
-    fseek(f, 0, SEEK_SET);
-
-    char *code = malloc(len+10);
-    memset(code, 0, len+10);
-
-    fread(code, 1, len, f);
-
-    fclose(f);
-
-    return code;
-}
-
 int assemble(const char *in, const char *out) {
     TokenList tokens;
     NodeProgram ast;

@@ -2,6 +2,7 @@
 #include "../lib/error.h"
 
 #include <ctype.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -167,14 +168,14 @@ void tokenise(TokenList *list, u8 *filename, u8 *string) {
             continue;
         }
 
-        if (isalpha(string[*i]) || string[*i] == '_') {
+        if (isalpha(string[*i]) || string[*i] == '_' || string[*i] == '.') {
             t.pos = pos;
 
             u64 buf_capacity = 16;
             u64 buf_len = 0;
             u8 *buff = malloc(buf_capacity * sizeof(u8));
 
-            while (isalnum(string[*i]) || string[*i] == '_') {
+            while (isalnum(string[*i]) || string[*i] == '_' || string[*i] == '.') {
                 if (buf_len + 1 >= buf_capacity) {
                     buf_capacity *= 2;
                     void *tmp = realloc(buff, buf_capacity * sizeof(u8));
@@ -193,6 +194,9 @@ void tokenise(TokenList *list, u8 *filename, u8 *string) {
                 t.value = strdup((char *)buff);
             } else if (issizespec(buff)) {
                 t.type = TT_SIZESPEC;
+                t.value = strdup((char *)buff);
+            } else if (buff[0] == '.') { // its a directive
+                t.type = TT_DIRECTIVE;
                 t.value = strdup((char *)buff);
             } else {
                 t.type = TT_IDENTIFIER;

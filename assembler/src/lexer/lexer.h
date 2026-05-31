@@ -9,6 +9,7 @@ typedef enum TokenType {
     TT_IMMEDIATE,
     TT_SIZESPEC,
     TT_IDENTIFIER,
+    TT_DIRECTIVE,
     TT_COMMA,
     TT_COLON,
     TT_EQUALS,

@@ -82,4 +82,6 @@ bool issizespec(const u8 *string);
 i64 getregister(const u8 *string);
 i64 getsizespec(const u8 *string);
 
+char *read_assembly(const char *file);
+
 #endif //NA_16_ASMLIB_H
