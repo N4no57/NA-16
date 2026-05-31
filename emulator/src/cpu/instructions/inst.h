@@ -91,7 +91,6 @@ void not_handler(CPU *cpu, Instruction *inst);
 void cmp_handler(CPU *cpu, Instruction *inst);
 void test_handler(CPU *cpu, Instruction *inst);
 
-
 // class 1: data movement
 void mov_handler(CPU *cpu, Instruction *inst);
 void movsr_handler(CPU *cpu, Instruction *inst);
@@ -120,6 +119,7 @@ void jge_handler(CPU *cpu, Instruction *inst);
 void jl_handler(CPU *cpu, Instruction *inst);
 void jle_handler(CPU *cpu, Instruction *inst);
 void call_handler(CPU *cpu, Instruction *inst);
+void ret_handler(CPU *cpu, Instruction *inst);
 
 // class 3: system instructions
 

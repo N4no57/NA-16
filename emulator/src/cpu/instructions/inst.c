@@ -146,7 +146,7 @@ InstructionDef instruction_table[] = {
     [POPS] = {"POPS", 1, pops_handler},
 
     // class 2: control flow
-    [JMP] = {"JMP", 1, call_handler},
+    [JMP] = {"JMP", 1, jmp_handler},
     [JZ] = {"JZ", 1, jz_handler},
     [JNZ] = {"JNZ", 1, jnz_handler},
     [JC] = {"JC", 1, jc_handler},
@@ -161,7 +161,7 @@ InstructionDef instruction_table[] = {
     [JGE] = {"JGE", 1, jge_handler},
     [JL] = {"JL", 1, jl_handler},
     [JLE] = {"JLE", 1, jle_handler},
-    [RET] = {"RET", 1, nullptr},
+    [RET] = {"RET", 1, ret_handler},
 
     // class 3: system instructions
     [NOP] = {"NOP", 1, nullptr},
