@@ -24,6 +24,8 @@ typedef enum {
     OR = 0x03,
     XOR = 0x04,
     NOT = 0x05,
+    CMP = 0x06,
+    TEST = 0x07,
 
     // class 1: data movement
     MOV = 0x10,
@@ -114,6 +116,7 @@ void jg_handler(CPU *cpu, Instruction *inst);
 void jge_handler(CPU *cpu, Instruction *inst);
 void jl_handler(CPU *cpu, Instruction *inst);
 void jle_handler(CPU *cpu, Instruction *inst);
+void call_handler(CPU *cpu, Instruction *inst);
 
 // class 3: system instructions
 

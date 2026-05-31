@@ -131,6 +131,8 @@ InstructionDef instruction_table[] = {
     [OR] = {"OR", 3, or_handler},
     [XOR] = {"XOR", 3, xor_handler},
     [NOT] = {"NOT", 2, not_handler},
+    [CMP] = {"CMP", 2, cmp_handler},
+    [TEST] = {"TEST", 2, test_handler},
 
     // class 1: data movement
     [MOV] = {"MOV", 2, mov_handler},
@@ -144,7 +146,7 @@ InstructionDef instruction_table[] = {
     [POPS] = {"POPS", 1, pops_handler},
 
     // class 2: control flow
-    [JMP] = {"JMP", 1, jmp_handler},
+    [JMP] = {"JMP", 1, call_handler},
     [JZ] = {"JZ", 1, jz_handler},
     [JNZ] = {"JNZ", 1, jnz_handler},
     [JC] = {"JC", 1, jc_handler},
@@ -169,7 +171,7 @@ InstructionDef instruction_table[] = {
     // class 0: ALU ops
 
     // class 1: data movement
-    [CALL] = {"CALL", 1, nullptr},
+    [CALL] = {"CALL", 1, call_handler},
 
     // class 2: control flow
 
