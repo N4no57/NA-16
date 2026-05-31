@@ -161,6 +161,10 @@ u64 visit_NodeInstructionRecalc(const NodeInstruction *node, const SymbolTable *
         ret_val++;
     }
 
+    if (info.opcode > 0xF) {
+        ret_val++;
+    }
+
     ret_val += 2; // instruction encoding
 
     for (int i = 0; i < node->operand_count; i++) {
