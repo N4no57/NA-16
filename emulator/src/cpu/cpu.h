@@ -37,11 +37,12 @@ typedef struct {
     bool has_escape_byte;
 } Prefixes;
 
-typedef struct {
+typedef struct Instruction {
     Prefixes prefixes;
     u8 opcode;
     Operand ops[3];
     u8 op_count;
+    u64 size; // debugging metadata
 } Instruction;
 
 #define MEMORY_SIZE 0x10000
@@ -57,7 +58,7 @@ typedef union {
     uint8_t flags;
 } flags;
 
-typedef struct {
+typedef struct CPU {
     u16 PC;
     u16 SP;
     u16 BP;
@@ -70,7 +71,7 @@ typedef struct {
 
 typedef void (*InstructionHandler)(CPU*, Instruction*);
 
-typedef struct {
+typedef struct InstructionDef {
     const char *name;
     u8 operand_count;
     InstructionHandler handler;

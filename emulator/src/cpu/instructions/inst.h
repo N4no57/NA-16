@@ -71,6 +71,8 @@ typedef enum {
     // class 3: system instructions
 } Ops;
 
+bool is_cond_jump(const Instruction *inst);
+
 void collect_operands(CPU *cpu, Instruction *inst, const u8 *inst_ops);
 u16 operand_read(const CPU *cpu, Operand op);
 void operand_write(CPU *cpu, Operand op, u16 value);

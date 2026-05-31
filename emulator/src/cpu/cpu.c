@@ -1,6 +1,7 @@
 #include "cpu.h"
 #include "memory.h"
 #include "instructions/inst.h"
+#include "debugger/debugger.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -90,11 +91,18 @@ void cpu_reset(CPU *cpu) {
 }
 
 bool should_stop = false;
+bool halt = false;
 
 void execute_inst(CPU *cpu) {
+    if (!halt) halt = check_breakpoint(cpu);
     Instruction inst = decode(cpu);
 
     const InstructionDef *def = fetch_InstDef(inst.opcode, inst.prefixes.has_escape_byte);
+
+    if (halt) {
+        print_instruction(cpu, &inst, def);
+        // commands(&halt);
+    }
 
     if (inst.opcode == NOP) return;
     if (inst.opcode == HLT) {
@@ -114,6 +122,7 @@ void execute_inst(CPU *cpu) {
 }
 
 void execute(CPU *cpu) {
+    add_breakpoint(0);
     while (1) {
         execute_inst(cpu);
         if (should_stop) break;

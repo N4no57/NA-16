@@ -40,12 +40,14 @@ void collect_operands(CPU *cpu, Instruction *inst, const u8 *inst_ops) { // curr
         if (inst->ops[0].size == 1) {
             i8 value = (i8)fetch_byte(cpu);
             inst->ops[0].displacement = (i16)value;
+            inst->size++;
         } else {
             u8 bytes[2];
             bytes[0] = fetch_byte(cpu);
             bytes[1] = fetch_byte(cpu);
             u16 u = (u16)bytes[0] | ((u16)bytes[1] << 8);
             inst->ops[0].displacement = (i16)u;
+            inst->size += 2;
         }
         return;
     }
@@ -57,8 +59,15 @@ void collect_operands(CPU *cpu, Instruction *inst, const u8 *inst_ops) { // curr
                 break;
             case OP_IMM: // immediate
                 u16 immediate;
-                if (inst->ops[i].size == 1) immediate = fetch_byte(cpu);
-                else immediate = fetch_word(cpu);
+
+                if (inst->ops[i].size == 1) {
+                    immediate = fetch_byte(cpu);
+                    inst->size++;
+                } else {
+                    immediate = fetch_word(cpu);
+                    inst->size += 2;
+                }
+
                 inst->ops[i].immediate = immediate;
                 break;
             case OP_REG_IND:
@@ -161,7 +170,7 @@ InstructionDef instruction_table[] = {
     [JGE] = {"JGE", 1, jge_handler},
     [JL] = {"JL", 1, jl_handler},
     [JLE] = {"JLE", 1, jle_handler},
-    [RET] = {"RET", 1, ret_handler},
+    [RET] = {"RET", 0, ret_handler},
 
     // class 3: system instructions
     [NOP] = {"NOP", 1, nullptr},
@@ -184,7 +193,7 @@ InstructionDef *fetch_InstDef(const Ops idx, bool has_escape_byte) {
 }
 
 Instruction decode(CPU *cpu) {
-    Instruction ret = {{0}, 255, {0}, 0};
+    Instruction ret = {{0}, 255, {0}, 0, 0};
 
     // OBTAIN PREFIXES
     while (1) {
@@ -194,16 +203,19 @@ Instruction decode(CPU *cpu) {
         if ((byte & 0xF0) == 0x80) {
             const u16 MEX_prefix = fetch_word(cpu);
             ret.prefixes.MEX = (MEX_prefix & 0xFF) << 8 | MEX_prefix >> 8 & 0xFF;
+            ret.size += 2;
             continue;
         }
         if ((byte & 0xF0) == 0x90) {
             ret.prefixes.AEX = fetch_byte(cpu);
+            ret.size++;
             continue;
         }
 
         if ((byte & 0xF0) == 0xF0) {
             ret.prefixes.has_escape_byte = true;
             cpu->PC++;
+            ret.size++;
             continue;
         }
     }
@@ -212,6 +224,7 @@ Instruction decode(CPU *cpu) {
     instruction |= fetch_byte(cpu);
 
     ret.opcode = instruction >> 9 & 0x7F;
+    ret.size += 2;
 
     const InstructionDef *inst = &instruction_table[ret.opcode];
     ret.op_count = inst->operand_count;

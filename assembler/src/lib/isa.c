@@ -462,15 +462,7 @@ InstructionSpec get_spec(const char *mnemonic) {
                 ret.opcode = 4;
                 break;
             default:
-                ret.opcode = cond_jump_idx - 5;
-        }
-
-        if (cond_jump_idx == 0 || cond_jump_idx == 1) {
-            ret.opcode = 1;
-        } else if (cond_jump_idx == 2 || cond_jump_idx == 3) {
-            ret.opcode = 2;
-        } else {
-            ret.opcode = cond_jump_idx - 1;
+                ret.opcode = cond_jump_idx - 2;
         }
 
         return ret;
