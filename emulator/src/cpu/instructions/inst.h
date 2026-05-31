@@ -88,6 +88,9 @@ void and_handler(CPU *cpu, Instruction *inst);
 void or_handler(CPU *cpu, Instruction *inst);
 void xor_handler(CPU *cpu, Instruction *inst);
 void not_handler(CPU *cpu, Instruction *inst);
+void cmp_handler(CPU *cpu, Instruction *inst);
+void test_handler(CPU *cpu, Instruction *inst);
+
 
 // class 1: data movement
 void mov_handler(CPU *cpu, Instruction *inst);

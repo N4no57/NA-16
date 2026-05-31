@@ -14,6 +14,8 @@ add_executable(Emulator src/main.c
         src/cpu/instructions/handlers/ALU_ops/not.c
         src/cpu/instructions/handlers/ALU_ops/or.c
         src/cpu/instructions/handlers/ALU_ops/xor.c
+        src/cpu/instructions/handlers/ALU_ops/cmp.c
+        src/cpu/instructions/handlers/ALU_ops/test.c
 
         src/cpu/instructions/handlers/data_movement/mov.c
         src/cpu/instructions/handlers/data_movement/movsr.c
