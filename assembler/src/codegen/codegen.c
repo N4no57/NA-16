@@ -102,6 +102,10 @@ void fold(const char *mnemonic, const InstructionSignature *sig, bool use_16bits
         return;
     }
 
+    if (strcmp(mnemonic_buff, "RET") == 0) {
+        return;
+    }
+
     if (sig->operand_count == 0) {
         fatal((Position){nullptr, nullptr, 0, 0, 0}, "AAAAAAAAAAAAAAAAAAAAAAAAAA");
     }
@@ -179,6 +183,10 @@ void visit_NodeInstruction(const NodeInstruction *node, bytes *code) {
 
     if (use_16bits) {
         buff[buff_idx++] = GEN_AEX;
+    }
+
+    if (info.opcode > 0xF) {
+        buff[buff_idx++] = GEN_ESCAPE_BYTE;
     }
 
     u8 inst_slot = buff_idx;

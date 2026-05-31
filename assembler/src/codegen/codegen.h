@@ -6,6 +6,7 @@
 
 #define GEN_MEX(DEST_MODE, SRC1_MODE, SRC2_MODE) ((0x8 << 12) | (((DEST_MODE) & 0xF) << 8) | (((SRC1_MODE) & 0xF) << 4) | ((SRC2_MODE) & 0xF))
 #define GEN_AEX (0x91)
+#define GEN_ESCAPE_BYTE (0xF0)
 
 typedef struct {
     NodeSymbol *symbols;

@@ -70,7 +70,7 @@
 i32 error_count = 0;
 
 #define OUTPUT_DEFAULT "a.out"
-#define ASSEMBLER_VERSION "1.6.1"
+#define ASSEMBLER_VERSION "1.6.2"
 
 const char *ChangeFileExt(char *string) {
     for (int i = 0; i < strlen(string); i++) {

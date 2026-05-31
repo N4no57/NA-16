@@ -185,6 +185,34 @@ InstructionSpec ISA[] = {
         },
         6
     },
+    {
+        "CMP",
+        0,
+        0x6,
+        {
+            {2, {REGISTER, REGISTER}},
+            {2, {REGISTER, IMMEDIATE}},
+            {2, {REGISTER, REG_INDIRECT}},
+            {2, {REGISTER, SYMBOL}},
+            {2, {REG_INDIRECT, REGISTER}},
+            {2, {REG_INDIRECT, IMMEDIATE}},
+        },
+        6
+    },
+    {
+        "TEST",
+        0,
+        0x7,
+        {
+            {2, {REGISTER, REGISTER}},
+            {2, {REGISTER, IMMEDIATE}},
+            {2, {REGISTER, REG_INDIRECT}},
+            {2, {REGISTER, SYMBOL}},
+            {2, {REG_INDIRECT, REGISTER}},
+            {2, {REG_INDIRECT, IMMEDIATE}},
+        },
+        6
+    },
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// class 1: data movement
@@ -297,6 +325,27 @@ InstructionSpec ISA[] = {
         "JMP",
         2,
         0x0,
+        {
+            {1, {REGISTER}},
+            {1, {IMMEDIATE}},
+            {1, {REG_INDIRECT}},
+            {1, {SYMBOL}}
+        },
+        4
+    },
+    {
+        "RET",
+        2,
+        0xF,
+        {
+            {0, {0}}
+        },
+        1
+    },
+    {
+        "CALL",
+        2,
+        0x10,
         {
             {1, {REGISTER}},
             {1, {IMMEDIATE}},
