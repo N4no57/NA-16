@@ -33,7 +33,7 @@ void handle_include(TokenList *tokens, const u64 *idx, Token *tok) {
     free(new_tokens.tokens);
 }
 
-void include_expander(TokenList *tokens) {
+void include_expander(TokenList *tokens) { // TODO: handle circular dependency
     u64 idx = 0;
     Token *curr = &tokens->tokens[idx];
     while (curr->type != TT_EOF) {
