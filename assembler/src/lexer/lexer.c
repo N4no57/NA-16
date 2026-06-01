@@ -71,6 +71,34 @@ i64 parse_num(u8 *string, Position *pos, const u64 *idx) {
     return num;
 }
 
+void parse_string(TokenList *list, u8 *string, Position *pos, const u64 *idx) {
+    Token t;
+    t.pos = *pos;
+
+    u64 buf_capacity = 16;
+    u64 buf_len = 0;
+    char *buff = malloc(buf_capacity * sizeof(char));
+
+    while (string[*idx] != '"' && string[*idx] != '\0' && string[*idx] != '\n') {
+        if (buf_len + 1 >= buf_capacity) {
+            buf_capacity *= 2;
+            char *tmp = realloc(buff, buf_capacity * sizeof(char));
+            if (!tmp) exit(1);
+            buff = tmp;
+        }
+        buff[buf_len++] = (char)string[advance(pos, string)-1];
+    }
+    advance(pos, string); // consume '"'
+    buff[buf_len] = '\0';
+
+    t.type = TT_STRING;
+    t.value = strdup(buff);
+
+    token_push(list, &t);
+
+    free(buff);
+}
+
 void tokenise(TokenList *list, u8 *filename, u8 *string) {
     if (!list) return;
 
@@ -158,6 +186,12 @@ void tokenise(TokenList *list, u8 *filename, u8 *string) {
             t.type = TT_R_SQUARE_BRACKET;
             token_push(list, &t);
             advance(&pos, string);
+            continue;
+        }
+
+        if (string[*i] == '"') {
+            advance(&pos, string); // consume '"'
+            parse_string(list, string, &pos, i);
             continue;
         }
 
