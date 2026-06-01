@@ -127,42 +127,9 @@ void parse_symbol(NodeSymbol *sym, TokenList *tokens, u64 *idx, Token *tok) {
     }
 }
 
-void handle_include(TokenList *tokens, u64 *idx, Token *tok) {
-    TokenList new_tokens;
-    init_TokenList(&new_tokens);
-
-    char *code = read_assembly(tok->value);
-
-    tokenise(&new_tokens, tok->value, (u8 *)code);
-    consume_tok(tokens, idx, tok);
-
-    new_tokens.count--;
-
-    tokens->size += new_tokens.size;
-    tokens->count += new_tokens.count;
-
-    Token *tmp = realloc(tokens->tokens, tokens->size * sizeof(Token));
-    if (!tmp) exit(1);
-    tokens->tokens = tmp;
-
-    memcpy(&tokens->tokens[*idx+new_tokens.count], &tokens->tokens[*idx], (tokens->count - *idx) * sizeof(Token));
-
-    memcpy(&tokens->tokens[*idx], new_tokens.tokens, new_tokens.count * sizeof(Token));
-
-    free(code);
-    free(new_tokens.tokens);
-}
-
 void parse_directive(NodeDirective *directive, TokenList *tokens, u64 *idx, Token *tok) {
     directive->pos = tok->pos;
     directive->name = tok->value;
-    consume_tok(tokens, idx, tok);
-
-    // if the directive is an include directive we kinda gotta do some magic bullshit
-    if (strcmp(directive->name, ".include") == 0) {
-        handle_include(tokens, idx, tok);
-        return;
-    }
 
     init_TokenList(&directive->args);
 

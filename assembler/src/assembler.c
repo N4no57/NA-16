@@ -1,7 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <collectc/sized/cc_array_sized.h>
 
 #include "assembler.h"
 #include "codegen/codegen.h"
@@ -10,6 +8,7 @@
 #include "parser/parser.h"
 #include "semantic_analyser/analyser.h"
 #include "lib/error.h"
+#include "preprocessor/preprocessor.h"
 
 void write_binary(const char *file, const bytes code) {
     FILE *f = fopen(file, "wb");
@@ -25,6 +24,8 @@ int assemble(const char *in, const char *out) {
     char *program = read_assembly(in);
 
     tokenise(&tokens, (u8 *)in, (u8 *)program);
+
+    preprocessor(&tokens);
 
     parse(&ast, &tokens);
 
