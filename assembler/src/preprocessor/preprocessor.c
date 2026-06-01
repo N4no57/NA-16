@@ -4,9 +4,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../lib/error.h"
+
 // expects idx to be set to the .include directive
 void handle_include(TokenList *tokens, const u64 *idx, Token *tok) {
     token_delete(tokens, *idx); // remove .include directive
+    if (tokens->tokens[*idx].type != TT_STRING) {
+        error(tokens->tokens[*idx].pos, "Expected a string after \".include\"");
+        return;
+    }
     char *filename = strdup(tok->value);
     token_delete(tokens, *idx); // remove argument after .include
 
