@@ -18,6 +18,15 @@ void write_binary(const char *file, const bytes code) {
     fclose(f);
 }
 
+void check_stage() {
+    if (error_count > 0 ) {
+        if (error_count == 1) printf("Found 1 error:\n");
+        else printf("Found %d errors:\n", error_count);
+
+        exit(EXIT_FAILURE);
+    }
+}
+
 int assemble(const char *in, const char *out) {
     TokenList tokens;
     NodeProgram ast;
@@ -27,18 +36,15 @@ int assemble(const char *in, const char *out) {
 
     preprocessor(&tokens);
 
+    check_stage();
+
     parse(&ast, &tokens);
 
     analyse(&ast);
 
     lowerer(&ast);
 
-    if (error_count > 0 ) {
-        if (error_count == 1) printf("Found 1 error:\n");
-        else printf("Found %d errors:\n", error_count);
-
-        exit(EXIT_FAILURE);
-    }
+    check_stage();
 
     bytes code;
     code.count = 0;
