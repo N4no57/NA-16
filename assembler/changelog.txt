@@ -1,3 +1,10 @@
+1.6.4:
+ - preprocessor and include directives
+ - macros
+ - more directives like db, dw and so on
+ - 0b and 0x prefixes for numbers
+ - added strings
+
 1.6.3:
  - added handling for undefined symbol references
  - using new library for stuff
