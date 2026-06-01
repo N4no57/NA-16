@@ -172,7 +172,7 @@ void parse_directive(NodeDirective *directive, TokenList *tokens, u64 *idx, Toke
             return;
         }
 
-        token_push(&directive->args, *tok);
+        token_push(&directive->args, tok);
         consume_tok(tokens, idx, tok);
     }
 }

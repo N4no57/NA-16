@@ -13,14 +13,6 @@ add_executable(Assembler src/main.c
         src/lib/asmlib.c src/lib/isa.c src/lib/asmlib.h
         src/lib/error.c src/lib/error.h
         src/preprocessor/preprocessor.c src/preprocessor/preprocessor.h
+        src/lexer/tokens.c
+        src/lexer/tokens.h
 )
-
-target_include_directories(Assembler PRIVATE
-        C:/libs/collections-C/include
-)
-
-target_link_directories(Assembler PRIVATE
-        C:/libs/collections-C/lib
-)
-
-target_link_libraries(Assembler PRIVATE collectc)

@@ -16,39 +16,6 @@ u64 advance(Position* pos, const u8 *string) {
     return pos->idx;
 }
 
-void init_TokenList(TokenList* list) {
-    if (!list) return;
-
-    list->count = 0;
-    list->size = 8;
-
-    list->tokens = malloc(sizeof(Token) * list->size);
-    if (!list->tokens) {
-        exit(1);
-    }
-}
-
-void free_TokenList(TokenList* list) {
-    if (!list) return;
-
-    free(list->tokens);
-}
-
-void token_push(TokenList* list, Token token) {
-    if (!list) return;
-
-    if (list->count+1 >= list->size) {
-        list->size *= 2;
-        Token *tmp = realloc(list->tokens, list->size * sizeof(Token));
-        if (!tmp) {
-            exit(1);
-        }
-        list->tokens = tmp;
-    }
-
-    list->tokens[list->count++] = token;
-}
-
 i64 parse_num(u8 *string, Position *pos, const u64 *idx) {
     u64 buf_capacity = 16;
     u64 buf_len = 0;
@@ -89,7 +56,7 @@ void tokenise(TokenList *list, u8 *filename, u8 *string) {
             if (string[*i] == '\n') {
                 t.type = TT_NEWLINE;
                 t.pos = pos;
-                token_push(list, t);
+                token_push(list, &t);
             }
             advance(&pos, string);
             continue;
@@ -105,7 +72,7 @@ void tokenise(TokenList *list, u8 *filename, u8 *string) {
         if (string[*i] == ':') {
             t.pos = pos;
             t.type = TT_COLON;
-            token_push(list, t);
+            token_push(list, &t);
             advance(&pos, string);
             continue;
         }
@@ -113,7 +80,7 @@ void tokenise(TokenList *list, u8 *filename, u8 *string) {
         if (string[*i] == '=') {
             t.pos = pos;
             t.type = TT_EQUALS;
-            token_push(list, t);
+            token_push(list, &t);
             advance(&pos, string);
             continue;
         }
@@ -121,7 +88,7 @@ void tokenise(TokenList *list, u8 *filename, u8 *string) {
         if (string[*i] == '+') {
             t.pos = pos;
             t.type = TT_PLUS;
-            token_push(list, t);
+            token_push(list, &t);
             advance(&pos, string);
             continue;
         }
@@ -129,7 +96,7 @@ void tokenise(TokenList *list, u8 *filename, u8 *string) {
         if (string[*i] == '-') {
             t.pos = pos;
             t.type = TT_MINUS;
-            token_push(list, t);
+            token_push(list, &t);
             advance(&pos, string);
             continue;
         }
@@ -137,7 +104,7 @@ void tokenise(TokenList *list, u8 *filename, u8 *string) {
         if (string[*i] == ',') {
             t.pos = pos;
             t.type = TT_COMMA;
-            token_push(list, t);
+            token_push(list, &t);
             advance(&pos, string);
             continue;
         }
@@ -145,7 +112,7 @@ void tokenise(TokenList *list, u8 *filename, u8 *string) {
         if (string[*i] == '[') {
             t.pos = pos;
             t.type = TT_L_SQUARE_BRACKET;
-            token_push(list, t);
+            token_push(list, &t);
             advance(&pos, string);
             continue;
         }
@@ -153,7 +120,7 @@ void tokenise(TokenList *list, u8 *filename, u8 *string) {
         if (string[*i] == ']') {
             t.pos = pos;
             t.type = TT_R_SQUARE_BRACKET;
-            token_push(list, t);
+            token_push(list, &t);
             advance(&pos, string);
             continue;
         }
@@ -164,7 +131,7 @@ void tokenise(TokenList *list, u8 *filename, u8 *string) {
             i64 num = parse_num(string, &pos, i);
             t.value = malloc(sizeof(i64));
             memcpy(t.value, &num, sizeof(i64));
-            token_push(list, t);
+            token_push(list, &t);
             continue;
         }
 
@@ -203,7 +170,7 @@ void tokenise(TokenList *list, u8 *filename, u8 *string) {
                 t.value = strdup((char *)buff);
             }
 
-            token_push(list, t);
+            token_push(list, &t);
             continue;
         }
 
@@ -214,5 +181,5 @@ void tokenise(TokenList *list, u8 *filename, u8 *string) {
     t.value = nullptr;
     t.pos = pos;
     t.type = TT_EOF;
-    token_push(list, t);
+    token_push(list, &t);
 }
