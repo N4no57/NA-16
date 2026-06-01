@@ -16,23 +16,59 @@ u64 advance(Position* pos, const u8 *string) {
     return pos->idx;
 }
 
+int detect_base(char **s) {
+    const char *p = *s;
+
+    if (p[0] == '0') {
+        if (p[1] == 'x' || p[1] == 'X') {
+            *s += 2;
+            return 16;
+        }
+        if (p[1] == 'b' || p[1] == 'B') {
+            *s += 2;
+            return 2;
+        }
+        // leading 0 → octal (if you want C behavior)
+        if (isdigit((unsigned char)p[1])) {
+            *s += 1;
+            return 8;
+        }
+    }
+
+    return 10;
+}
+
 i64 parse_num(u8 *string, Position *pos, const u64 *idx) {
     u64 buf_capacity = 16;
     u64 buf_len = 0;
-    u8 *buff = malloc(buf_capacity * sizeof(u8));
+    char *buff = malloc(buf_capacity * sizeof(u8));
 
-    while (isdigit(string[*idx])) {
+    while (isdigit(string[*idx]) || string[*idx] == 'x' || string[*idx] == 'b') {
         if (buf_len + 1 >= buf_capacity) {
             buf_capacity *= 2;
             void *tmp = realloc(buff, buf_capacity * sizeof(u8));
             if (!tmp) exit(1);
             buff = tmp;
         }
-        buff[buf_len++] = string[advance(pos, string)-1];
+        buff[buf_len++] = (char)string[advance(pos, string)-1];
     }
     buff[buf_len] = '\0';
 
-    return _atoi64((char *)buff);
+    const i32 radix = detect_base(&buff);
+
+    char *end;
+
+    const i64 num = strtoll(buff, &end, radix);
+
+    if (end == buff) {
+        error(*pos, "strtoll() failed: no characters");
+    }
+
+    if (*end != '\0') {
+        error(*pos, "strtoll() failed: trailing junk \"%s\"", end);
+    }
+
+    return num;
 }
 
 void tokenise(TokenList *list, u8 *filename, u8 *string) {
