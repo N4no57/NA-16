@@ -12,4 +12,15 @@ add_executable(Assembler src/main.c
         src/codegen/codegen.c src/codegen/symbol_pass.c src/codegen/codegen.h
         src/lib/asmlib.c src/lib/isa.c src/lib/asmlib.h
         src/lib/error.c src/lib/error.h
+        src/preprocessor/preprocessor.c src/preprocessor/preprocessor.h
 )
+
+target_include_directories(Assembler PRIVATE
+        C:/libs/collections-C/include
+)
+
+target_link_directories(Assembler PRIVATE
+        C:/libs/collections-C/lib
+)
+
+target_link_libraries(Assembler PRIVATE collectc)
