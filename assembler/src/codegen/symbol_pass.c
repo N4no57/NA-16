@@ -32,8 +32,9 @@ bool is_stable(SymbolTable *old, SymbolTable *new) {
     bool ret_val = true;
     for (u64 i = 0; i < old->count; i++) {
         if (ret_val == false) return ret_val;
-        if (old->symbols[i].kind == SK_LABEL && new->symbols[i].kind == SK_LABEL) {
-            ret_val =  old->symbols[i].value == new->symbols[i].value;
+        NodeSymbol *new_sym = find_symbol(new, old->symbols[i].symbol_name); // get matching symbol
+        if (old->symbols[i].kind == SK_LABEL && new_sym->kind == SK_LABEL) {
+            ret_val =  old->symbols[i].value == new_sym->value;
         }
     }
     return ret_val;
@@ -101,7 +102,7 @@ void visit_NodeStatement1
 /// Symbol table correction
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void visit_NodeOperandRecalc(const char *mnemonic, const NodeOperand *operand, const SymbolTable *table, const bool use_16bits, u64 *size) {
+void visit_NodeOperandRecalc(const NodeOperand *operand, const SymbolTable *table, const bool use_16bits, u64 *size) {
     if (operand->kind == REGISTER || operand->kind == REG_INDIRECT) {
         return;
     }
@@ -116,11 +117,7 @@ void visit_NodeOperandRecalc(const char *mnemonic, const NodeOperand *operand, c
         u8 inc_by = 0;
         if (!use_16bits) {
             bool need_aex = false;
-            if (is_cond_jump(mnemonic)) {
-                need_aex = wont_fit_s8(symbol->value);
-            } else {
-                need_aex = wont_fit_u8(symbol->value);
-            }
+            need_aex = wont_fit_u8(symbol->value);
             inc_by += need_aex == true ? 2 : 0; // adding 2 accounts for new prefix and extra byte for the symbol
         } else {
             inc_by++;
@@ -132,7 +129,7 @@ void visit_NodeOperandRecalc(const char *mnemonic, const NodeOperand *operand, c
         return;
     }
 
-    if (operand->kind == IMMEDIATE || operand->kind == DISPLACEMENT) {
+    if (operand->kind == IMMEDIATE) {
         if (!use_16bits) {
             (*size)++;
         } else {
@@ -144,8 +141,31 @@ void visit_NodeOperandRecalc(const char *mnemonic, const NodeOperand *operand, c
     error(operand->pos, "Invalid operand type");
 }
 
-u64 visit_NodeInstructionRecalc(const NodeInstruction *node, const SymbolTable *table) {
+#define MEX_PREFIX_SIZE 2
+#define BASE_ENCODING_SIZE 2
+#define SHORT_DISP_SIZE 1
+#define LONG_DISP_SIZE 2
+#define AEX_SIZE 1
+
+u64 visit_NodeInstructionRecalc(const NodeInstruction *node, const SymbolTable *table, const u16 simulated_pc) {
     u64 ret_val = 0;
+
+    if (is_cond_jump(node->mnemonic)) {
+        // handle this crap
+        NodeSymbol *symbol = find_symbol(table, node->operands[0].symbol_name);
+        u64 size = BASE_ENCODING_SIZE;
+
+        i32 delta = (i32)symbol->value - (simulated_pc + BASE_ENCODING_SIZE + SHORT_DISP_SIZE);
+
+        if (wont_fit_s8(delta)) {
+            size += AEX_SIZE + LONG_DISP_SIZE; // increase by 3 to account for AEX byte and 2 bytes of displacement
+        } else {
+            size += SHORT_DISP_SIZE;
+        }
+
+        return size;
+    }
+
     InstructionSpec info = get_spec(node->mnemonic);
 
     u64 sig_id = 0;
@@ -155,33 +175,33 @@ u64 visit_NodeInstructionRecalc(const NodeInstruction *node, const SymbolTable *
         sig = &info.signatures[sig_id+1];
     }
 
-    if (sig_id > 0 && !is_cond_jump(node->mnemonic)) {
-        ret_val += 2;
+    if (sig_id > 0) {
+        ret_val += MEX_PREFIX_SIZE;
     }
 
     bool use_16bits = require_16_bits(node, sig);
 
     if (use_16bits) {
-        ret_val++;
+        ret_val++; // AEX prefix is 1 byte
     }
 
     if (info.opcode > 0xF) {
-        ret_val++;
+        ret_val++; // escape byte is... well... 1 byte
     }
 
-    ret_val += 2; // instruction encoding
+    ret_val += BASE_ENCODING_SIZE; // instruction encoding
 
     for (int i = 0; i < node->operand_count; i++) {
-        visit_NodeOperandRecalc(node->mnemonic, &node->operands[i], table, use_16bits, &ret_val);
+        visit_NodeOperandRecalc(&node->operands[i], table, use_16bits, &ret_val);
     }
 
     return ret_val;
 }
 
-u64 visit_NodeStatementRecalc(NodeStatement *node, const SymbolTable *table) {
+u64 visit_NodeStatementRecalc(NodeStatement *node, const SymbolTable *table, const u16 simulated_pc) {
     u64 ret_val = 0;
     if (node->kind == ST_INSTRUCTION) {
-        ret_val = visit_NodeInstructionRecalc(&node->instruction, table);
+        ret_val = visit_NodeInstructionRecalc(&node->instruction, table, simulated_pc);
     }
     return ret_val;
 }
@@ -193,20 +213,21 @@ void recalc_layout(const NodeProgram *ast, const SymbolTable *old, SymbolTable *
     memcpy(new->symbols, old->symbols, old->size * sizeof(NodeSymbol));
 
     u64 *sizes = malloc(ast->count * sizeof(u64));
+    u16 simulated_pc = 0;
 
     for (u64 i = 0; i < ast->count; i++) {
-        sizes[i] = visit_NodeStatementRecalc(&ast->statements[i], new);
+        sizes[i] = visit_NodeStatementRecalc(&ast->statements[i], new, simulated_pc);
+        simulated_pc += sizes[i];
     }
 
-    u64 byte_pos = 0;
-
+    simulated_pc = 0;
     for (u64 i = 0; i < ast->count; i++) {
         if (ast->statements[i].kind == ST_SYMBOL && ast->statements[i].symbol.kind == SK_LABEL) {
             NodeSymbol *symbol = find_symbol(new, ast->statements[i].symbol.symbol_name);
-            symbol->value = (i32)byte_pos;
+            symbol->value = (i32)simulated_pc;
         }
 
-        byte_pos += sizes[i];
+        simulated_pc += sizes[i];
     }
 
     free(sizes);
@@ -265,8 +286,10 @@ void patch_symbols(const NodeProgram *ast, SymbolTable *table) {
 
     u64 *sizes = malloc(ast->count * sizeof(u64));
 
+    u16 simulated_pc = 0;
     for (u64 i = 0; i < ast->count; i++) {
-        sizes[i] = visit_NodeStatementRecalc(&ast->statements[i], &tmp);
+        sizes[i] = visit_NodeStatementRecalc(&ast->statements[i], &tmp, simulated_pc);
+        simulated_pc += sizes[i];
     }
     free(tmp.symbols);
 

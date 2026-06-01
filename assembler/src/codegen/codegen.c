@@ -41,7 +41,7 @@ void visit_NodeOperand(const NodeOperand *operand, bool use_16bits, u8 *buff, u8
             error(operand->pos, "Invalid register");
         }
         buff[(*idx)++] = status;
-    } else if (operand->kind == IMMEDIATE || operand->kind == DISPLACEMENT) {
+    } else if (operand->kind == IMMEDIATE) {
         if (!use_16bits) {
             buff[(*idx)++] = operand->immediate & 0xFF;
         } else {
@@ -154,6 +154,26 @@ void visit_NodeInstruction(const NodeInstruction *node, bytes *code) {
 
     InstructionSpec info = get_spec((char *)node->mnemonic);
 
+    if (is_cond_jump(node->mnemonic)) {
+        // handle this crap
+        bool use_16bits = wont_fit_s8(node->operands[0].immediate);
+        if (use_16bits) buff[buff_idx++] = GEN_AEX;
+
+        buff[buff_idx] |= (info.class & 0x7) << 5 | (info.opcode & 0xF) << 1;
+        buff_idx += 2;
+
+        const NodeOperand *operand = &node->operands[0];
+        if (!use_16bits) {
+            buff[buff_idx++] = operand->immediate & 0xFF;
+        } else {
+            buff[buff_idx++] = operand->immediate & 0xFF;
+            buff[buff_idx++] = (operand->immediate & 0xFF00) >> 8;
+        }
+
+        push_bytes(code, buff, &buff_idx);
+        return;
+    }
+
     u64 sig_id = 0;
     InstructionSignature *sig = &info.signatures[sig_id];
     for (sig_id = 0; sig_id < info.signature_count; sig_id++) {
@@ -161,7 +181,7 @@ void visit_NodeInstruction(const NodeInstruction *node, bytes *code) {
         sig = &info.signatures[sig_id+1];
     }
 
-    if (sig_id > 0 && !is_cond_jump(node->mnemonic)) {
+    if (sig_id > 0) {
         u16 MEX_prefix = 0;
         if (sig->operand_count == 3) {
             MEX_prefix = GEN_MEX(sig->kinds[0], sig->kinds[1], sig->kinds[2]);
