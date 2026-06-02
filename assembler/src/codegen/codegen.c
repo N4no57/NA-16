@@ -325,17 +325,14 @@ void visit_NodeStatement(const NodeStatement *node, SectionTable *sections) {
     }
 }
 
-void generate_code(NodeProgram *ast, bytes *code) {
+void generate_code(NodeProgram *ast, SectionTable *sections) {
     if (!ast) return;
 
-    SectionTable sections = {0};
-    init_SectionTable(&sections);
-
-    symbol_pass(ast, &sections);
+    symbol_pass(ast, sections);
 
     halt_on_error();
 
     for (u64 i = 0; i < ast->count; i++) {
-        visit_NodeStatement(&ast->statements[i], &sections);
+        visit_NodeStatement(&ast->statements[i], sections);
     }
 }

@@ -22,6 +22,12 @@ void init_SectionTable(SectionTable *list) {
 }
 
 void free_SectionTable(SectionTable *list) {
+    for (u64 i = 0; i < list->count; i++) {
+        if (list->sections[i].data == nullptr) continue;
+
+        free(list->sections[i].data);
+    }
+
     free(list->sections);
 }
 

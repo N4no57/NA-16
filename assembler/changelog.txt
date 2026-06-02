@@ -1,3 +1,6 @@
+1.7.1:
+ - section directive
+
 1.7.0:
  - preprocessor and include directives
  - macros

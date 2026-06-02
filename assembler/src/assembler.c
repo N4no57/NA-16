@@ -10,10 +10,15 @@
 #include "lib/error.h"
 #include "preprocessor/preprocessor.h"
 
-void write_binary(const char *file, const bytes code) {
+void write_binary(const char *file, SectionTable *sections) {
     FILE *f = fopen(file, "wb");
 
-    fwrite(code.data, code.count, 1, f);
+    for (u64 i =0; i < sections->count; i++) {
+        Section *section = &sections->sections[i];
+        if (section->count == 0) continue;
+
+        fwrite(section->data, section->count, 1, f);
+    }
 
     fclose(f);
 }
@@ -37,20 +42,14 @@ int assemble(const char *in, const char *out) {
 
     halt_on_error();
 
-    bytes code;
-    code.count = 0;
-    code.size = 8;
-    code.data = malloc(code.size);
-    if (code.data == NULL) {
-        free(program);
-        return 1;
-    }
+    SectionTable sections;
+    init_SectionTable(&sections);
 
-    generate_code(&ast, &code);
+    generate_code(&ast, &sections);
 
-    write_binary(out, code);
+    write_binary(out, &sections);
 
-    free(code.data);
+    free_SectionTable(&sections);
     free(program);
 
     return 0;

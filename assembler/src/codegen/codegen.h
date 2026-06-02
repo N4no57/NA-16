@@ -22,6 +22,6 @@ bool wont_fit_s8(i64 value);
 bool require_16_bits(const NodeInstruction *node, const InstructionSignature *sig);
 
 void symbol_pass(NodeProgram *ast, SectionTable *sections);
-void generate_code(NodeProgram *ast, bytes *code);
+void generate_code(NodeProgram *ast, SectionTable *sections);
 
 #endif //NA_16_CODEGEN_H
