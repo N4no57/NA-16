@@ -16,6 +16,14 @@ u64 advance(Position* pos, const u8 *string) {
     return pos->idx;
 }
 
+bool ishexdigit(const char c) {
+    if (isdigit(c)) return true;
+    if (c >= 'A' && c <= 'F') return true;
+    if (c >= 'a' && c <= 'f') return true;
+
+    return false;
+}
+
 int detect_base(char **s) {
     const char *p = *s;
 
@@ -43,7 +51,7 @@ i64 parse_num(u8 *string, Position *pos, const u64 *idx) {
     u64 buf_len = 0;
     char *buff = malloc(buf_capacity * sizeof(u8));
 
-    while (isdigit(string[*idx]) || string[*idx] == 'x' || string[*idx] == 'b') {
+    while (ishexdigit((char)string[*idx]) || string[*idx] == 'x' || string[*idx] == 'b') {
         if (buf_len + 1 >= buf_capacity) {
             buf_capacity *= 2;
             void *tmp = realloc(buff, buf_capacity * sizeof(u8));
