@@ -8,6 +8,7 @@
 #include "parser/parser.h"
 #include "semantic_analyser/analyser.h"
 #include "lib/error.h"
+#include "obj_file_writer/obj_writer.h"
 #include "preprocessor/preprocessor.h"
 
 void write_binary(const char *file, SectionTable *sections) {
@@ -45,7 +46,22 @@ int assemble(const char *in, const char *out) {
     SectionTable sections;
     init_SectionTable(&sections);
 
-    generate_code(&ast, &sections);
+    SymbolTable symbols;
+
+    generate_code(&ast, &symbols, &sections);
+
+    ObjectFile obj = {0};
+    obj.header.magic = -1;
+    obj.header.version = 0;
+
+    obj.header.section_table_size = sections.count;
+
+    obj.header.symbol_table_size = symbols.count;
+
+    obj.section_table = sections.sections;
+    obj.symbol_table = symbols.symbols;
+
+    write_obj(&obj, "test.o");
 
     write_binary(out, &sections);
 

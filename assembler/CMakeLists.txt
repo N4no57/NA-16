@@ -17,4 +17,6 @@ add_executable(Assembler src/main.c
         src/lexer/tokens.h
         src/lib/sections.c
         src/lib/sections.h
+        src/obj_file_writer/obj_writer.c
+        src/obj_file_writer/obj_writer.h
 )
