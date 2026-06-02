@@ -1,11 +1,7 @@
 #include "parser.h"
-
-#include <stdio.h>
-
 #include "../lib/error.h"
 
 #include <stdlib.h>
-#include <string.h>
 
 void init_parser(NodeProgram *ast) {
     ast->count = 0;
@@ -130,6 +126,7 @@ void parse_symbol(NodeSymbol *sym, TokenList *tokens, u64 *idx, Token *tok) {
 void parse_directive(NodeDirective *directive, TokenList *tokens, u64 *idx, Token *tok) {
     directive->pos = tok->pos;
     directive->name = tok->value;
+    consume_tok(tokens, idx, tok);
 
     init_TokenList(&directive->args);
 
