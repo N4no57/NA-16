@@ -198,10 +198,89 @@ u64 visit_NodeInstructionRecalc(const NodeInstruction *node, const SymbolTable *
     return ret_val;
 }
 
+u64 handle_define(const NodeDirective *node, u64 size) {
+    u64 ret_val = 0;
+
+    u64 tok_idx = 0;
+    Token *tok = &node->args.tokens[tok_idx];
+
+    while (tok_idx < node->args.count) {
+        if (tok->type != TT_IMMEDIATE) {
+            error(tok->pos, "invalid argument for \"%s\" directive", node->name);
+        }
+
+        ret_val += size;
+
+        tok = &node->args.tokens[++tok_idx];
+    }
+
+    return ret_val;
+}
+
+u64 visit_NodeDirectiveRecalc(const NodeDirective *node) {
+    u64 ret_val = 0;
+    u64 tok_idx = 0;
+    Token *tok = &node->args.tokens[tok_idx];
+
+    if (strcmp(node->name, ".db") == 0) {
+        return handle_define(node, 1);
+    }
+
+    if (strcmp(node->name, ".dw") == 0) {
+        return handle_define(node, 2);
+    }
+
+    if (strcmp(node->name, ".dd") == 0) {
+        return handle_define(node, 4);
+    }
+
+    if (strcmp(node->name, ".dq") == 0) {
+        return handle_define(node, 8);
+    }
+
+    if (strcmp(node->name, ".ascii") == 0) {
+        while (tok_idx < node->args.count) {
+            if (tok->type != TT_STRING) {
+                error(tok->pos, "invalid argument for \"%s\" directive", node->name);
+            }
+
+            String *s = tok->value;
+
+            ret_val += s->size;
+
+            tok = &node->args.tokens[++tok_idx];
+        }
+
+        return ret_val;
+    }
+
+    if (strcmp(node->name, ".asciz") == 0) {
+        while (tok_idx < node->args.count) {
+            if (tok->type != TT_STRING) {
+                error(tok->pos, "invalid argument for \"%s\" directive", node->name);
+            }
+
+            String *s = tok->value;
+
+            ret_val += s->size + 1; // account for added null terminator at the end
+
+            tok = &node->args.tokens[++tok_idx];
+        }
+
+        return ret_val;
+    }
+
+    error(node->pos, "invalid directive");
+
+    return 0;
+}
+
 u64 visit_NodeStatementRecalc(NodeStatement *node, const SymbolTable *table, const u16 simulated_pc) {
     u64 ret_val = 0;
     if (node->kind == ST_INSTRUCTION) {
         ret_val = visit_NodeInstructionRecalc(&node->instruction, table, simulated_pc);
+    } else if (node->kind == ST_DIRECTIVE) {
+        ret_val = visit_NodeDirectiveRecalc(&node->directive);
     }
     return ret_val;
 }

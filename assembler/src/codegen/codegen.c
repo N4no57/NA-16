@@ -17,9 +17,9 @@ i16 get_register_encoding(registers_t reg) {
     return -1; // idfk what to do with the rest of the registers
 }
 
-void push_bytes(bytes *code, const u8 *buff, const u8 *buff_size) {
-    while (code->count + *buff_size >= code->size) {
-        code->size += *buff_size;
+void push_bytes(bytes *code, const u8 *buff, const u64 buff_size) {
+    while (code->count + buff_size >= code->size) {
+        code->size += buff_size;
         code->size *= 2;
         u8 *tmp = realloc(code->data, code->size * sizeof(u8));
         if (!tmp) {
@@ -30,9 +30,9 @@ void push_bytes(bytes *code, const u8 *buff, const u8 *buff_size) {
     }
 
 
-    memcpy(&code->data[code->count], buff, *buff_size);
+    memcpy(&code->data[code->count], buff, buff_size);
 
-    code->count += *buff_size;
+    code->count += buff_size;
 }
 
 void visit_NodeOperand(const NodeOperand *operand, bool use_16bits, u8 *buff, u8 *idx) {
@@ -171,7 +171,7 @@ void visit_NodeInstruction(const NodeInstruction *node, bytes *code) {
             buff[buff_idx++] = (operand->immediate & 0xFF00) >> 8;
         }
 
-        push_bytes(code, buff, &buff_idx);
+        push_bytes(code, buff, buff_idx);
         return;
     }
 
@@ -221,20 +221,74 @@ void visit_NodeInstruction(const NodeInstruction *node, bytes *code) {
 
     fold(node->mnemonic, sig, use_16bits, inst_slot, buff, &buff_idx);
 
-    push_bytes(code, buff, &buff_idx);
+    push_bytes(code, buff, buff_idx);
+}
+
+void emit_define(const NodeDirective *node, bytes *code, u64 size) {
+    u64 tok_idx = 0;
+    Token *tok = &node->args.tokens[tok_idx];
+    while (tok_idx < node->args.count) {
+        if (tok->type != TT_IMMEDIATE) {
+            error(tok->pos, "invalid argument for \"%s\" directive", node->name);
+        }
+
+        push_bytes(code, tok->value, size);
+
+        tok = &node->args.tokens[++tok_idx];
+    }
 }
 
 void visit_NodeDirective(const NodeDirective *node, bytes *code) {
-    u8 tmp = 1;
+    u64 tok_idx = 0;
+    Token *tok = &node->args.tokens[tok_idx];
+
     if (strcmp(node->name, ".db") == 0) {
-        u64 tok_idx = 0;
-        Token *tok = &node->args.tokens[tok_idx];
+        emit_define(node, code, 1);
+        return;
+    }
+
+    if (strcmp(node->name, ".dw") == 0) {
+        emit_define(node, code, 2);
+        return;
+    }
+
+    if (strcmp(node->name, ".dd") == 0) {
+        emit_define(node, code, 4);
+        return;
+    }
+
+    if (strcmp(node->name, ".dq") == 0) {
+        emit_define(node, code, 8);
+        return;
+    }
+
+    if (strcmp(node->name, ".ascii") == 0) {
         while (tok_idx < node->args.count) {
-            if (tok->type != TT_IMMEDIATE) {
-                error(tok->pos, "idk what to put here ngl");
+            if (tok->type != TT_STRING) {
+                error(tok->pos, "invalid argument for \"%s\" directive", node->name);
             }
 
-            push_bytes(code, tok->value, &tmp);
+            String *s = tok->value;
+
+            push_bytes(code, (u8 *)s->str, s->size);
+
+            tok = &node->args.tokens[++tok_idx];
+        }
+
+        return;
+    }
+
+    if (strcmp(node->name, ".asciz") == 0) {
+        while (tok_idx < node->args.count) {
+            if (tok->type != TT_STRING) {
+                error(tok->pos, "invalid argument for \"%s\" directive", node->name);
+            }
+
+            String *s = tok->value;
+            char null_terminator = '\0';
+
+            push_bytes(code, (u8 *)s->str, s->size);
+            push_bytes(code, (u8 *)&null_terminator, 1);
 
             tok = &node->args.tokens[++tok_idx];
         }
