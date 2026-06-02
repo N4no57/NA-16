@@ -31,13 +31,15 @@ bool string_exists(ObjectFile *object_file, char *string) {
     return false;
 }
 
-u64 get_string(ObjectFile *object_file, char *string) {
+u64 get_string_ref(ObjectFile *object_file, char *string) {
     if (!object_file->string_table) return 0;
 
+    u64 offset = 0;
     for (u64 i = 0; i < object_file->header.string_table_size; i++) {
         if (strcmp(object_file->string_table[i], string) == 0) {
-            return i;
+            return offset;
         }
+        offset += strlen(object_file->string_table[i]) + 1;
     }
     return -1;
 }
@@ -87,7 +89,7 @@ void write_obj(ObjectFile *object_file, char *filename) {
     header->section_table_offset = ftell(f);
     for (u64 i = 0; i < header->section_table_size; i++) {
         Section *section = &object_file->section_table[i];
-        u64 str_table_ref = get_string(object_file, section->name);
+        u64 str_table_ref = get_string_ref(object_file, section->name);
         fwrite(&str_table_ref, sizeof(str_table_ref), 1, f);
         fwrite(&section->offset, sizeof(section->offset), 1, f);
         fwrite(&section->count, sizeof(section->count), 1, f);
@@ -97,7 +99,7 @@ void write_obj(ObjectFile *object_file, char *filename) {
     header->symbol_table_offset = ftell(f);
     for (u64 i = 0; i < header->symbol_table_size; i++) {
         NodeSymbol *sym = &object_file->symbol_table[i];
-        u64 str_table_ref = get_string(object_file, sym->symbol_name);
+        u64 str_table_ref = get_string_ref(object_file, sym->symbol_name);
         fwrite(&str_table_ref, sizeof(str_table_ref), 1, f);
         fwrite(&sym->section_idx, sizeof(sym->section_idx), 1, f); // what section am I in?
         fwrite(&sym->value, sizeof(sym->value), 1, f); // where am I in the section
