@@ -88,12 +88,31 @@ void parse_string(TokenList *list, u8 *string, Position *pos, const u64 *idx) {
     char *buff = malloc(buf_capacity * sizeof(char));
 
     while (string[*idx] != '"' && string[*idx] != '\0' && string[*idx] != '\n') {
-        if (buf_len + 1 >= buf_capacity) {
+        if (buf_len >= buf_capacity) {
             buf_capacity *= 2;
             char *tmp = realloc(buff, buf_capacity * sizeof(char));
             if (!tmp) exit(1);
             buff = tmp;
         }
+
+        if (string[*idx] == '\\') {
+            advance(pos, string);
+            if (string[*idx] == '\\') {
+                buff[buf_len++] = '\\';
+            } else if (string[*idx] == '"') {
+                buff[buf_len++] = '"';
+            } else if (string[*idx] == 'n') {
+                buff[buf_len++] = '\n';
+            } else if (string[*idx] == 't') {
+                buff[buf_len++] = '\t';
+            } else if (string[*idx] == '0') {
+                buff[buf_len++] = '\0';
+            }
+
+            advance(pos, string);
+            continue;
+        }
+
         buff[buf_len++] = (char)string[advance(pos, string)-1];
     }
     advance(pos, string); // consume '"'
