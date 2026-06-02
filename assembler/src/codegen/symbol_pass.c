@@ -470,7 +470,7 @@ void patch_symbols(const NodeProgram *ast, SymbolTable *table, SectionTable *sec
 /// Symbol Pass
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void symbol_pass(NodeProgram *ast, SectionTable *sections) {
+void symbol_pass(NodeProgram *ast, SymbolTable *symbols, SectionTable *sections) {
     if (!ast) return;
 
     SymbolTable old = {0}, new = {0};
@@ -508,4 +508,6 @@ void symbol_pass(NodeProgram *ast, SectionTable *sections) {
 
     // replace symbols with values
     patch_symbols(ast, old_ptr, sections);
+
+    memcpy(symbols, old_ptr, sizeof(SymbolTable));
 }

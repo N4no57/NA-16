@@ -325,10 +325,10 @@ void visit_NodeStatement(const NodeStatement *node, SectionTable *sections) {
     }
 }
 
-void generate_code(NodeProgram *ast, SectionTable *sections) {
+void generate_code(NodeProgram *ast, SymbolTable *symbols, SectionTable *sections) {
     if (!ast) return;
 
-    symbol_pass(ast, sections);
+    symbol_pass(ast, symbols, sections);
 
     halt_on_error();
 
