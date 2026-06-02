@@ -431,6 +431,7 @@ void symbol_pass(NodeProgram *ast) {
     // recalculate and correct symbols
     do {
         recalc_layout(ast, old_ptr, new_ptr);
+        halt_on_error();
         if (is_stable(old_ptr, new_ptr)) break;
 
         free(old_ptr->symbols);

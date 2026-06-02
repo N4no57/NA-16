@@ -54,3 +54,12 @@ void fatal(Position pos, const char *fmt, ...) {
 
     exit(EXIT_FAILURE);
 }
+
+void halt_on_error() {
+    if (error_count > 0 ) {
+        if (error_count == 1) printf("Found 1 error:\n");
+        else printf("Found %d errors:\n", error_count);
+
+        exit(EXIT_FAILURE);
+    }
+}

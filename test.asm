@@ -1,3 +1,4 @@
+.section code
 .global _start
 
 _start:
