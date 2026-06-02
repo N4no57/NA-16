@@ -24,7 +24,7 @@ void write_binary(const char *file, SectionTable *sections) {
     fclose(f);
 }
 
-int assemble(const char *in, const char *out) {
+int assemble(const char *in, char *out) {
     TokenList tokens;
     NodeProgram ast;
     char *program = read_assembly(in);
@@ -61,9 +61,7 @@ int assemble(const char *in, const char *out) {
     obj.section_table = sections.sections;
     obj.symbol_table = symbols.symbols;
 
-    write_obj(&obj, "test.o");
-
-    write_binary(out, &sections);
+    write_obj(&obj, out);
 
     free_SectionTable(&sections);
     free(program);
