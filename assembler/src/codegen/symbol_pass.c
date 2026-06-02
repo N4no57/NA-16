@@ -470,7 +470,7 @@ void patch_symbols(const NodeProgram *ast, SymbolTable *table, SectionTable *sec
 /// Symbol Pass
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void symbol_pass(NodeProgram *ast, SymbolTable *symbols, SectionTable *sections) {
+void symbol_pass(NodeProgram *ast, SymbolTable *symbols, SectionTable *sections, RelocationTable *relocationTable) {
     if (!ast) return;
 
     SymbolTable old = {0}, new = {0};

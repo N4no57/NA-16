@@ -1,9 +1,10 @@
 #ifndef NA_16_OBJ_WRITER_H
 #define NA_16_OBJ_WRITER_H
 
+#include "../parser/ast.h"
 #include "../lib/asmlib.h"
 #include "sections.h"
-#include "../parser/ast.h"
+#include "relocations.h"
 
 typedef struct {
     u32 magic;
@@ -26,7 +27,7 @@ typedef struct {
     ObjectFileHeader header;
     Section *section_table;
     NodeSymbol *symbol_table;
-    // Relocation *relocation_table;
+    Relocation *relocation_table;
     char **string_table;
 } ObjectFile;
 

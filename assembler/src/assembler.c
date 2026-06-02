@@ -46,9 +46,12 @@ int assemble(const char *in, char *out) {
     SectionTable sections;
     init_SectionTable(&sections);
 
+    RelocationTable relocations;
+    init_RelocationTable(&relocations);
+
     SymbolTable symbols;
 
-    generate_code(&ast, &symbols, &sections);
+    generate_code(&ast, &symbols, &sections, &relocations);
 
     ObjectFile obj = {0};
     obj.header.magic = -1;
@@ -58,8 +61,11 @@ int assemble(const char *in, char *out) {
 
     obj.header.symbol_table_size = symbols.count;
 
+    obj.header.relocation_table_size = relocations.count;
+
     obj.section_table = sections.sections;
     obj.symbol_table = symbols.symbols;
+    obj.relocation_table = relocations.relocations;
 
     write_obj(&obj, out);
 
