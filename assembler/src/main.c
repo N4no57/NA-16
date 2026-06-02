@@ -69,10 +69,10 @@
 
 i32 error_count = 0;
 
-#define OUTPUT_DEFAULT "a.out"
+#define OUTPUT_DEFAULT "a.o"
 #define ASSEMBLER_VERSION "1.7.0"
 
-const char *ChangeFileExt(char *string) {
+char *ChangeFileExt(char *string) {
     for (int i = 0; i < strlen(string); i++) {
         if (string[i] == '.') {
             string[i+1] = 'o';
