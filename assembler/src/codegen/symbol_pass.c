@@ -3,7 +3,7 @@
 
 #include "codegen.h"
 #include "../lib/error.h"
-#include "../lib/sections.h"
+#include "../obj_file_writer/sections.h"
 
 void push_symbol(SymbolTable *table, NodeSymbol symbol) {
     if (table->count >= table->size) {

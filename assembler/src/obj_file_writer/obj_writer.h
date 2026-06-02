@@ -2,7 +2,7 @@
 #define NA_16_OBJ_WRITER_H
 
 #include "../lib/asmlib.h"
-#include "../lib/sections.h"
+#include "sections.h"
 #include "../parser/ast.h"
 
 typedef struct {

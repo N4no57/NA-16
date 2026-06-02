@@ -1,7 +1,7 @@
 #ifndef NA_16_SECTIONS_H
 #define NA_16_SECTIONS_H
 
-#include "asmlib.h"
+#include "../lib/asmlib.h"
 
 typedef struct {
     char *name;

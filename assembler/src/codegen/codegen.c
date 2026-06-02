@@ -1,6 +1,6 @@
 #include "codegen.h"
 #include "../lib/error.h"
-#include "../lib/sections.h"
+#include "../obj_file_writer/sections.h"
 
 #include <stdio.h>
 #include <stdlib.h>

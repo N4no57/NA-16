@@ -1,4 +1,4 @@
-#include "sections.h"
+#include "../obj_file_writer/sections.h"
 
 #include <stdlib.h>
 #include <string.h>
