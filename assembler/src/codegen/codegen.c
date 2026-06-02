@@ -223,15 +223,35 @@ void visit_NodeInstruction(const NodeInstruction *node, bytes *code) {
     push_bytes(code, buff, &buff_idx);
 }
 
+void visit_NodeDirective(const NodeDirective *node, bytes *code) {
+    if (strcmp(node->name, ".db") == 0) {
+        u64 tok_idx = 0;
+        Token *tok = &node->args.tokens[tok_idx];
+        while (tok->type != TT_EOF) {
+            if (tok->type != TT_IMMEDIATE) {
+                error(tok->pos, "idk what to put here ngl");
+            }
+
+
+
+            tok = &node->args.tokens[++tok_idx];
+        }
+
+        return;
+    }
+
+    error(node->pos, "invalid directive");
+}
+
 void visit_NodeStatement(const NodeStatement *node, bytes *code) {
     if (node->kind == ST_INSTRUCTION) {
         visit_NodeInstruction(&node->instruction, code);
     } else if (node->kind == ST_DIRECTIVE) {
-        fatal(node->directive.pos, "Directives not implemented yet");
+        error(node->directive.pos, "Directives not implemented yet");
     } else if (node->kind == ST_SYMBOL) {
         return;
     } else {
-        fatal((Position){0}, "Excuse me what the actual fuck are you doing in my house?");
+        error((Position){0}, "Excuse me what the actual fuck are you doing in my house?");
     }
 }
 
