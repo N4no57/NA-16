@@ -37,10 +37,14 @@ typedef enum {
 
 typedef struct {
     char *symbol_name;
-    i64 value;
+
     SymbolKind kind;
-    Position pos;
+    i64 value;
+
     bool global;
+    u64 section_idx;
+
+    Position pos;
 } NodeSymbol;
 
 typedef struct {
