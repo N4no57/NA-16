@@ -15,7 +15,7 @@ void init_SectionTable(SectionTable *list) {
     list->size = 8;
     list->current = 0; // set to text section
 
-    list->sections = malloc(list->size * sizeof(Section *));
+    list->sections = malloc(list->size * sizeof(Section));
     if (!list->sections) exit(1);
 
     memcpy(list->sections, defaultSections, sizeof(defaultSections));
@@ -31,7 +31,7 @@ void section_push(SectionTable *list, Section *section) {
             init_SectionTable(list);
         } else {
             list->size *= 2;
-            Section *tmp = realloc(list->sections, list->size * sizeof(Section *));
+            Section *tmp = realloc(list->sections, list->size * sizeof(Section));
             if (!tmp) {
                 exit(1);
             }
