@@ -12,9 +12,11 @@ void handle_include(TokenList *list, const u64 *idx, Token *tok) {
         error(list->tokens[*idx].pos, "Expected a string after \".include\"");
         return;
     }
-    String *s = tok->value;
+    String *s = tok->value; // the actual string has no null terminator so we add it in manually
 
-    char *filename = strdup(s->str);
+    char *filename = malloc(sizeof(char) * s->size + 1);
+    memcpy(filename, s->str, s->size);
+    filename[s->size] = '\0';
 
     token_delete(list, *idx); // remove argument after .include
 
