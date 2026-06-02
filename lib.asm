@@ -15,5 +15,3 @@ memcpy_loop:
     jmp memcpy_loop
 memcpy_ret:
     ret
-
-.db 0x10, 0x20, 0x30, 0x40, 0x50
