@@ -7,7 +7,7 @@
 #include "../lib/error.h"
 
 // expects idx to be set to the .include directive
-2void handle_include(TokenList *list, const u64 *idx, Token *tok) {
+void handle_include(TokenList *list, const u64 *idx, Token *tok) {
     token_delete(list, *idx); // remove .include directive
     if (list->tokens[*idx].type != TT_STRING) {
         error(list->tokens[*idx].pos, "Expected a string after \".include\"");
