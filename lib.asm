@@ -1,3 +1,5 @@
+.section lib
+
 memcpy:
     ; r1 = dest
     ; r2 = src

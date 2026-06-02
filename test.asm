@@ -19,6 +19,8 @@ _start:
 
 .include "lib.asm"
 
+.section heap
+
 init_heap:
     ; u8 in_use
     ; u16 size

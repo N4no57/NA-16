@@ -247,7 +247,7 @@ void visit_NodeDirective(const NodeDirective *node, SectionTable *sections) {
 
         u64 tmp1 = (u64)sect;
         u64 tmp2 = (u64)&sections->sections[0];
-        u64 sect_idx = tmp2 - tmp1;
+            u64 sect_idx = (tmp1 - tmp2) / sizeof (Section);
 
         sections->current = sect_idx;
         return;
