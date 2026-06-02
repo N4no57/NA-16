@@ -13,10 +13,8 @@ add_executable(Assembler src/main.c
         src/lib/asmlib.c src/lib/isa.c src/lib/asmlib.h
         src/lib/error.c src/lib/error.h
         src/preprocessor/preprocessor.c src/preprocessor/preprocessor.h
-        src/lexer/tokens.c
-        src/lexer/tokens.h
-        src/obj_file_writer/sections.c
-        src/obj_file_writer/sections.h
-        src/obj_file_writer/obj_writer.c
-        src/obj_file_writer/obj_writer.h
+        src/lexer/tokens.c src/lexer/tokens.h
+        src/obj_file_writer/sections.c src/obj_file_writer/sections.h
+        src/obj_file_writer/obj_writer.c src/obj_file_writer/obj_writer.h
+        src/obj_file_writer/relocations.c src/obj_file_writer/relocations.h
 )
