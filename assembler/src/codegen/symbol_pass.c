@@ -117,7 +117,15 @@ void capture_segment(NodeDirective *node, SectionTable *sections) {
     if (strcmp(node->name, ".section") == 0) {
         if (node->args.count > 1) error(node->pos, "Excuse me what the actual fu-");
 
-        if (get_section(sections, node->args.tokens[0].value)) return; // if the section already exists then do nothing
+        Section *sect;
+        if ((sect = get_section(sections, node->args.tokens[0].value))) {
+            u64 tmp1 = (u64)sect;
+            u64 tmp2 = (u64)&sections->sections[0];
+            u64 sect_idx = tmp2 - tmp1;
+
+            sections->current = sect_idx;
+            return;
+        }
 
         Section s = {node->args.tokens[0].value, nullptr, 0, 0};
 
