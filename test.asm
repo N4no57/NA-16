@@ -1,3 +1,5 @@
+.global _start
+
 _start:
     push word bp ; save old bp
     mov bp, sp ; bp = sp

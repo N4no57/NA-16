@@ -239,6 +239,8 @@ void emit_define(const NodeDirective *node, bytes *code, u64 size) {
 }
 
 void visit_NodeDirective(const NodeDirective *node, bytes *code) {
+    if (strcmp(node->name, ".global") == 0) return; // early return as this has already been handled
+
     u64 tok_idx = 0;
     Token *tok = &node->args.tokens[tok_idx];
 

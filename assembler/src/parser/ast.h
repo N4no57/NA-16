@@ -40,6 +40,7 @@ typedef struct {
     i64 value;
     SymbolKind kind;
     Position pos;
+    bool global;
 } NodeSymbol;
 
 typedef struct {

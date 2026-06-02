@@ -69,6 +69,29 @@ bool require_16_bits(const NodeInstruction *node, const InstructionSignature *si
     return use_16bits;
 }
 
+void handle_globals(NodeDirective *node, SymbolTable *table) {
+    u64 tok_idx = 0;
+    Token *tok = &node->args.tokens[tok_idx];
+
+    if (strcmp(node->name, ".global") == 0) {
+        while (tok_idx < node->args.count) {
+            if (tok->type != TT_IDENTIFIER) {
+                error(tok->pos, "Invalid argument for \"%s\" directive", node->name);
+            }
+
+            NodeSymbol *symbol = find_symbol(table, tok->value);
+
+            if (symbol == nullptr) {
+                error(tok->pos, "Undefined symbol reference \"%s\"", tok->value);
+            }
+
+            symbol->global = true;
+
+            tok = &node->args.tokens[++tok_idx];
+        }
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Symbol table generation
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -87,8 +110,7 @@ void capture_symbol(NodeSymbol *node, SymbolTable *table) {
     push_symbol(table, *node);
 }
 
-void visit_NodeStatement1
-(NodeStatement *node, SymbolTable *table) {
+void visit_NodeStatement1(NodeStatement *node, SymbolTable *table) {
     if (node->kind == ST_INSTRUCTION) {
         return;
     }
@@ -218,6 +240,8 @@ u64 handle_define(const NodeDirective *node, u64 size) {
 }
 
 u64 visit_NodeDirectiveRecalc(const NodeDirective *node) {
+    if (strcmp(node->name, ".global") == 0) return 0; // early return as this has already been handled
+
     u64 ret_val = 0;
     u64 tok_idx = 0;
     Token *tok = &node->args.tokens[tok_idx];
@@ -395,6 +419,13 @@ void symbol_pass(NodeProgram *ast) {
     // generate symbol table
     for (u64 i = 0; i < ast->count; i++) {
         visit_NodeStatement1(&ast->statements[i], old_ptr);
+    }
+
+    // check for globals
+    for (u64 i = 0; i < ast->count; i++) {
+        if (ast->statements[i].kind == ST_DIRECTIVE) {
+            handle_globals(&ast->statements[i].directive, old_ptr);
+        }
     }
 
     // recalculate and correct symbols
