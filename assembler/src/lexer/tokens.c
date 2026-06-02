@@ -50,7 +50,7 @@ void token_insert(TokenList* list, const Token *token, const u64 idx) {
         list->tokens = tmp;
     }
 
-    const size_t move_count = list->size - idx;
+    const size_t move_count = list->count - idx;
     memmove(&list->tokens[idx + 1], &list->tokens[idx], move_count * sizeof(Token));
 
     memcpy(&list->tokens[idx], token, sizeof(Token));
@@ -61,7 +61,7 @@ void token_insert(TokenList* list, const Token *token, const u64 idx) {
 void token_delete(TokenList* list, const u64 idx) {
     if (idx >= list->size) return;
 
-    const size_t move_count = list->size - idx - 1;
+    const size_t move_count = list->count - idx - 1;
 
     if (move_count > 0) {
         memmove(&list->tokens[idx], &list->tokens[idx + 1], move_count * sizeof(Token));
