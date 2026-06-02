@@ -91,8 +91,15 @@ void parse_string(TokenList *list, u8 *string, Position *pos, const u64 *idx) {
     advance(pos, string); // consume '"'
     buff[buf_len] = '\0';
 
+    String *s = malloc(sizeof(String));
+
+    s->size = buf_len;
+    s->str = malloc(s->size);
+
+    memcpy(s->str, buff, s->size);
+
     t.type = TT_STRING;
-    t.value = strdup(buff);
+    t.value = s;
 
     token_push(list, &t);
 
