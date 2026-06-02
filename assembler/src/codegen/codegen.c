@@ -18,7 +18,7 @@ i16 get_register_encoding(registers_t reg) {
 }
 
 void push_bytes(bytes *code, const u8 *buff, const u8 *buff_size) {
-    if (code->count + *buff_size >= code->size) {
+    while (code->count + *buff_size >= code->size) {
         code->size += *buff_size;
         code->size *= 2;
         u8 *tmp = realloc(code->data, code->size * sizeof(u8));
@@ -29,9 +29,10 @@ void push_bytes(bytes *code, const u8 *buff, const u8 *buff_size) {
         code->data = tmp;
     }
 
-    for (u8 i = 0; i < *buff_size; i++) {
-        code->data[code->count++] = buff[i];
-    }
+
+    memcpy(&code->data[code->count], buff, *buff_size);
+
+    code->count += *buff_size;
 }
 
 void visit_NodeOperand(const NodeOperand *operand, bool use_16bits, u8 *buff, u8 *idx) {
@@ -224,15 +225,16 @@ void visit_NodeInstruction(const NodeInstruction *node, bytes *code) {
 }
 
 void visit_NodeDirective(const NodeDirective *node, bytes *code) {
+    u8 tmp = 1;
     if (strcmp(node->name, ".db") == 0) {
         u64 tok_idx = 0;
         Token *tok = &node->args.tokens[tok_idx];
-        while (tok->type != TT_EOF) {
+        while (tok_idx < node->args.count) {
             if (tok->type != TT_IMMEDIATE) {
                 error(tok->pos, "idk what to put here ngl");
             }
 
-
+            push_bytes(code, tok->value, &tmp);
 
             tok = &node->args.tokens[++tok_idx];
         }
@@ -247,7 +249,7 @@ void visit_NodeStatement(const NodeStatement *node, bytes *code) {
     if (node->kind == ST_INSTRUCTION) {
         visit_NodeInstruction(&node->instruction, code);
     } else if (node->kind == ST_DIRECTIVE) {
-        error(node->directive.pos, "Directives not implemented yet");
+        visit_NodeDirective(&node->directive, code);
     } else if (node->kind == ST_SYMBOL) {
         return;
     } else {

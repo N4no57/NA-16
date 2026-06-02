@@ -136,15 +136,14 @@ void parse_directive(NodeDirective *directive, TokenList *tokens, u64 *idx, Toke
             return;
         }
 
+        if (tok->type == TT_COMMA) {
+            consume_tok(tokens, idx, tok);
+            continue;
+        }
+
         token_push(&directive->args, tok);
         consume_tok(tokens, idx, tok);
     }
-
-    Token t;
-    t.type = TT_EOF; // marker for end of arg list
-    t.pos = tok->pos;
-    t.value = nullptr;
-    token_push(&directive->args, &t);
 }
 
 NodeStatement parse_statement(NodeProgram *ast, TokenList *tokens, u64 *idx, Token *tok) {

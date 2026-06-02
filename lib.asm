@@ -16,4 +16,4 @@ memcpy_loop:
 memcpy_ret:
     ret
 
-.db 10, 20, 30, 40, 50
+.db 0x10, 0x20, 0x30, 0x40, 0x50
