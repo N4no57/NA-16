@@ -10,6 +10,7 @@ typedef struct {
     u8 *data;
     u64 count;
     u64 size;
+    u64 offset; // where in the obj file is this data?
 } Section;
 
 typedef struct {
