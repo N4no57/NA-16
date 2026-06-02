@@ -15,4 +15,6 @@ add_executable(Assembler src/main.c
         src/preprocessor/preprocessor.c src/preprocessor/preprocessor.h
         src/lexer/tokens.c
         src/lexer/tokens.h
+        src/lib/sections.c
+        src/lib/sections.h
 )
