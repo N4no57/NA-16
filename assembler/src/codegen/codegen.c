@@ -226,6 +226,12 @@ void visit_NodeInstruction(const NodeInstruction *node, bytes *code) {
 void visit_NodeStatement(const NodeStatement *node, bytes *code) {
     if (node->kind == ST_INSTRUCTION) {
         visit_NodeInstruction(&node->instruction, code);
+    } else if (node->kind == ST_DIRECTIVE) {
+        fatal(node->directive.pos, "Directives not implemented yet");
+    } else if (node->kind == ST_SYMBOL) {
+        return;
+    } else {
+        fatal((Position){0}, "Excuse me what the actual fuck are you doing in my house?");
     }
 }
 

@@ -102,3 +102,5 @@ free:
     mov byte [r0], 0
 free_ret:
     ret
+
+.db 10, 20, 30, 40, 50

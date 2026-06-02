@@ -15,3 +15,5 @@ memcpy_loop:
     jmp memcpy_loop
 memcpy_ret:
     ret
+
+.db 10, 20, 30, 40, 50
