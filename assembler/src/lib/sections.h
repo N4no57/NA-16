@@ -16,6 +16,8 @@ typedef struct {
     Section *sections;
     u64 count;
     u64 size;
+
+    u64 current;
 } SectionTable;
 
 void init_SectionTable(SectionTable *list);

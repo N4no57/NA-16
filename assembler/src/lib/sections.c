@@ -13,6 +13,7 @@ Section defaultSections[] = {
 void init_SectionTable(SectionTable *list) {
     list->count = 4;
     list->size = 8;
+    list->current = 0; // set to text section
 
     list->sections = malloc(list->size * sizeof(Section *));
     if (!list->sections) exit(1);
