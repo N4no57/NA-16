@@ -1,10 +1,9 @@
 #include "preprocessor.h"
 #include "../lexer/lexer.h"
+#include "../lib/error.h"
 
 #include <stdlib.h>
 #include <string.h>
-
-#include "../lib/error.h"
 
 // expects idx to be set to the .include directive
 void handle_include(TokenList *list, const u64 *idx, Token *tok) {
@@ -13,7 +12,10 @@ void handle_include(TokenList *list, const u64 *idx, Token *tok) {
         error(list->tokens[*idx].pos, "Expected a string after \".include\"");
         return;
     }
-    char *filename = strdup(tok->value);
+    String *s = tok->value;
+
+    char *filename = strdup(s->str);
+
     token_delete(list, *idx); // remove argument after .include
 
     TokenList new_tokens;
