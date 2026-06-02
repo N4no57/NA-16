@@ -3,6 +3,7 @@
 
 #include "codegen.h"
 #include "../lib/error.h"
+#include "../lib/sections.h"
 
 void push_symbol(SymbolTable *table, NodeSymbol symbol) {
     if (table->count >= table->size) {
@@ -96,7 +97,7 @@ void handle_globals(NodeDirective *node, SymbolTable *table) {
 /// Symbol table generation
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void capture_symbol(NodeSymbol *node, SymbolTable *table) {
+void capture_symbol(NodeSymbol *node, SymbolTable *table, SectionTable *sections) {
     NodeSymbol *symbol = find_symbol(table, node->symbol_name);
 
     if (symbol) {
@@ -107,16 +108,37 @@ void capture_symbol(NodeSymbol *node, SymbolTable *table) {
         node->value = 0;
     }
 
+    node->section_idx = sections->current;
+
     push_symbol(table, *node);
 }
 
-void visit_NodeStatement1(NodeStatement *node, SymbolTable *table) {
+void capture_segment(NodeDirective *node, SectionTable *sections) {
+    if (strcmp(node->name, ".section") == 0) {
+        if (node->args.count > 1) error(node->pos, "Excuse me what the actual fu-");
+
+        if (get_section(sections, node->args.tokens[0].value)) return; // if the section already exists then do nothing
+
+        Section s = {node->args.tokens[0].value, nullptr, 0, 0};
+
+        section_push(sections, &s);
+
+        sections->current = sections->count - 1; // set new section as current
+    }
+}
+
+void visit_NodeStatement1(NodeStatement *node, SymbolTable *table, SectionTable *sections) {
     if (node->kind == ST_INSTRUCTION) {
         return;
     }
 
+    if (node->kind == ST_DIRECTIVE) {
+        capture_segment(&node->directive, sections);
+        return;
+    }
+
     if (node->kind == ST_SYMBOL) {
-        capture_symbol(&node->symbol, table);
+        capture_symbol(&node->symbol, table, sections);
     }
 }
 
@@ -169,7 +191,7 @@ void visit_NodeOperandRecalc(const NodeOperand *operand, const SymbolTable *tabl
 #define LONG_DISP_SIZE 2
 #define AEX_SIZE 1
 
-u64 visit_NodeInstructionRecalc(const NodeInstruction *node, const SymbolTable *table, const u16 simulated_pc) {
+u64 visit_NodeInstructionRecalc(const NodeInstruction *node, const SymbolTable *table, SectionTable *sections) {
     u64 ret_val = 0;
 
     if (is_cond_jump(node->mnemonic)) {
@@ -177,7 +199,7 @@ u64 visit_NodeInstructionRecalc(const NodeInstruction *node, const SymbolTable *
         NodeSymbol *symbol = find_symbol(table, node->operands[0].symbol_name);
         u64 size = BASE_ENCODING_SIZE;
 
-        i32 delta = (i32)symbol->value - (simulated_pc + BASE_ENCODING_SIZE + SHORT_DISP_SIZE);
+        i32 delta = (i32)symbol->value - (sections->sections[sections->current].count + BASE_ENCODING_SIZE + SHORT_DISP_SIZE);
 
         if (wont_fit_s8(delta)) {
             size += AEX_SIZE + LONG_DISP_SIZE; // increase by 3 to account for AEX byte and 2 bytes of displacement
@@ -239,8 +261,19 @@ u64 handle_define(const NodeDirective *node, u64 size) {
     return ret_val;
 }
 
-u64 visit_NodeDirectiveRecalc(const NodeDirective *node) {
+u64 visit_NodeDirectiveRecalc(const NodeDirective *node, SectionTable *sections) {
     if (strcmp(node->name, ".global") == 0) return 0; // early return as this has already been handled
+
+    if (strcmp(node->name, ".section") == 0) {
+        Section *sect = get_section(sections, node->args.tokens[0].value);
+
+        u64 tmp1 = (u64)sect;
+        u64 tmp2 = (u64)&sections->sections[0];
+        u64 sect_idx = tmp2 - tmp1;
+
+        sections->current = sect_idx;
+        return 0;
+    }
 
     u64 ret_val = 0;
     u64 tok_idx = 0;
@@ -299,38 +332,54 @@ u64 visit_NodeDirectiveRecalc(const NodeDirective *node) {
     return 0;
 }
 
-u64 visit_NodeStatementRecalc(NodeStatement *node, const SymbolTable *table, const u16 simulated_pc) {
+u64 visit_NodeStatementRecalc(NodeStatement *node, const SymbolTable *table, SectionTable *sections) {
     u64 ret_val = 0;
     if (node->kind == ST_INSTRUCTION) {
-        ret_val = visit_NodeInstructionRecalc(&node->instruction, table, simulated_pc);
+        ret_val = visit_NodeInstructionRecalc(&node->instruction, table, sections);
     } else if (node->kind == ST_DIRECTIVE) {
-        ret_val = visit_NodeDirectiveRecalc(&node->directive);
+        ret_val = visit_NodeDirectiveRecalc(&node->directive, sections);
     }
     return ret_val;
 }
 
-void recalc_layout(const NodeProgram *ast, const SymbolTable *old, SymbolTable *new) {
+void recalc_layout(const NodeProgram *ast, const SymbolTable *old, SymbolTable *new, SectionTable *sections) {
     new->count = old->count;
     new->size = old->size;
     new->symbols = malloc(new->size * sizeof(NodeSymbol));
     memcpy(new->symbols, old->symbols, old->size * sizeof(NodeSymbol));
 
     u64 *sizes = malloc(ast->count * sizeof(u64));
-    u16 simulated_pc = 0;
 
     for (u64 i = 0; i < ast->count; i++) {
-        sizes[i] = visit_NodeStatementRecalc(&ast->statements[i], new, simulated_pc);
-        simulated_pc += sizes[i];
+        sizes[i] = visit_NodeStatementRecalc(&ast->statements[i], new, sections);
+        sections->sections[sections->current].count += sizes[i];
     }
 
-    simulated_pc = 0;
+    for (u64 i = 0; i < sections->count; i++) {
+        sections->sections[i].count = 0;
+    }
+
     for (u64 i = 0; i < ast->count; i++) {
         if (ast->statements[i].kind == ST_SYMBOL && ast->statements[i].symbol.kind == SK_LABEL) {
             NodeSymbol *symbol = find_symbol(new, ast->statements[i].symbol.symbol_name);
-            symbol->value = (i32)simulated_pc;
+            symbol->value = (i32)sections->sections[sections->current].count;
+        } else if (ast->statements[i].kind == ST_DIRECTIVE) {
+            if (strcmp(ast->statements[i].directive.name, ".section") == 0) {
+                Section *sect = get_section(sections, ast->statements[i].directive.args.tokens[0].value);
+
+                u64 tmp1 = (u64)sect;
+                u64 tmp2 = (u64)&sections->sections[0];
+                u64 sect_idx = tmp2 - tmp1;
+
+                sections->current = sect_idx;
+            }
         }
 
-        simulated_pc += sizes[i];
+        sections->sections[sections->current].count += sizes[i];
+    }
+
+    for (u64 i = 0; i < sections->count; i++) {
+        sections->sections[i].count = 0;
     }
 
     free(sizes);
@@ -380,7 +429,7 @@ void visit_NodeStatement2(NodeStatement *node, SymbolTable *table, const u64 *by
     }
 }
 
-void patch_symbols(const NodeProgram *ast, SymbolTable *table) {
+void patch_symbols(const NodeProgram *ast, SymbolTable *table, SectionTable *sections) {
     SymbolTable tmp = {0};
     tmp.count = table->count;
     tmp.size = table->size;
@@ -391,16 +440,27 @@ void patch_symbols(const NodeProgram *ast, SymbolTable *table) {
 
     u16 simulated_pc = 0;
     for (u64 i = 0; i < ast->count; i++) {
-        sizes[i] = visit_NodeStatementRecalc(&ast->statements[i], &tmp, simulated_pc);
-        simulated_pc += sizes[i];
+        sizes[i] = visit_NodeStatementRecalc(&ast->statements[i], &tmp, sections);
+        sections->sections[sections->current].count += sizes[i];
     }
     free(tmp.symbols);
 
-    u64 byte_pos = 0;
+    for (u64 i = 0; i < sections->count; i++) {
+        sections->sections[i].count = 0;
+    }
 
+    u64 byte_pos = 0;
     for (u64 i = 0; i < ast->count; i++) {
-        byte_pos += sizes[i]; // set byte pos to the end of the instruction in which we are visiting
+        sections->sections[sections->current].count += sizes[i]; // set byte pos to the end of the instruction in which we are visiting
+        byte_pos = 0;
+        for (u64 j = 0; j < sections->current+1; j++) {
+            byte_pos += sections->sections[j].count;
+        }
         visit_NodeStatement2(&ast->statements[i], table, &byte_pos);
+    }
+
+    for (u64 i = 0; i < sections->count; i++) {
+        sections->sections[i].count = 0;
     }
 
     free(sizes);
@@ -410,7 +470,7 @@ void patch_symbols(const NodeProgram *ast, SymbolTable *table) {
 /// Symbol Pass
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void symbol_pass(NodeProgram *ast) {
+void symbol_pass(NodeProgram *ast, SectionTable *sections) {
     if (!ast) return;
 
     SymbolTable old = {0}, new = {0};
@@ -418,7 +478,7 @@ void symbol_pass(NodeProgram *ast) {
 
     // generate symbol table
     for (u64 i = 0; i < ast->count; i++) {
-        visit_NodeStatement1(&ast->statements[i], old_ptr);
+        visit_NodeStatement1(&ast->statements[i], old_ptr, sections);
     }
 
     // check for globals
@@ -428,9 +488,11 @@ void symbol_pass(NodeProgram *ast) {
         }
     }
 
+    halt_on_error();
+
     // recalculate and correct symbols
     do {
-        recalc_layout(ast, old_ptr, new_ptr);
+        recalc_layout(ast, old_ptr, new_ptr, sections);
         halt_on_error();
         if (is_stable(old_ptr, new_ptr)) break;
 
@@ -445,5 +507,5 @@ void symbol_pass(NodeProgram *ast) {
     old_ptr = new_ptr;
 
     // replace symbols with values
-    patch_symbols(ast, old_ptr);
+    patch_symbols(ast, old_ptr, sections);
 }

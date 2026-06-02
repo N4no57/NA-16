@@ -3,6 +3,7 @@
 
 #include "../lib/asmlib.h"
 #include "../parser/ast.h"
+#include "../lib/sections.h"
 
 #define GEN_MEX(DEST_MODE, SRC1_MODE, SRC2_MODE) ((0x8 << 12) | (((DEST_MODE) & 0xF) << 8) | (((SRC1_MODE) & 0xF) << 4) | ((SRC2_MODE) & 0xF))
 #define GEN_AEX (0x91)
@@ -20,7 +21,7 @@ bool wont_fit_u8(u64 value);
 bool wont_fit_s8(i64 value);
 bool require_16_bits(const NodeInstruction *node, const InstructionSignature *sig);
 
-void symbol_pass(NodeProgram *ast);
+void symbol_pass(NodeProgram *ast, SectionTable *sections);
 void generate_code(NodeProgram *ast, bytes *code);
 
 #endif //NA_16_CODEGEN_H

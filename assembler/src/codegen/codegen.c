@@ -1,5 +1,6 @@
 #include "codegen.h"
 #include "../lib/error.h"
+#include "../lib/sections.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,22 +18,22 @@ i16 get_register_encoding(registers_t reg) {
     return -1; // idfk what to do with the rest of the registers
 }
 
-void push_bytes(bytes *code, const u8 *buff, const u64 buff_size) {
-    while (code->count + buff_size >= code->size) {
-        code->size += buff_size;
-        code->size *= 2;
-        u8 *tmp = realloc(code->data, code->size * sizeof(u8));
+void push_bytes(Section *section, const u8 *buff, const u64 buff_size) {
+    while (section->count + buff_size >= section->size) {
+        section->size += buff_size;
+        section->size *= 2;
+        u8 *tmp = realloc(section->data, section->size * sizeof(u8));
         if (!tmp) {
-            free(code->data);
+            free(section->data);
             exit(1);
         }
-        code->data = tmp;
+        section->data = tmp;
     }
 
 
-    memcpy(&code->data[code->count], buff, buff_size);
+    memcpy(&section->data[section->count], buff, buff_size);
 
-    code->count += buff_size;
+    section->count += buff_size;
 }
 
 void visit_NodeOperand(const NodeOperand *operand, bool use_16bits, u8 *buff, u8 *idx) {
@@ -149,7 +150,7 @@ void fold(const char *mnemonic, const InstructionSignature *sig, bool use_16bits
     *idx -= removal;
 }
 
-void visit_NodeInstruction(const NodeInstruction *node, bytes *code) {
+void visit_NodeInstruction(const NodeInstruction *node, SectionTable *sections) {
     u8 buff[MAXTEMPSIZE] = {0};
     u8 buff_idx = 0;
 
@@ -171,7 +172,7 @@ void visit_NodeInstruction(const NodeInstruction *node, bytes *code) {
             buff[buff_idx++] = (operand->immediate & 0xFF00) >> 8;
         }
 
-        push_bytes(code, buff, buff_idx);
+        push_bytes(&sections->sections[sections->current], buff, buff_idx);
         return;
     }
 
@@ -221,10 +222,10 @@ void visit_NodeInstruction(const NodeInstruction *node, bytes *code) {
 
     fold(node->mnemonic, sig, use_16bits, inst_slot, buff, &buff_idx);
 
-    push_bytes(code, buff, buff_idx);
+    push_bytes(&sections->sections[sections->current], buff, buff_idx);
 }
 
-void emit_define(const NodeDirective *node, bytes *code, u64 size) {
+void emit_define(const NodeDirective *node, Section *section, u64 size) {
     u64 tok_idx = 0;
     Token *tok = &node->args.tokens[tok_idx];
     while (tok_idx < node->args.count) {
@@ -232,35 +233,46 @@ void emit_define(const NodeDirective *node, bytes *code, u64 size) {
             error(tok->pos, "invalid argument for \"%s\" directive", node->name);
         }
 
-        push_bytes(code, tok->value, size);
+        push_bytes(section, tok->value, size);
 
         tok = &node->args.tokens[++tok_idx];
     }
 }
 
-void visit_NodeDirective(const NodeDirective *node, bytes *code) {
+void visit_NodeDirective(const NodeDirective *node, SectionTable *sections) {
     if (strcmp(node->name, ".global") == 0) return; // early return as this has already been handled
+
+    if (strcmp(node->name, ".section") == 0) {
+        Section *sect = get_section(sections, node->args.tokens[0].value);
+
+        u64 tmp1 = (u64)sect;
+        u64 tmp2 = (u64)&sections->sections[0];
+        u64 sect_idx = tmp2 - tmp1;
+
+        sections->current = sect_idx;
+        return;
+    }
 
     u64 tok_idx = 0;
     Token *tok = &node->args.tokens[tok_idx];
 
     if (strcmp(node->name, ".db") == 0) {
-        emit_define(node, code, 1);
+        emit_define(node, &sections->sections[sections->current], 1);
         return;
     }
 
     if (strcmp(node->name, ".dw") == 0) {
-        emit_define(node, code, 2);
+        emit_define(node, &sections->sections[sections->current], 2);
         return;
     }
 
     if (strcmp(node->name, ".dd") == 0) {
-        emit_define(node, code, 4);
+        emit_define(node, &sections->sections[sections->current], 4);
         return;
     }
 
     if (strcmp(node->name, ".dq") == 0) {
-        emit_define(node, code, 8);
+        emit_define(node, &sections->sections[sections->current], 8);
         return;
     }
 
@@ -272,7 +284,7 @@ void visit_NodeDirective(const NodeDirective *node, bytes *code) {
 
             String *s = tok->value;
 
-            push_bytes(code, (u8 *)s->str, s->size);
+            push_bytes(&sections->sections[sections->current], (u8 *)s->str, s->size);
 
             tok = &node->args.tokens[++tok_idx];
         }
@@ -289,8 +301,8 @@ void visit_NodeDirective(const NodeDirective *node, bytes *code) {
             String *s = tok->value;
             char null_terminator = '\0';
 
-            push_bytes(code, (u8 *)s->str, s->size);
-            push_bytes(code, (u8 *)&null_terminator, 1);
+            push_bytes(&sections->sections[sections->current], (u8 *)s->str, s->size);
+            push_bytes(&sections->sections[sections->current], (u8 *)&null_terminator, 1);
 
             tok = &node->args.tokens[++tok_idx];
         }
@@ -301,11 +313,11 @@ void visit_NodeDirective(const NodeDirective *node, bytes *code) {
     error(node->pos, "invalid directive");
 }
 
-void visit_NodeStatement(const NodeStatement *node, bytes *code) {
+void visit_NodeStatement(const NodeStatement *node, SectionTable *sections) {
     if (node->kind == ST_INSTRUCTION) {
-        visit_NodeInstruction(&node->instruction, code);
+        visit_NodeInstruction(&node->instruction, sections);
     } else if (node->kind == ST_DIRECTIVE) {
-        visit_NodeDirective(&node->directive, code);
+        visit_NodeDirective(&node->directive, sections);
     } else if (node->kind == ST_SYMBOL) {
         return;
     } else {
@@ -316,16 +328,14 @@ void visit_NodeStatement(const NodeStatement *node, bytes *code) {
 void generate_code(NodeProgram *ast, bytes *code) {
     if (!ast) return;
 
-    symbol_pass(ast);
+    SectionTable sections = {0};
+    init_SectionTable(&sections);
 
-    if (error_count > 0 ) {
-        if (error_count == 1) printf("Found 1 error:\n");
-        else printf("Found %d errors:\n", error_count);
+    symbol_pass(ast, &sections);
 
-        exit(EXIT_FAILURE);
-    }
+    halt_on_error();
 
     for (u64 i = 0; i < ast->count; i++) {
-        visit_NodeStatement(&ast->statements[i], code);
+        visit_NodeStatement(&ast->statements[i], &sections);
     }
 }
