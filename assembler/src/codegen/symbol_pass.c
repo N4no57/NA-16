@@ -490,6 +490,7 @@ void visit_NodeOperand3(NodeOperand *operand, SymbolTable *table, RelocationTabl
 
         reloc.type = IMM_16;
         reloc.offset = *byte_offset;
+        reloc.section_idx = sections->current;
 
         operand->kind = IMMEDIATE;
         operand->immediate = -1;
@@ -533,6 +534,7 @@ void visit_NodeInstruction3(NodeInstruction *node, SymbolTable *table, SectionTa
             reloc.symbol_ref = ((u64)symbol - (u64)table->symbols) / sizeof(NodeSymbol);
             reloc.type = REL_16;
             reloc.offset = byte_idx + offset;
+            reloc.section_idx = sections->current;
             relocation_push(relocationTable, &reloc);
             return;
         }
@@ -546,11 +548,13 @@ void visit_NodeInstruction3(NodeInstruction *node, SymbolTable *table, SectionTa
             reloc.symbol_ref = ((u64)symbol - (u64)table->symbols) / sizeof(NodeSymbol);
             reloc.type = REL_16;
             reloc.offset = byte_idx + offset;
+            reloc.section_idx = sections->current;
         } else {
             reloc.name = symbol->symbol_name;
             reloc.symbol_ref = ((u64)symbol - (u64)table->symbols) / sizeof(NodeSymbol);
             reloc.type = REL_8;
             reloc.offset = byte_idx;
+            reloc.section_idx = sections->current;
         }
 
         relocation_push(relocationTable, &reloc);

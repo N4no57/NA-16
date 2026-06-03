@@ -6,13 +6,17 @@
 typedef enum {
     IMM_8,
     IMM_16,
+    IMM_32,
+
     REL_8,
-    REL_16
+    REL_16,
+    REL_32,
 } RelocationType;
 
 typedef struct {
     char *name;
     u64 offset;
+    u64 section_idx;
     u64 symbol_ref;
     RelocationType type;
 } Relocation;
