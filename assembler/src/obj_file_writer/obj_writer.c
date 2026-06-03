@@ -109,7 +109,11 @@ void write_obj(ObjectFile *object_file, char *filename) {
 
     // relocation table
     header->relocation_table_offset = ftell(f);
-    // fwrite(object_file->relocation_table, sizeof(Relocation) * header->relocation_table_size, 1, f);
+    for (u64 i = 0; i < header->relocation_table_size; i++) {
+        Relocation *reloc = &object_file->relocation_table[i];
+        fwrite(&reloc->type, sizeof(reloc->type), 1, f);
+        fwrite(&reloc->offset, sizeof(reloc->offset), 1, f);
+    }
 
     // program data
     u64 program_offset = ftell(f);

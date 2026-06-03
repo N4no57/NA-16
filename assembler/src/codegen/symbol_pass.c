@@ -155,12 +155,12 @@ void visit_NodeStatement1(NodeStatement *node, SymbolTable *table, SectionTable 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void visit_NodeOperandRecalc(const NodeOperand *operand, const SymbolTable *table,
-    SectionTable *sections, const bool use_16bits, u64 *size) {
+    SectionTable *sections, u8 *imms_b4, bool *use_16bits, u64 *size) {
     if (operand->kind == REGISTER || operand->kind == REG_INDIRECT) {
         return;
     }
 
-    if (operand->kind == SYMBOL) { // TODO: account for other immediates in the instruction
+    if (operand->kind == SYMBOL) {
         NodeSymbol *symbol = find_symbol(table, operand->symbol_name);
 
         if (symbol == nullptr) { // undefined symbol reference; oooh scary
@@ -173,10 +173,11 @@ void visit_NodeOperandRecalc(const NodeOperand *operand, const SymbolTable *tabl
         }
 
         u8 inc_by = 0;
-        if (!use_16bits) {
-            bool need_aex = false;
-            need_aex = wont_fit_u8(symbol->value);
-            inc_by += need_aex == true ? 2 : 0; // adding 2 accounts for new prefix and extra byte for the symbol
+        if (!(*use_16bits)) {
+            *use_16bits = false;
+            *use_16bits = wont_fit_u8(symbol->value);
+            inc_by += *use_16bits == true ? 2 : 0; // adding 2 accounts for new prefix and extra byte for the symbol
+            inc_by += *imms_b4;
         } else {
             inc_by++;
         }
@@ -193,6 +194,7 @@ void visit_NodeOperandRecalc(const NodeOperand *operand, const SymbolTable *tabl
         } else {
             *size += 2;
         }
+        (*imms_b4)++;
         return;
     }
 
@@ -266,8 +268,9 @@ u64 visit_NodeInstructionRecalc(const NodeInstruction *node, const SymbolTable *
 
     ret_val += BASE_ENCODING_SIZE; // instruction encoding
 
+    u8 imms_b4 = 0;
     for (int i = 0; i < node->operand_count; i++) {
-        visit_NodeOperandRecalc(&node->operands[i], table, sections, use_16bits, &ret_val);
+        visit_NodeOperandRecalc(&node->operands[i], table, sections, &imms_b4, &use_16bits, &ret_val);
     }
 
     return ret_val;
@@ -395,7 +398,6 @@ void recalc_layout(const NodeProgram *ast, const SymbolTable *old, SymbolTable *
         if (ast->statements[i].kind == ST_SYMBOL && ast->statements[i].symbol.kind == SK_LABEL) {
             NodeSymbol *symbol = find_symbol(new, ast->statements[i].symbol.symbol_name);
             symbol->value = (i64)sections->sections[sections->current].count;
-            u64 thingy = 1;
         } else if (ast->statements[i].kind == ST_DIRECTIVE) {
             if (strcmp(ast->statements[i].directive.name, ".section") == 0) {
                 Section *sect = get_section(sections, ast->statements[i].directive.args.tokens[0].value);
@@ -468,23 +470,29 @@ void patch_constants(const NodeProgram *ast, SymbolTable *table) {
 /// Relocation Generation pass
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void visit_NodeOperand3(NodeOperand *operand, SymbolTable *table, RelocationTable *relocationTable) {
+void visit_NodeOperand3(NodeOperand *operand, SymbolTable *table, RelocationTable *relocationTable, u8 *imms_b4, bool *use_16bits, u64 *byte_offset) {
     if (operand->kind == REGISTER || operand->kind == REG_INDIRECT) {
         return;
     }
 
-    if (operand->kind == SYMBOL) { // TODO
+    if (operand->kind == SYMBOL) {
         NodeSymbol *symbol = find_symbol(table, operand->symbol_name);
         Relocation reloc = {0};
+
+        if (!(*use_16bits)) {
+            *use_16bits = true;
+            (*byte_offset)++;
+            (*byte_offset) += *imms_b4;
+        }
 
         reloc.name = symbol->symbol_name;
         reloc.symbol_ref = (u64)symbol - (u64)table->symbols;
 
         reloc.type = IMM_16;
-        reloc.offset = 0xFFFF; // TODO get actual offset of patching location
+        reloc.offset = *byte_offset;
 
         operand->kind = IMMEDIATE;
-        operand->immediate = 0xFFFF;
+        operand->immediate = -1;
 
         relocation_push(relocationTable, &reloc);
 
@@ -492,59 +500,100 @@ void visit_NodeOperand3(NodeOperand *operand, SymbolTable *table, RelocationTabl
     }
 
     if (operand->kind == IMMEDIATE || operand->kind == DISPLACEMENT) {
-        return;
+        if (operand->kind == IMMEDIATE) {
+            if (!*use_16bits) {
+                (*byte_offset)++;
+            } else {
+                *byte_offset += 2;
+            }
+
+            (*imms_b4)++;
+
+            return;
+        }
     }
 
     error(operand->pos, "Invalid operand type");
 }
 
-void visit_NodeInstruction3(NodeInstruction *node, SymbolTable *table, SectionTable *sections, RelocationTable *relocationTable) {
+void visit_NodeInstruction3(NodeInstruction *node, SymbolTable *table, SectionTable *sections, RelocationTable *relocationTable, const u64 byte_idx) {
     if (is_cond_jump(node->mnemonic)) {
         // handle this crap
         if (node->operands[0].kind != SYMBOL) {
             return;
         }
 
-        u64 size = BASE_ENCODING_SIZE;
+        u64 offset = BASE_ENCODING_SIZE;
         NodeSymbol *symbol = find_symbol(table, node->operands[0].symbol_name);
         Relocation reloc = {0};
 
         if (symbol->section_idx != sections->current) {
-            size += AEX_SIZE + LONG_DISP_SIZE;
+            offset += AEX_SIZE;
             reloc.name = symbol->symbol_name;
             reloc.symbol_ref = (u64)symbol - (u64)table->symbols;
             reloc.type = REL_16;
-            reloc.offset = 0xFFFF; // TODO get actual operand offset
+            reloc.offset = byte_idx + offset;
+            relocation_push(relocationTable, &reloc);
+            return;
         }
 
         i64 delta = symbol->value;
         delta -= (i64)sections->sections[sections->current].count + BASE_ENCODING_SIZE + SHORT_DISP_SIZE;
 
         if (wont_fit_s8(delta)) {
-            size += AEX_SIZE + LONG_DISP_SIZE; // increase by 3 to account for AEX byte and 2 bytes of displacement
+            offset += AEX_SIZE; // increase by 3 to account for AEX byte and 2 bytes of displacement
             reloc.name = symbol->symbol_name;
             reloc.symbol_ref = (u64)symbol - (u64)table->symbols;
             reloc.type = REL_16;
-            reloc.offset = 0xFFFF; // TODO get actual operand offset
+            reloc.offset = byte_idx + offset;
         } else {
-            size += SHORT_DISP_SIZE;
             reloc.name = symbol->symbol_name;
             reloc.symbol_ref = (u64)symbol - (u64)table->symbols;
             reloc.type = REL_8;
-            reloc.offset = 0xFFFF; // TODO get actual operand offset
+            reloc.offset = byte_idx;
         }
+
+        relocation_push(relocationTable, &reloc);
 
         return;
     }
 
+    u64 offset = byte_idx;
+
+    InstructionSpec info = get_spec(node->mnemonic);
+
+    u64 sig_id = 0;
+    InstructionSignature *sig = &info.signatures[sig_id];
+    for (sig_id = 0; sig_id < info.signature_count; sig_id++) {
+        if (match_signature(node, sig)) break;
+        sig = &info.signatures[sig_id+1];
+    }
+
+    if (sig_id > 0) {
+        offset += MEX_PREFIX_SIZE;
+    }
+
+    bool use_16bits = require_16_bits(node, sig);
+
+    if (use_16bits) {
+        offset++; // AEX prefix is 1 byte
+    }
+
+    if (info.opcode > 0xF) {
+        offset++; // escape byte is... well... 1 byte
+    }
+
+    offset += BASE_ENCODING_SIZE; // instruction encoding
+
+    u8 imms_b4 = 0;
     for (u8 i = 0; i < node->operand_count; i++) {
-        visit_NodeOperand3(&node->operands[i], table, relocationTable);
+        visit_NodeOperand3(&node->operands[i], table, relocationTable, &imms_b4, &use_16bits, &offset);
     }
 }
 
-void visit_NodeStatement3(NodeStatement *node, SymbolTable *table, SectionTable *sections, RelocationTable *relocationTable) {
+void visit_NodeStatement3(NodeStatement *node, SymbolTable *table, SectionTable *sections, RelocationTable *relocationTable, const u64 byte_idx) {
     if (node->kind == ST_INSTRUCTION) {
-        visit_NodeInstruction3(&node->instruction, table, sections, relocationTable);
+        visit_NodeInstruction3(&node->instruction, table, sections, relocationTable, byte_idx);
     } else if (node->kind == ST_DIRECTIVE) {
         if (strcmp(node->directive.name, ".section") == 0) {
             Section *sect = get_section(sections, node->directive.args.tokens[0].value);
@@ -559,9 +608,37 @@ void visit_NodeStatement3(NodeStatement *node, SymbolTable *table, SectionTable 
 }
 
 void generate_relocations(const NodeProgram *ast, SymbolTable *table, SectionTable *sections, RelocationTable *relocationTable) {
+    SymbolTable tmp = {0};
+    tmp.count = table->count;
+    tmp.size = table->size;
+    tmp.symbols = malloc(tmp.size * sizeof(NodeSymbol));
+    memcpy(tmp.symbols, table->symbols, table->size * sizeof(NodeSymbol));
+
+    u64 *sizes = malloc(ast->count * sizeof(u64));
+
     for (u64 i = 0; i < ast->count; i++) {
-        visit_NodeStatement3(&ast->statements[i], table, sections, relocationTable);
+        sizes[i] = visit_NodeStatementRecalc(&ast->statements[i], &tmp, sections);
+        sections->sections[sections->current].count += sizes[i];
     }
+
+    free(tmp.symbols);
+
+    for (u64 i = 0; i < sections->count; i++) {
+        sections->sections[i].count = 0;
+    }
+    sections->current = 0;
+
+    for (u64 i = 0; i < ast->count; i++) {
+        visit_NodeStatement3(&ast->statements[i], table, sections, relocationTable, sections->sections[sections->current].count);
+        sections->sections[sections->current].count += sizes[i];
+    }
+
+    for (u64 i = 0; i < sections->count; i++) {
+        sections->sections[i].count = 0;
+    }
+    sections->current = 0;
+
+    free(sizes);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -4,4 +4,5 @@ project(NA-16)
 set(CMAKE_C_STANDARD 23)
 
 add_subdirectory(assembler)
+add_subdirectory(linker)
 add_subdirectory(emulator)
