@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../codegen/codegen.h"
+
 constexpr char zero = 0;
 
 void string_table_append(ObjectFile *object_file, u64 *capacity, char *string) {
@@ -111,6 +113,7 @@ void write_obj(ObjectFile *object_file, char *filename) {
     header->relocation_table_offset = ftell(f);
     for (u64 i = 0; i < header->relocation_table_size; i++) {
         Relocation *reloc = &object_file->relocation_table[i];
+        fwrite(&reloc->symbol_ref, sizeof(reloc->symbol_ref), 1, f);
         fwrite(&reloc->type, sizeof(reloc->type), 1, f);
         fwrite(&reloc->offset, sizeof(reloc->offset), 1, f);
     }
@@ -133,9 +136,11 @@ void write_obj(ObjectFile *object_file, char *filename) {
     const _off64_t section_table_offset = (i64)header->section_table_offset;
     fseeko64(f, section_table_offset, SEEK_SET);
     for (u64 i = 0; i < header->section_table_size; i++) {
+        Section *section = &object_file->section_table[i];
         fseek(f, sizeof(u64), SEEK_CUR);
-        fwrite(&program_offset, sizeof(object_file->section_table[0].offset), 1, f);
-        program_offset += object_file->section_table[0].count;
+        fwrite(&program_offset, sizeof(section->offset), 1, f);
+        program_offset += section->count;
+        fseek(f, sizeof(section->count), SEEK_CUR);
     }
 
     fseek(f, 0, SEEK_SET);

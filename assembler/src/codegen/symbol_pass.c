@@ -486,7 +486,7 @@ void visit_NodeOperand3(NodeOperand *operand, SymbolTable *table, RelocationTabl
         }
 
         reloc.name = symbol->symbol_name;
-        reloc.symbol_ref = (u64)symbol - (u64)table->symbols;
+        reloc.symbol_ref = ((u64)symbol - (u64)table->symbols) / sizeof(NodeSymbol);
 
         reloc.type = IMM_16;
         reloc.offset = *byte_offset;
@@ -530,7 +530,7 @@ void visit_NodeInstruction3(NodeInstruction *node, SymbolTable *table, SectionTa
         if (symbol->section_idx != sections->current) {
             offset += AEX_SIZE;
             reloc.name = symbol->symbol_name;
-            reloc.symbol_ref = (u64)symbol - (u64)table->symbols;
+            reloc.symbol_ref = ((u64)symbol - (u64)table->symbols) / sizeof(NodeSymbol);
             reloc.type = REL_16;
             reloc.offset = byte_idx + offset;
             relocation_push(relocationTable, &reloc);
@@ -543,12 +543,12 @@ void visit_NodeInstruction3(NodeInstruction *node, SymbolTable *table, SectionTa
         if (wont_fit_s8(delta)) {
             offset += AEX_SIZE; // increase by 3 to account for AEX byte and 2 bytes of displacement
             reloc.name = symbol->symbol_name;
-            reloc.symbol_ref = (u64)symbol - (u64)table->symbols;
+            reloc.symbol_ref = ((u64)symbol - (u64)table->symbols) / sizeof(NodeSymbol);
             reloc.type = REL_16;
             reloc.offset = byte_idx + offset;
         } else {
             reloc.name = symbol->symbol_name;
-            reloc.symbol_ref = (u64)symbol - (u64)table->symbols;
+            reloc.symbol_ref = ((u64)symbol - (u64)table->symbols) / sizeof(NodeSymbol);
             reloc.type = REL_8;
             reloc.offset = byte_idx;
         }
