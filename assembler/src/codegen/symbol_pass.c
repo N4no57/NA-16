@@ -130,6 +130,8 @@ void capture_symbol(NodeSymbol *node, SymbolTable *table, SectionTable *sections
 
     if (symbol && symbol->flags & SYM_DEFINED) {
         error(node->pos, "Reused symbol");
+    } else if (symbol && (symbol->flags & SYM_DEFINED) != SYM_DEFINED) {
+        error(node->pos, "extern used but then symbol is defined);
     }
 
     if (node->kind == SK_LABEL) { // it's a label
