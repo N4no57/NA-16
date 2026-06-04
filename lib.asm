@@ -1,4 +1,5 @@
 .section lib
+.global memcpy
 
 memcpy:
     ; r1 = dest

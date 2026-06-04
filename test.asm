@@ -1,9 +1,15 @@
 .section text
 .global _start
+.extern memcpy
 
 _start:
     push word bp ; save old bp
     mov bp, sp ; bp = sp
+
+    mov r1, 0x2000
+    mov r2, 0
+    mov r3, 80
+    call memcpy
 
     call init_heap
     mov r1, 10
@@ -16,8 +22,6 @@ _start:
     pop word bp ; restore old bp
     nop
     hlt
-
-.include "lib.asm"
 
 .section heap
 
