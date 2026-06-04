@@ -1,192 +1,74 @@
-#include <stdio.h>
 #include <stdlib.h>
+#include <getopt.h>
+#include <stdio.h>
 #include <string.h>
 
-#include "lib/linklib.h"
-#include "lib/global_symbol_table.h"
-#include "lib/linked_section_table.h"
-#include "lib/section_map.h"
+#include "linker.h"
 #include "object_file_reader/obj_reader.h"
 
-i64 find_section(LinkedSectionTable *lst, char *name) {
-    for (int i = 0; i < lst->count; i++) {
-        if (strcmp(name, lst->sections[i].name) == 0) {
-            return i;
-        }
-    }
-    return -1;
-}
+#define DEFAULT_OUTFILE "o.bin"
+#define LINKER_VERSION "1.0.0"
 
-void merge_sections(ObjectFile *objs, u64 obj_count, SectionMapList *sml, LinkedSectionTable *lst) {
-    sml_init(sml, objs, obj_count);
-    lst_init(lst);
+static struct option long_options[] = {
+    {"version", no_argument, 0, 0},
+    {nullptr, 0, 0, 0}
+};
 
-    for (u64 i = 0; i < obj_count; i++) {
-        ObjectFile *obj = &objs[i];
-        for (u64 j = 0; j < obj->header.section_table_size; j++) {
-            Section *sect = &obj->section_table[j];
-            i64 sect_idx = find_section(lst, sect->name);
-            if (sect_idx == -1) {
-                LinkedSection new_sect = {0};
-                new_sect.name = sect->name;
+char *outfile = DEFAULT_OUTFILE;
 
-                lst_push(lst, &new_sect);
+void prelude(int argc, char **argv) {
+    opterr = 0;
 
-                sect_idx = (i64)lst->current;
-            }
-
-            lst_merge(lst, sml, sect, sect_idx, i, j);
-        }
-    }
-}
-
-void assign_section_addresses(LinkedSectionTable *lst) {
-    u64 address_tracker = 0;
-    for (u64 i = 0; i < lst->count; i++) {
-        LinkedSection *section = &lst->sections[i];
-        section->address = address_tracker;
-        address_tracker += section->size;
-    }
-}
-
-void resolve_symbol_addresses(const GlobalSymbolTable *glt, const SectionMapList *sml, const LinkedSectionTable *lst) {
-    for (u64 i = 0; i < glt->count; i++) {
-        for (u64 j = 0; j < glt->items[i].count; j++) {
-            Symbol *symbol = &glt->items[i].symbols[j];
-
-            if ((symbol->flags & SYM_DEFINED) != SYM_DEFINED) continue; // skip all undefined ones because yes
-
-            const SectionMap *map = &sml->section_map[i][symbol->section_idx];
-
-            const LinkedSection *section = &lst->sections[map->linked_section];
-
-            symbol->address = section->address + map->offset_adjust + symbol->section_offset;
-        }
-    }
-
-    for (u64 i = 0; i < glt->global_symbols.count; i++) {
-        Symbol *symbol = &glt->global_symbols.symbols[i];
-        u64 file_ref = glt->global_symbols.file_refs[i];
-        const SectionMap *map = &sml->section_map[file_ref][symbol->section_idx]; // how to check what file its from?
-
-        const LinkedSection *section = &lst->sections[map->linked_section];
-
-        symbol->address = section->address + map->offset_adjust + symbol->section_offset;
-    }
-}
-
-bool is_imm_reloc(const RelocationType type) {
-    switch (type) {
-        case IMM_8:
-        case IMM_16:
-        case IMM_32:
-            return true;
-        default:
-            return false;
-    }
-}
-
-u8 get_reloc_size(const RelocationType type) {
-    if (type == IMM_8) return 1;
-    if (type == IMM_16) return 2;
-    if (type == IMM_32) return 4;
-
-    if (type == REL_8) return 1;
-    if (type == REL_16) return 2;
-    if (type == REL_32) return 4;
-
-    return 0;
-}
-
-void reloc_imm(Relocation *relocation, SectionMap *map, LinkedSection *section, Symbol *symbol) {
-    u8 size = get_reloc_size(relocation->type);
-
-    for (u8 i = 0; i < size; i++) {
-        section->data[relocation->section_offset+map->offset_adjust+i] = symbol->address >> (i * 8) & 0xFF;
-    }
-}
-
-void reloc_rel(Relocation *relocation, SectionMap *map, LinkedSection *section, Symbol *symbol) {
-    // Disclaimer: The relative relocations come with the ISA specifics of relatives only being used by conditional jumps and therefore being the only operand
-    const u8 size = get_reloc_size(relocation->type);
-
-    i64 value = (i64)relocation->section_offset;
-    value += (i64)map->offset_adjust + size;
-    value += (i64)section->address;
-    value = (i64)symbol->address - value;
-
-    for (u8 i = 0; i < size; i++) {
-        section->data[relocation->section_offset + map->offset_adjust+i] = value >> (i * 8) & 0xFF;
-    }
-}
-
-
-#define NUMBER_OF_OBJS 2 // TODO: make this multi object file because then wth is this even for?
-
-int main() {
-    ObjectFile objs[2] = {0};
-    char *filename = "test.o";
-    char *filename2 = "lib.o";
-    objs[0].header.filename = filename;
-    objs[1].header.filename = filename2;
-
-    read_obj(&objs[0], objs[0].header.filename);
-    read_obj(&objs[1], objs[1].header.filename);
-
-    // merge sections
-    LinkedSectionTable lst = {0};
-    SectionMapList sml = {0};
-    merge_sections(objs, NUMBER_OF_OBJS, &sml, &lst);
-
-    // assign section addresses
-    assign_section_addresses(&lst);
-
-    // build global symbol table
-    GlobalSymbolTable glt = {0};
-    glt_init(&glt);
-
-    for (u64 i = 0; i < NUMBER_OF_OBJS; i++) {
-        glt_push_table(&glt, objs[i].symbol_table, objs[i].header.symbol_table_size, filename);
-    }
-
-    // resolve symbol addresses
-    resolve_symbol_addresses(&glt, &sml, &lst);
-
-    // apply relocations
-    for (u64 i = 0; i < NUMBER_OF_OBJS; i++) {
-        for (u64 j = 0; j < objs[i].header.relocation_table_size; j++) {
-            Relocation *relocation = &objs[i].relocation_table[j];
-            SectionMap *map = &sml.section_map[i][relocation->section_idx];
-
-            LinkedSection *section = &lst.sections[map->linked_section];
-            Symbol *symbol = &glt.items[i].symbols[relocation->symbol_ref];
-
-            if ((symbol->flags & SYM_DEFINED) != SYM_DEFINED) {
-                // check the global symbols
-                symbol = glt_get_global(&glt, symbol->name);
-
-                if (!symbol) {
-                    printf("the big error");
-                    exit(-10);
+    int option;
+    int option_index = 0;
+    while ((option = getopt_long(argc, argv, "ho:", long_options, &option_index)) != -1) {
+        switch (option) {
+            case 'h':
+                printf("Usage: nald [options]\n");
+                printf("Options:\n");
+                printf("  --version          Display current version\n");
+                printf("  -h                 Display this help screen\n");
+                printf("  -o <file>          Place the output into <file>\n");
+                printf("  -C <file>.cfg      Specify a linker config file\n");
+                exit(0);
+            case 'o':
+                outfile = optarg;
+                break;
+            case 0:
+                if (strcmp(long_options[option_index].name, "version") == 0) {
+                    printf("NALD.exe version %s compiled on %s\n", LINKER_VERSION, __DATE__);
+                } else {
+                    printf("NALD: error: unrecognised command-line option '%s'\n", argv[optind-1]);
+                    exit(EXIT_FAILURE);
                 }
-            }
-
-            if (is_imm_reloc(relocation->type)) {
-                reloc_imm(relocation, map, section, symbol);
-            } else {
-                reloc_rel(relocation, map, section, symbol);
-            }
+            default:
+                printf("NALD: error: unrecognised command-line option '-%c'\n", option);
+                exit(EXIT_FAILURE);
         }
     }
+}
 
-    FILE *f = fopen("test.bin", "wb");
-    for (u64 i = 0; i < lst.count; i++) {
-        fwrite(lst.sections[i].data, lst.sections[i].size, 1, f);
+int main(int argc, char **argv) {
+    prelude(argc, argv);
+
+    const size_t num_files = argc - optind;
+
+    if (num_files == 0) {
+        printf("NALD: fatal: no input files\n");
+        return 1;
     }
-    fclose(f);
+
+    ObjectFile *objs = malloc(num_files * sizeof(ObjectFile));
+
+    for (u64 i = optind; i < argc; i++) {
+        read_obj(&objs[i], argv[i]);
+        objs[i].header.filename = argv[i];
+    }
+
+    link(objs, num_files, outfile);
 
     // cleanup
-    for (u64 i = 0; i < NUMBER_OF_OBJS; i++) {
+    for (u64 i = 0; i < num_files; i++) {
         ObjectFile *obj = &objs[i];
         free(obj->section_table);
         free(obj->symbol_table);
@@ -194,10 +76,7 @@ int main() {
         free(obj->string_table);
         free(obj->data);
     }
-
-    glt_free(&glt);
-    lst_free(&lst);
-    sml_free(&sml);
+    free(objs);
 
     return 0;
 }
