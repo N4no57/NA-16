@@ -12,12 +12,14 @@ GlobalSymbolTable *glt_init(GlobalSymbolTable *table) {
     table->global_symbols.count = 0;
     table->global_symbols.size = 8;
     table->global_symbols.symbols = malloc(table->global_symbols.size * sizeof(Symbol));
+    table->global_symbols.file_refs = malloc(table->global_symbols.size * sizeof(u64));
 
     return table;
 }
 
 void glt_free(const GlobalSymbolTable *table) {
     free(table->global_symbols.symbols);
+    free(table->global_symbols.file_refs);
 
     free(table->items);
 }
