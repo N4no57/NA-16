@@ -5,8 +5,8 @@ set(CMAKE_C_STANDARD 23)
 
 add_executable(linker
         src/main.c
-        src/object_file_reader/obj_reader.c
-        src/object_file_reader/obj_reader.h
+        src/object_file_reader/obj_reader.c src/object_file_reader/obj_reader.h
+        src/lib/linklib.h
 )
 
 target_include_directories(linker PRIVATE
