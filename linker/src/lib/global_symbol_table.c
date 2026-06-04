@@ -19,10 +19,6 @@ GlobalSymbolTable *glt_init(GlobalSymbolTable *table) {
 void glt_free(const GlobalSymbolTable *table) {
     free(table->global_symbols.symbols);
 
-    for (u64 i = 0; i < table->global_symbols.count; i++) {
-        free(table->items[i].symbols);
-    }
-
     free(table->items);
 }
 

@@ -1,8 +1,7 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "obj_reader.h"
-
-#include <stdlib.h>
 
 void read_obj(ObjectFile *obj, char *filename) {
     ObjectFileHeader *header = &obj->header;
@@ -63,8 +62,8 @@ void read_obj(ObjectFile *obj, char *filename) {
 
     u64 program_offset = ftell(f);
     u64 program_size = header->string_table_offset - program_offset;
-    void *program = malloc(program_size);
-    fread(program, program_size, 1, f);
+    obj->data = malloc(program_size);
+    fread(obj->data, program_size, 1, f);
 
     fclose(f);
 
@@ -77,7 +76,7 @@ void read_obj(ObjectFile *obj, char *filename) {
             continue;
         }
 
-        section->data = program + offset;
+        section->data = obj->data + offset;
         offset += section->size;
     }
 }

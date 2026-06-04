@@ -15,7 +15,7 @@ LinkedSection defaultSections[] = {
 LinkedSectionTable *lst_init(LinkedSectionTable *table) {
     table->count = 4;
     table->size = 8;
-    table->sections = malloc(sizeof(*table->sections));
+    table->sections = malloc(sizeof(LinkedSection) * table->size);
 
     for (u64 i = 0; i < sizeof(defaultSections) / sizeof(defaultSections[0]); i++) {
         table->sections[i] = defaultSections[i];

@@ -11,10 +11,11 @@ typedef struct {
 
 typedef struct {
     SectionMap **section_map;
-    u64 count;
+    u64 obj_count;
     u64 size;
 } SectionMapList;
 
 SectionMapList *sml_init(SectionMapList *sml, ObjectFile *objs, u64 obj_count);
+void sml_free(SectionMapList *sml);
 
 #endif //NA_16_SECTION_MAP_H

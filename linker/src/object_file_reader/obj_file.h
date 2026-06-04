@@ -72,6 +72,8 @@ typedef struct {
     Symbol *symbol_table;
     Relocation *relocation_table;
     char *string_table;
+
+    u8 *data; // program data that the section table indexes to
 } ObjectFile;
 
 #endif //NA_16_OBJ_FILE_H
