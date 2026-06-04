@@ -10,6 +10,8 @@ add_executable(linker
         src/object_file_reader/obj_reader.c src/object_file_reader/obj_reader.h
         src/lib/global_symbol_table.c
         src/lib/global_symbol_table.h
+        src/lib/linked_section_table.c
+        src/lib/linked_section_table.h
 )
 
 target_include_directories(linker PRIVATE
