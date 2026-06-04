@@ -61,8 +61,8 @@ int main(int argc, char **argv) {
     ObjectFile *objs = malloc(num_files * sizeof(ObjectFile));
 
     for (u64 i = optind; i < argc; i++) {
-        read_obj(&objs[i], argv[i]);
-        objs[i].header.filename = argv[i];
+        read_obj(&objs[i-optind], argv[i]);
+        objs[i-optind].header.filename = argv[i];
     }
 
     link(objs, num_files, outfile);
