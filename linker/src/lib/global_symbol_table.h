@@ -12,6 +12,7 @@ typedef struct {
 
     struct {
         Symbol *symbols;
+        u64 *file_refs;
         u64 count;
         u64 size;
     } global_symbols;
