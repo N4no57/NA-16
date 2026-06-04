@@ -4,75 +4,43 @@
 
 #include "lib/linklib.h"
 #include "lib/global_symbol_table.h"
+#include "lib/linked_section_table.h"
+#include "lib/section_map.h"
 #include "object_file_reader/obj_reader.h"
 
-typedef struct {
-    u64 linked_section; // what section in the global section table is it?
-    u64 offset_adjust; // where is the original section's data in the linked section?
-} SectionMap;
-
-typedef struct {
-    char *name;
-
-    u64 address;
-    u64 size;
-
-    u8 *data;
-} LinkedSection;
 
 #define NUMBER_OF_OBJS 1 // TODO: make this multi object file because then wth is this even for?
 
-i64 find_section(LinkedSection *sections, u64 section_table_count, char *name) {
+i64 find_section(LinkedSectionTable *lst, u64 section_table_count, char *name) {
     for (int i = 0; i < section_table_count; i++) {
-        if (strcmp(name, sections[i].name) == 0) {
+        if (strcmp(name, lst->sections[i].name) == 0) {
             return i;
         }
     }
     return -1;
 }
 
-void merge_sections(ObjectFile *objs, u64 count) {
-    SectionMap **section_map = malloc(sizeof(SectionMap *) * count);
-    for (u64 i = 0; i < count; i++) {
-        section_map[i] = malloc(sizeof(SectionMap) * objs[i].header.section_table_size);
-    }
+void merge_sections(ObjectFile *objs, u64 obj_count) {
+    SectionMapList sml = {0};
+    sml_init(&sml, objs, obj_count);
 
-    u64 sections_count = 0;
-    u64 sections_size = 8;
-    LinkedSection *sections = malloc(sections_size * sizeof(LinkedSection));
-    for (u64 i = 0; i < count; i++) {
+    LinkedSectionTable lst = {0};
+    lst_init(&lst);
+    for (u64 i = 0; i < obj_count; i++) {
         ObjectFile *obj = &objs[i];
         for (u64 j = 0; j < obj->header.section_table_size; j++) {
             Section *sect = &obj->section_table[j];
-            i64 sect_idx =  find_section(sections, sections_count, sect->name);
+            i64 sect_idx = find_section(&lst, lst.count, sect->name);
             if (sect_idx == -1) {
-                if (sections_count >= sections_size) {
-                    if (sections_size == 0) sections_size = 8;
-                    else sections_size *= 2;
-                    LinkedSection *tmp = realloc(sections, sections_size * sizeof(LinkedSection));
-                    if (!tmp) {
-                        fprintf(stderr, "realloc failed\nget more RAM broke boy");
-                        exit(1);
-                    }
-                    sections = tmp;
-                }
-
                 LinkedSection new_sect = {0};
-                new_sect.address = 0;
-                new_sect.size = 0;
                 new_sect.name = sect->name;
-                new_sect.data = nullptr;
-                sections[sections_count] = new_sect;
-                sect_idx = (i32)sections_count;
-                sections_count++;
+
+                lst_push(&lst, &new_sect);
+
+                sect_idx = (i64)lst.current;
             }
 
-            LinkedSection *linked_section = &sections[sect_idx];
-            section_map[i][j].linked_section = sect_idx;
-            section_map[i][j].offset_adjust = linked_section->size;
-            linked_section->size += sect->size;
-            linked_section->data = realloc(sections[sect_idx].data, linked_section->size * sizeof(u8));
-            memcpy(&linked_section->data[section_map[i][j].offset_adjust], sect->data, sect->size * sizeof(u8));
+            lst_merge(&lst, &sml, sect, sect_idx, i, j);
         }
     }
 }

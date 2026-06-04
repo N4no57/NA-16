@@ -12,6 +12,8 @@ add_executable(linker
         src/lib/global_symbol_table.h
         src/lib/linked_section_table.c
         src/lib/linked_section_table.h
+        src/lib/section_map.c
+        src/lib/section_map.h
 )
 
 target_include_directories(linker PRIVATE
