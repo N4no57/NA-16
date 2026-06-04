@@ -31,26 +31,19 @@ i64 find_section(LinkedSection *sections, u64 section_table_count, char *name) {
     return -1;
 }
 
-int main() {
-    ObjectFile obj;
-    char *filename = "test.o";
-    obj.header.filename = filename;
-
-    read_obj(&obj, filename);
-
-
-    // merge sections
-    SectionMap **section_map = malloc(sizeof(SectionMap *) * NUMBER_OF_OBJS);
-    for (u64 i = 0; i < NUMBER_OF_OBJS; i++) {
-        section_map[i] = malloc(sizeof(SectionMap) * obj.header.section_table_size);
+void merge_sections(ObjectFile *objs, u64 count) {
+    SectionMap **section_map = malloc(sizeof(SectionMap *) * count);
+    for (u64 i = 0; i < count; i++) {
+        section_map[i] = malloc(sizeof(SectionMap) * objs[i].header.section_table_size);
     }
 
     u64 sections_count = 0;
     u64 sections_size = 8;
     LinkedSection *sections = malloc(sections_size * sizeof(LinkedSection));
-    for (u64 i = 0; i < NUMBER_OF_OBJS; i++) {
-        for (u64 j = 0; j < obj.header.section_table_size; j++) {
-            Section *sect = &obj.section_table[j];
+    for (u64 i = 0; i < count; i++) {
+        ObjectFile *obj = &objs[i];
+        for (u64 j = 0; j < obj->header.section_table_size; j++) {
+            Section *sect = &obj->section_table[j];
             i64 sect_idx =  find_section(sections, sections_count, sect->name);
             if (sect_idx == -1) {
                 if (sections_count >= sections_size) {
@@ -82,6 +75,18 @@ int main() {
             memcpy(&linked_section->data[section_map[i][j].offset_adjust], sect->data, sect->size * sizeof(u8));
         }
     }
+}
+
+int main() {
+    ObjectFile obj[1] = {0};
+    char *filename = "test.o";
+    obj->header.filename = filename;
+
+    read_obj(obj, filename);
+
+
+    // merge sections
+    merge_sections(obj, 1);
 
     // assign section addresses
     u64 address_tracker = 0;
