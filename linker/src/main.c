@@ -53,12 +53,25 @@ void resolve_symbol_addresses(const GlobalSymbolTable *glt, const SectionMapList
     for (u64 i = 0; i < glt->count; i++) {
         for (u64 j = 0; j < glt->items[i].count; j++) {
             Symbol *symbol = &glt->items[i].symbols[j];
+
+            if ((symbol->flags & SYM_DEFINED) != SYM_DEFINED) continue; // skip all undefined ones because yes
+
             const SectionMap *map = &sml->section_map[i][symbol->section_idx];
 
             const LinkedSection *section = &lst->sections[map->linked_section];
 
             symbol->address = section->address + map->offset_adjust + symbol->section_offset;
         }
+    }
+
+    for (u64 i = 0; i < glt->global_symbols.count; i++) {
+        Symbol *symbol = &glt->global_symbols.symbols[i];
+        u64 file_ref = glt->global_symbols.file_refs[i];
+        const SectionMap *map = &sml->section_map[file_ref][symbol->section_idx]; // how to check what file its from?
+
+        const LinkedSection *section = &lst->sections[map->linked_section];
+
+        symbol->address = section->address + map->offset_adjust + symbol->section_offset;
     }
 }
 
