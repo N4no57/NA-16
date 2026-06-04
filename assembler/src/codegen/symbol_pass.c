@@ -167,29 +167,19 @@ void visit_NodeOperandRecalc(const NodeOperand *operand, const SymbolTable *tabl
             fatal(operand->pos, "Undefined symbol reference \"%s\"", operand->symbol_name);
         }
 
-        if (symbol->section_idx != sections->current) {
-            *size += 3; // aex and 2 bytes for 16-bit value
-            return;
-        }
-
-        u8 inc_by = 0;
         if (!(*use_16bits)) {
-            *use_16bits = false;
-            *use_16bits = wont_fit_u8(symbol->value);
-            inc_by += *use_16bits == true ? 2 : 0; // adding 2 accounts for new prefix and extra byte for the symbol
-            inc_by += *imms_b4;
-        } else {
-            inc_by++;
+            *use_16bits = true;
+            (*size)++;
         }
+        *size += 2; // 2 bytes for 16-bit value
+        *size += *imms_b4;
 
-        inc_by++;
 
-        *size += inc_by;
         return;
     }
 
     if (operand->kind == IMMEDIATE) {
-        if (!use_16bits) {
+        if (!*use_16bits) {
             (*size)++;
         } else {
             *size += 2;
@@ -470,7 +460,7 @@ void patch_constants(const NodeProgram *ast, SymbolTable *table) {
 /// Relocation Generation pass
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void visit_NodeOperand3(NodeOperand *operand, SymbolTable *table, RelocationTable *relocationTable, u8 *imms_b4, bool *use_16bits, u64 *byte_offset) {
+void visit_NodeOperand3(NodeOperand *operand, SymbolTable *table, SectionTable *sections, RelocationTable *relocationTable, u8 *imms_b4, bool *use_16bits, u64 *byte_offset) {
     if (operand->kind == REGISTER || operand->kind == REG_INDIRECT) {
         return;
     }
@@ -528,6 +518,8 @@ void visit_NodeInstruction3(NodeInstruction *node, SymbolTable *table, SectionTa
         NodeSymbol *symbol = find_symbol(table, node->operands[0].symbol_name);
         Relocation reloc = {0};
 
+
+        node->operands[0].kind = DISPLACEMENT;
         if (symbol->section_idx != sections->current) {
             offset += AEX_SIZE;
             reloc.name = symbol->symbol_name;
@@ -536,6 +528,8 @@ void visit_NodeInstruction3(NodeInstruction *node, SymbolTable *table, SectionTa
             reloc.offset = byte_idx + offset;
             reloc.section_idx = sections->current;
             relocation_push(relocationTable, &reloc);
+
+            node->operands[0].immediate = (i64)0xFFFFFFFFFFFF8000;
             return;
         }
 
@@ -543,18 +537,21 @@ void visit_NodeInstruction3(NodeInstruction *node, SymbolTable *table, SectionTa
         delta -= (i64)sections->sections[sections->current].count + BASE_ENCODING_SIZE + SHORT_DISP_SIZE;
 
         if (wont_fit_s8(delta)) {
-            offset += AEX_SIZE; // increase by 3 to account for AEX byte and 2 bytes of displacement
+            offset += AEX_SIZE; // add AEX to move it to start of operand
             reloc.name = symbol->symbol_name;
             reloc.symbol_ref = ((u64)symbol - (u64)table->symbols) / sizeof(NodeSymbol);
             reloc.type = REL_16;
             reloc.offset = byte_idx + offset;
             reloc.section_idx = sections->current;
+
+            node->operands[0].immediate = (i64)0xFFFFFFFFFFFF8000;
         } else {
             reloc.name = symbol->symbol_name;
             reloc.symbol_ref = ((u64)symbol - (u64)table->symbols) / sizeof(NodeSymbol);
             reloc.type = REL_8;
-            reloc.offset = byte_idx;
+            reloc.offset = byte_idx + offset;
             reloc.section_idx = sections->current;
+            node->operands[0].immediate = -1;
         }
 
         relocation_push(relocationTable, &reloc);
@@ -591,7 +588,7 @@ void visit_NodeInstruction3(NodeInstruction *node, SymbolTable *table, SectionTa
 
     u8 imms_b4 = 0;
     for (u8 i = 0; i < node->operand_count; i++) {
-        visit_NodeOperand3(&node->operands[i], table, relocationTable, &imms_b4, &use_16bits, &offset);
+        visit_NodeOperand3(&node->operands[i], table, sections, relocationTable, &imms_b4, &use_16bits, &offset);
     }
 }
 

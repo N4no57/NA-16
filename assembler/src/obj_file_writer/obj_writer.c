@@ -116,6 +116,7 @@ void write_obj(ObjectFile *object_file, char *filename) {
         fwrite(&reloc->symbol_ref, sizeof(reloc->symbol_ref), 1, f);
         fwrite(&reloc->type, sizeof(reloc->type), 1, f);
         fwrite(&reloc->offset, sizeof(reloc->offset), 1, f);
+        fwrite(&reloc->section_idx, sizeof(reloc->section_idx), 1, f);
     }
 
     // program data
