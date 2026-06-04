@@ -2,6 +2,8 @@
 
 #include "global_symbol_table.h"
 
+#include <string.h>
+
 GlobalSymbolTable *glt_init(GlobalSymbolTable *table) {
     table->count = 0;
     table->size = 8;
@@ -38,7 +40,7 @@ void glt_push_globsym(GlobalSymbolTable *table, const Symbol *symbol) {
     table->global_symbols.count++;
 }
 
-void glt_push_table(GlobalSymbolTable *table, Symbol *symbols, const u64 count, char *name) {
+void glt_push_table(GlobalSymbolTable *table, Symbol *symbols, const u64 count, char *filename) {
     if (table->count >= table->size) {
         GlobalSymbolTable tmp;
         table->size *= 2;
@@ -49,7 +51,7 @@ void glt_push_table(GlobalSymbolTable *table, Symbol *symbols, const u64 count, 
         table->items = tmp.items;
     }
 
-    table->items[table->count].filename = name;
+    table->items[table->count].filename = filename;
     table->items[table->count].symbols = symbols;
     table->items[table->count].count = count;
 
@@ -61,4 +63,24 @@ void glt_push_table(GlobalSymbolTable *table, Symbol *symbols, const u64 count, 
     }
 
     table->count++;
+}
+
+Symbol *glt_get(GlobalSymbolTable *table, const char *symbol_name, const char *filename) {
+    for (u64 i = 0; i < table->count; i++) {
+        if (strcmp(table->items[i].filename, filename) == 0) {
+            for (u64 j = 0; j < table->items[i].count; j++) {
+                if (strcmp(table->items[i].symbols[j].name, symbol_name) == 0) {
+                    return &table->items[i].symbols[j];
+                }
+            }
+        }
+    }
+
+    for (u64 i = 0; i < table->global_symbols.count; i++) {
+        if (strcmp(table->global_symbols.symbols[i].name, symbol_name) == 0) {
+            return &table->global_symbols.symbols[i];
+        }
+    }
+
+    return nullptr;
 }
