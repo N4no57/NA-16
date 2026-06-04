@@ -35,13 +35,18 @@ typedef enum {
     SK_LABEL
 } SymbolKind;
 
+typedef enum {
+    SYM_GLOBAL = 1 << 0,
+    SYM_DEFINED = 1 << 1,
+} SymbolFlags;
+
 typedef struct {
     char *symbol_name;
 
     SymbolKind kind;
     i64 value;
 
-    bool global;
+    u8 flags;
     u64 section_idx;
 
     Position pos;
