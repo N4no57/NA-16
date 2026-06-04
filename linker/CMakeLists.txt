@@ -14,6 +14,8 @@ add_executable(linker
         src/lib/linked_section_table.h
         src/lib/section_map.c
         src/lib/section_map.h
+        src/linker.c
+        src/linker.h
 )
 
 target_include_directories(linker PRIVATE
