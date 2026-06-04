@@ -102,11 +102,10 @@ void write_obj(ObjectFile *object_file, char *filename) {
     for (u64 i = 0; i < header->symbol_table_size; i++) {
         NodeSymbol *sym = &object_file->symbol_table[i];
         u64 str_table_ref = get_string_ref(object_file, sym->symbol_name);
-        u8 status = zero << 1 | sym->global; // zero is placeholder for up and coming defined bool.
         fwrite(&str_table_ref, sizeof(str_table_ref), 1, f);
         fwrite(&sym->section_idx, sizeof(sym->section_idx), 1, f); // what section am I in?
         fwrite(&sym->value, sizeof(sym->value), 1, f); // where am I in the section
-        fwrite(&status, sizeof(status), 1, f); // info about the symbol e.g. definition or if it is global
+        fwrite(&sym->flags, sizeof(sym->flags), 1, f); // info about the symbol e.g. definition or if it is global
     }
 
     // relocation table

@@ -86,7 +86,34 @@ void handle_globals(NodeDirective *node, SymbolTable *table) {
                 error(tok->pos, "Undefined symbol reference \"%s\"", tok->value);
             }
 
-            symbol->global = true;
+            symbol->flags |= SYM_GLOBAL;
+
+            tok = &node->args.tokens[++tok_idx];
+        }
+    }
+}
+
+void handle_externals(NodeDirective *node, SymbolTable *table) {
+    u64 tok_idx = 0;
+    Token *tok = &node->args.tokens[tok_idx];
+
+    if (strcmp(node->name, ".extern") == 0) {
+        while (tok_idx < node->args.count) {
+            if (tok->type != TT_IDENTIFIER) {
+                error(tok->pos, "Invalid argument for \"%s\" directive", node->name);
+            }
+
+            NodeSymbol *symbol = find_symbol(table, tok->value);
+
+            if (symbol) {
+                error(node->pos, "Reused symbol");
+            }
+
+            NodeSymbol new_sym = {0};
+            new_sym.kind = SK_LABEL;
+            new_sym.pos = tok->pos;
+
+            push_symbol(table, new_sym);
 
             tok = &node->args.tokens[++tok_idx];
         }
@@ -109,6 +136,7 @@ void capture_symbol(NodeSymbol *node, SymbolTable *table, SectionTable *sections
     }
 
     node->section_idx = sections->current;
+    node->flags |= SYM_DEFINED;
 
     push_symbol(table, *node);
 }
@@ -142,6 +170,7 @@ void visit_NodeStatement1(NodeStatement *node, SymbolTable *table, SectionTable 
 
     if (node->kind == ST_DIRECTIVE) {
         capture_segment(&node->directive, sections);
+        handle_externals(&node->directive, table);
         return;
     }
 
