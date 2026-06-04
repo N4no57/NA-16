@@ -6,7 +6,7 @@
 
 #include "../codegen/codegen.h"
 
-constexpr char zero = 0;
+#define OBJMAGIC 0x4E414C44
 
 void string_table_append(ObjectFile *object_file, u64 *capacity, char *string) {
     if (object_file->header.string_table_size >= *capacity) {
@@ -144,6 +144,7 @@ void write_obj(ObjectFile *object_file, char *filename) {
     }
 
     fseek(f, 0, SEEK_SET);
+    header->magic = OBJMAGIC;
     fwrite(&header->magic, sizeof(header->magic), 1, f);
     fwrite(&header->version, sizeof(header->version), 1, f);
     fwrite(&header->section_table_offset, sizeof(header->section_table_offset), 1, f);

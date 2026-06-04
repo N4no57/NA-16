@@ -3,11 +3,19 @@
 
 #include "obj_reader.h"
 
+#define OBJMAGIC 0x4E414C44
+
 void read_obj(ObjectFile *obj, char *filename) {
     ObjectFileHeader *header = &obj->header;
 
     FILE *f = fopen(filename, "rb");
     fread(&header->magic, sizeof(header->magic), 1, f);
+    if (header->magic != OBJMAGIC) {
+        printf("NALD: fatal: input is not an object file");
+        free(obj);
+        exit(-1);
+    }
+
     fread(&header->version, sizeof(header->version), 1, f);
     fread(&header->section_table_offset, sizeof(header->section_table_offset), 1, f);
     fread(&header->section_table_size, sizeof(header->section_table_size), 1, f);
