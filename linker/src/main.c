@@ -8,8 +8,6 @@
 #include "lib/section_map.h"
 #include "object_file_reader/obj_reader.h"
 
-#define NUMBER_OF_OBJS 1 // TODO: make this multi object file because then wth is this even for?
-
 i64 find_section(LinkedSectionTable *lst, char *name) {
     for (int i = 0; i < lst->count; i++) {
         if (strcmp(name, lst->sections[i].name) == 0) {
