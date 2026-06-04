@@ -8,6 +8,8 @@ add_executable(linker
         src/lib/linklib.h
         src/object_file_reader/obj_file.h
         src/object_file_reader/obj_reader.c src/object_file_reader/obj_reader.h
+        src/lib/global_symbol_table.c
+        src/lib/global_symbol_table.h
 )
 
 target_include_directories(linker PRIVATE

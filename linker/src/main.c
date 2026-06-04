@@ -3,23 +3,8 @@
 #include <string.h>
 
 #include "lib/linklib.h"
+#include "lib/global_symbol_table.h"
 #include "object_file_reader/obj_reader.h"
-
-typedef struct {
-    struct {
-        char *filename;
-        Symbol *symbols;
-        u64 count;
-    } *items;
-
-    struct {
-        Symbol *symbols;
-        u64 count;
-    } global_symbols;
-
-    u64 count;
-    u64 size;
-} GlobalSymbolTable;
 
 typedef struct {
     u64 linked_section; // what section in the global section table is it?
@@ -108,13 +93,9 @@ int main() {
 
     // build global symbol table
     GlobalSymbolTable table = {0};
-    table.count = 1;
-    table.size = 8;
-    table.items = malloc(table.size * sizeof(table.items[0]));
+    glt_init(&table);
 
-    table.items[0].filename = filename;
-    table.items[0].symbols = obj.symbol_table;
-    table.items[0].count = obj.header.symbol_table_size;
+    glt_push_table(&table, obj.symbol_table, obj.header.symbol_table_size, filename);
 
     // resolve symbol addresses
     for (u64 i = 0; i < table.count; i++) {
