@@ -120,12 +120,18 @@ void reloc_rel(Relocation *relocation, SectionMap *map, LinkedSection *section, 
     }
 }
 
-int main() {
-    ObjectFile objs[1] = {0};
-    char *filename = "test.o";
-    objs->header.filename = filename;
 
-    read_obj(objs, filename);
+#define NUMBER_OF_OBJS 2 // TODO: make this multi object file because then wth is this even for?
+
+int main() {
+    ObjectFile objs[2] = {0};
+    char *filename = "test.o";
+    char *filename2 = "lib.o";
+    objs[0].header.filename = filename;
+    objs[1].header.filename = filename2;
+
+    read_obj(&objs[0], objs[0].header.filename);
+    read_obj(&objs[1], objs[1].header.filename);
 
     // merge sections
     LinkedSectionTable lst = {0};
