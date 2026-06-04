@@ -112,6 +112,7 @@ void handle_externals(NodeDirective *node, SymbolTable *table) {
             NodeSymbol new_sym = {0};
             new_sym.kind = SK_LABEL;
             new_sym.pos = tok->pos;
+            new_sym.symbol_name = tok->value;
 
             push_symbol(table, new_sym);
 
@@ -316,6 +317,7 @@ u64 handle_define(const NodeDirective *node, u64 size) {
 
 u64 visit_NodeDirectiveRecalc(const NodeDirective *node, SectionTable *sections) {
     if (strcmp(node->name, ".global") == 0) return 0; // early return as this has already been handled
+    if (strcmp(node->name, ".extern") == 0) return 0;
 
     if (strcmp(node->name, ".section") == 0) {
         Section *sect = get_section(sections, node->args.tokens[0].value);

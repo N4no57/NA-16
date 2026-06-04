@@ -241,6 +241,7 @@ void emit_define(const NodeDirective *node, Section *section, u64 size) {
 
 void visit_NodeDirective(const NodeDirective *node, SectionTable *sections) {
     if (strcmp(node->name, ".global") == 0) return; // early return as this has already been handled
+    if (strcmp(node->name, ".extern") == 0) return;
 
     if (strcmp(node->name, ".section") == 0) {
         Section *sect = get_section(sections, node->args.tokens[0].value);
