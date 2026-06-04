@@ -161,6 +161,16 @@ int main() {
             LinkedSection *section = &lst.sections[map->linked_section];
             Symbol *symbol = &glt.items[i].symbols[relocation->symbol_ref];
 
+            if ((symbol->flags & SYM_DEFINED) != SYM_DEFINED) {
+                // check the global symbols
+                symbol = glt_get_global(&glt, symbol->name);
+
+                if (!symbol) {
+                    printf("the big error");
+                    exit(-10);
+                }
+            }
+
             if (is_imm_reloc(relocation->type)) {
                 reloc_imm(relocation, map, section, symbol);
             } else {
