@@ -128,7 +128,7 @@ void handle_externals(NodeDirective *node, SymbolTable *table) {
 void capture_symbol(NodeSymbol *node, SymbolTable *table, SectionTable *sections) {
     NodeSymbol *symbol = find_symbol(table, node->symbol_name);
 
-    if (symbol) {
+    if (symbol && symbol->flags & SYM_DEFINED) {
         error(node->pos, "Reused symbol");
     }
 

@@ -169,9 +169,11 @@ int main(const int argc, char **argv) {
 
     if (argc - optind > 1) {
         for (int i = 0; i < argc - optind; i++) {
-            assemble(fin[i], ChangeFileExt(fin[i]));
+            fout = strdup(fin[i]);
+            fout = ChangeFileExt(fout);
+            assemble(fin[i], fout);
+            free(fout);
         }
-        free(fout);
         return 0;
     }
 
