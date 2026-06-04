@@ -129,9 +129,9 @@ void capture_symbol(NodeSymbol *node, SymbolTable *table, SectionTable *sections
     NodeSymbol *symbol = find_symbol(table, node->symbol_name);
 
     if (symbol && symbol->flags & SYM_DEFINED) {
-        error(node->pos, "Reused symbol");
+        error(node->pos, "\"%s\" has already been defined", node->symbol_name);
     } else if (symbol && (symbol->flags & SYM_DEFINED) != SYM_DEFINED) {
-        error(node->pos, "extern used but then symbol is defined);
+        error(node->pos, "\"%s\" is declared as extern but then defined", node->symbol_name);
     }
 
     if (node->kind == SK_LABEL) { // it's a label
