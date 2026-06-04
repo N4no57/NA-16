@@ -27,4 +27,6 @@ void glt_free(const GlobalSymbolTable *table);
 
 void glt_push_table(GlobalSymbolTable *table, Symbol *symbols, u64 count, char *filename);
 
+Symbol *glt_get_global(GlobalSymbolTable *table, const char *symbol_name);
+
 #endif //NA_16_GLOBAL_SYMBOL_TABLE_H

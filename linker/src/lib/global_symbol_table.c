@@ -61,17 +61,7 @@ void glt_push_table(GlobalSymbolTable *table, Symbol *symbols, const u64 count, 
     table->count++;
 }
 
-Symbol *glt_get(GlobalSymbolTable *table, const char *symbol_name, const char *filename) {
-    for (u64 i = 0; i < table->count; i++) {
-        if (strcmp(table->items[i].filename, filename) == 0) {
-            for (u64 j = 0; j < table->items[i].count; j++) {
-                if (strcmp(table->items[i].symbols[j].name, symbol_name) == 0) {
-                    return &table->items[i].symbols[j];
-                }
-            }
-        }
-    }
-
+Symbol *glt_get_global(GlobalSymbolTable *table, const char *symbol_name) {
     for (u64 i = 0; i < table->global_symbols.count; i++) {
         if (strcmp(table->global_symbols.symbols[i].name, symbol_name) == 0) {
             return &table->global_symbols.symbols[i];
