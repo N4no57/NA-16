@@ -6,9 +6,14 @@
 
 typedef struct {
     struct {
-        registers_t reg;
+        registers_t reg; // when SIB this is base reg
         i64 immediate;
 
+        // for SIB only
+        registers_t idx_reg;
+        u8 scale;
+
+        // symbols duh
         char *symbol_name;
     };
     operand_types kind;
