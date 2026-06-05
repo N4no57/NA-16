@@ -51,13 +51,15 @@ bool wont_fit_s8(i64 value)
     return value < INT8_MIN || value > INT8_MAX;   // -128 to 127
 }
 
-bool require_16_bits(const NodeInstruction *node, const InstructionSignature *sig) {
+bool require_16_bits(const NodeInstruction *node, i32 operand_count) {
     bool use_16bits = false;
     if (node->operand_size == 0) {
-        for (i32 i = 0; i < sig->operand_count; i++) {
-            if (sig->kinds[i] == IMMEDIATE) {
+        for (i32 i = 0; i < operand_count; i++) {
+            if (node->operands[i].kind == IMMEDIATE || node->operands[i].kind == ABSOLUTE) {
                 use_16bits = wont_fit_u8(node->operands[i].immediate);
-            } else if (sig->kinds[i] == DISPLACEMENT) {
+            } else if (node->operands[i].kind == DISPLACEMENT ||
+                node->operands[i].kind == REG_IND_DISP ||
+                node->operands[i].kind == SIB_DISP) {
                 use_16bits = wont_fit_s8(node->operands[i].immediate);
             }
             if (use_16bits) break;
@@ -212,7 +214,23 @@ void visit_NodeOperandRecalc(const NodeOperand *operand, const SymbolTable *tabl
         return;
     }
 
-    if (operand->kind == IMMEDIATE) {
+    if (operand->kind == IMMEDIATE || operand->kind == REG_IND_DISP || operand->kind == ABSOLUTE) {
+        if (!*use_16bits) {
+            (*size)++;
+        } else {
+            *size += 2;
+        }
+        (*imms_b4)++;
+        return;
+    }
+
+    if (operand->kind == SIB) {
+        (*size)++;
+        return;
+    }
+
+    if (operand->kind == SIB_DISP) {
+        (*size)++;
         if (!*use_16bits) {
             (*size)++;
         } else {
@@ -269,18 +287,23 @@ u64 visit_NodeInstructionRecalc(const NodeInstruction *node, const SymbolTable *
 
     InstructionSpec info = get_spec(node->mnemonic);
 
-    u64 sig_id = 0;
-    InstructionSignature *sig = &info.signatures[sig_id];
-    for (sig_id = 0; sig_id < info.signature_count; sig_id++) {
-        if (match_signature(node, sig)) break;
-        sig = &info.signatures[sig_id+1];
+    {
+        u16 MEX_prefix = 0;
+        if (info.operand_pattern.operand_count == 3) {
+            MEX_prefix = GEN_MEX(node->operands[0].kind, node->operands[1].kind, node->operands[2].kind);
+        } else if (info.operand_pattern.operand_count == 2) {
+            MEX_prefix = GEN_MEX(node->operands[0].kind, node->operands[1].kind, 0);
+        } else if (info.operand_pattern.operand_count == 1) {
+            MEX_prefix = GEN_MEX(node->operands[0].kind, 0, 0);
+        }
+
+        if (MEX_prefix & 0xFFF) {
+            ret_val += BASE_ENCODING_SIZE;
+        }
     }
 
-    if (sig_id > 0) {
-        ret_val += MEX_PREFIX_SIZE;
-    }
 
-    bool use_16bits = require_16_bits(node, sig);
+    bool use_16bits = require_16_bits(node, info.operand_pattern.operand_count);
 
     if (use_16bits) {
         ret_val++; // AEX prefix is 1 byte
@@ -407,13 +430,14 @@ void recalc_layout(const NodeProgram *ast, const SymbolTable *old, SymbolTable *
     new->symbols = malloc(new->size * sizeof(NodeSymbol));
     memcpy(new->symbols, old->symbols, old->size * sizeof(NodeSymbol));
 
+    // calculate sizes
     u64 *sizes = malloc(ast->count * sizeof(u64));
-
     for (u64 i = 0; i < ast->count; i++) {
         sizes[i] = visit_NodeStatementRecalc(&ast->statements[i], new, sections);
         sections->sections[sections->current].count += sizes[i];
     }
 
+    // reset offsets
     for (u64 i = 0; i < sections->count; i++) {
         sections->sections[i].count = 0;
     }
@@ -451,7 +475,9 @@ void recalc_layout(const NodeProgram *ast, const SymbolTable *old, SymbolTable *
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void visit_NodeOperand2(NodeOperand *operand, SymbolTable *table) {
-    if (operand->kind == REGISTER || operand->kind == REG_INDIRECT) {
+    if (operand->kind == REGISTER ||
+        operand->kind == REG_INDIRECT || operand->kind == REG_IND_DISP ||
+        operand->kind == SIB || operand->kind == SIB_DISP) {
         return;
     }
 
@@ -466,7 +492,7 @@ void visit_NodeOperand2(NodeOperand *operand, SymbolTable *table) {
         return;
     }
 
-    if (operand->kind == IMMEDIATE || operand->kind == DISPLACEMENT) {
+    if (operand->kind == IMMEDIATE || operand->kind == DISPLACEMENT || operand->kind == ABSOLUTE) {
         return;
     }
 
@@ -525,18 +551,33 @@ void visit_NodeOperand3(NodeOperand *operand, SymbolTable *table, SectionTable *
         return;
     }
 
-    if (operand->kind == IMMEDIATE || operand->kind == DISPLACEMENT) {
-        if (operand->kind == IMMEDIATE) {
-            if (!*use_16bits) {
-                (*byte_offset)++;
-            } else {
-                *byte_offset += 2;
-            }
-
-            (*imms_b4)++;
-
-            return;
+    if (operand->kind == IMMEDIATE || operand->kind == DISPLACEMENT ||
+        operand->kind == ABSOLUTE || operand->kind == REG_IND_DISP) {
+        if (!*use_16bits) {
+            (*byte_offset)++;
+        } else {
+            *byte_offset += 2;
         }
+
+        (*imms_b4)++;
+
+        return;
+    }
+
+    if (operand->kind == SIB) {
+        (*byte_offset)++;
+        return;
+    }
+
+    if (operand->kind == SIB_DISP) {
+        (*byte_offset)++;
+        if (!*use_16bits) {
+            (*byte_offset)++;
+        } else {
+            *byte_offset += 2;
+        }
+        (*imms_b4)++;
+        return;
     }
 
     error(operand->pos, "Invalid operand type");
@@ -598,18 +639,22 @@ void visit_NodeInstruction3(NodeInstruction *node, SymbolTable *table, SectionTa
 
     InstructionSpec info = get_spec(node->mnemonic);
 
-    u64 sig_id = 0;
-    InstructionSignature *sig = &info.signatures[sig_id];
-    for (sig_id = 0; sig_id < info.signature_count; sig_id++) {
-        if (match_signature(node, sig)) break;
-        sig = &info.signatures[sig_id+1];
+    {
+        u16 MEX_prefix = 0;
+        if (info.operand_pattern.operand_count == 3) {
+            MEX_prefix = GEN_MEX(node->operands[0].kind, node->operands[1].kind, node->operands[2].kind);
+        } else if (info.operand_pattern.operand_count == 2) {
+            MEX_prefix = GEN_MEX(node->operands[0].kind, node->operands[1].kind, 0);
+        } else if (info.operand_pattern.operand_count == 1) {
+            MEX_prefix = GEN_MEX(node->operands[0].kind, 0, 0);
+        }
+
+        if (MEX_prefix & 0xFFF) {
+            offset += BASE_ENCODING_SIZE;
+        }
     }
 
-    if (sig_id > 0) {
-        offset += MEX_PREFIX_SIZE;
-    }
-
-    bool use_16bits = require_16_bits(node, sig);
+    bool use_16bits = require_16_bits(node, info.operand_pattern.operand_count);
 
     if (use_16bits) {
         offset++; // AEX prefix is 1 byte

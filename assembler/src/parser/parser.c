@@ -34,7 +34,7 @@ void parse_memory_op(NodeOperand *operand, const TokenList *tokens, u64 *idx, To
     }
 
     if (tok->type == TT_REGISTER) {
-        operand->reg = *(i64 *)tok->value;
+        operand->reg = getregister(tok->value);
         consume_tok(tokens, idx, tok);
         if (tok->type == TT_PLUS || tok->type == TT_MINUS) {
             // either register indirect with displacement, SIB or SIB with displacement
@@ -52,32 +52,59 @@ void parse_memory_op(NodeOperand *operand, const TokenList *tokens, u64 *idx, To
                 consume_tok(tokens, idx, tok); // consume number
             } else if (tok->type == TT_REGISTER) {
                 // SIB or SIB with displacement
+                operand->idx_reg = getregister(tok->value);
+                consume_tok(tokens, idx, tok);
+
+                operand->scale = 1;
+                if (tok->type == TT_ASTERISK) {
+                    consume_tok(tokens, idx, tok); // consume '*'
+
+                    if (tok->type != TT_IMMEDIATE) {
+                        error(tok->pos, "Expected an immediate after '*'");
+                        return;
+                    }
+                    operand->scale = *(i8 *)tok->value;
+
+                    if (operand->scale != 1 || operand->scale != 2 || operand->scale != 4 || operand->scale != 8) {
+                        error(tok->pos, "Scale can only be 1, 2, 4 or 8 not %d", operand->scale);
+                    }
+                    consume_tok(tokens, idx, tok); // consume immediate
+                }
+
+                operand->kind = SIB;
+                if (tok->type != TT_PLUS || tok->type != TT_MINUS) {
+                    // SIB with disp
+                    operand->kind = SIB_DISP;
+                    sign = tok->type == TT_MINUS;
+                    consume_tok(tokens, idx, tok);
+
+                    if (tok->type != TT_IMMEDIATE) {
+                        error(tok->pos, "Expected an immediate after '-'/'+' to form SIB with displacement");
+                        return;
+                    }
+                    operand->immediate = *(i64 *)tok->value;
+                    if (sign) {
+                        operand->immediate *= -1;
+                    }
+
+                    consume_tok(tokens, idx, tok); // consume number
+                }
+            } else {
+                error(tok->pos, "wololoooooo");
+                return;
             }
         } else {
             operand->kind = REG_INDIRECT;
-            consume_tok(tokens, idx, tok); // consume reg
         }
 
         if (tok->type != TT_R_SQUARE_BRACKET) {
             error(tok->pos, "Expected a ']'");
             return;
         }
-
         consume_tok(tokens, idx, tok); // consume ']'
-    } else {
-        error(tok->pos, "Expected a register or an immediate inside the square brackets");
         return;
     }
-
-    operand->reg = getregister(tok->value);
-    consume_tok(tokens, idx, tok); // consume reg
-
-    if (tok->type != TT_R_SQUARE_BRACKET) {
-        error(tok->pos, "Expected a ']'");
-        return;
-    }
-
-    consume_tok(tokens, idx, tok); // consume ']'
+    error(tok->pos, "Expected a register or an immediate inside the square brackets");
 }
 
 void parse_operand(NodeOperand *operand, TokenList *tokens, u64 *idx, Token *tok) {

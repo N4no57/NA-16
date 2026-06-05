@@ -35,11 +35,27 @@ i32 validate_instruction(const NodeInstruction* inst) {
 
     if (spec.mnemonic == nullptr) return 0;
 
-    for (i32 j = 0; j < spec.signature_count; j++) {
-        if (match_signature(inst, &spec.signatures[j])) {
+    // handle special case
+    if (is_cond_jump(spec.mnemonic)) {
+        return operand_matches_class(inst->operands[0].kind, CLASS_DISP_OR_SYM, true);
+    }
+
+    for (i32 i = 0; i < spec.operand_pattern.operand_count; i++) {
+        OperandClass cls = i == 0 ? CLASS_DEST : CLASS_SOURCE;
+        if (spec.class == 2 && spec.opcode == 0) cls = CLASS_SOURCE; // jmp
+        if (spec.class == 2 && spec.opcode == 0x10) cls = CLASS_SOURCE; // jmp
+
+        if (operand_matches_class(inst->operands[i].kind, cls, false)) {
             return validate_registers(inst, &spec);
         }
     }
+
+    if (spec.class == 3) {
+        // system instructions
+        return 1; // most have 0 operands and will fall here
+    }
+
+    if (spec.class == 2 && spec.opcode == 0xF) return 1; // ret
 
     return 0;
 }

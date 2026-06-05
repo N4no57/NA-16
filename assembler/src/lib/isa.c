@@ -10,208 +10,65 @@ InstructionSpec ISA[] = {
         "ADD",
         0,
         0x0,
-        {
-            {3, {REGISTER, REGISTER, REGISTER}},
-            {3, {REGISTER, IMMEDIATE, REGISTER}},
-            {3, {REGISTER, REGISTER, IMMEDIATE}},
-            {3, {REGISTER, IMMEDIATE, IMMEDIATE}},
-            {3, {REGISTER, REGISTER, REG_INDIRECT}},
-            {3, {REGISTER, REG_INDIRECT, REGISTER}},
-            {3, {REGISTER, REG_INDIRECT, REG_INDIRECT}},
-            {3, {REGISTER, IMMEDIATE, REG_INDIRECT}},
-            {3, {REGISTER, REG_INDIRECT, IMMEDIATE}},
-            {3, {REG_INDIRECT, REGISTER, REGISTER}},
-            {3, {REG_INDIRECT, IMMEDIATE, REGISTER}},
-            {3, {REG_INDIRECT, REGISTER, IMMEDIATE}},
-            {3, {REG_INDIRECT, IMMEDIATE, IMMEDIATE}},
-            {3, {REGISTER, SYMBOL, REGISTER}},
-            {3, {REGISTER, REGISTER, SYMBOL}},
-            {3, {REGISTER, SYMBOL, SYMBOL}},
-            {3, {REGISTER, REGISTER, REG_INDIRECT}},
-            {3, {REGISTER, REG_INDIRECT, REGISTER}},
-            {3, {REGISTER, REG_INDIRECT, REG_INDIRECT}},
-            {3, {REGISTER, SYMBOL, REG_INDIRECT}},
-            {3, {REGISTER, REG_INDIRECT, SYMBOL}},
-            {3, {REG_INDIRECT, REGISTER, REGISTER}},
-            {3, {REG_INDIRECT, SYMBOL, REGISTER}},
-            {3, {REG_INDIRECT, REGISTER, SYMBOL}},
-            {3, {REG_INDIRECT, SYMBOL, SYMBOL}},
-        },
-        25
+        {3,
+            {CLASS_DEST, CLASS_SOURCE, CLASS_SOURCE}
+        }
     },
     {
         "SUB",
         0,
         0x1,
-        {
-            {3, {REGISTER, REGISTER, REGISTER}},
-            {3, {REGISTER, IMMEDIATE, REGISTER}},
-            {3, {REGISTER, REGISTER, IMMEDIATE}},
-            {3, {REGISTER, IMMEDIATE, IMMEDIATE}},
-            {3, {REGISTER, REGISTER, REG_INDIRECT}},
-            {3, {REGISTER, REG_INDIRECT, REGISTER}},
-            {3, {REGISTER, REG_INDIRECT, REG_INDIRECT}},
-            {3, {REGISTER, IMMEDIATE, REG_INDIRECT}},
-            {3, {REGISTER, REG_INDIRECT, IMMEDIATE}},
-            {3, {REG_INDIRECT, REGISTER, REGISTER}},
-            {3, {REG_INDIRECT, IMMEDIATE, REGISTER}},
-            {3, {REG_INDIRECT, REGISTER, IMMEDIATE}},
-            {3, {REG_INDIRECT, IMMEDIATE, IMMEDIATE}},
-            {3, {REGISTER, SYMBOL, REGISTER}},
-            {3, {REGISTER, REGISTER, SYMBOL}},
-            {3, {REGISTER, SYMBOL, SYMBOL}},
-            {3, {REGISTER, REGISTER, REG_INDIRECT}},
-            {3, {REGISTER, REG_INDIRECT, REGISTER}},
-            {3, {REGISTER, REG_INDIRECT, REG_INDIRECT}},
-            {3, {REGISTER, SYMBOL, REG_INDIRECT}},
-            {3, {REGISTER, REG_INDIRECT, SYMBOL}},
-            {3, {REG_INDIRECT, REGISTER, REGISTER}},
-            {3, {REG_INDIRECT, SYMBOL, REGISTER}},
-            {3, {REG_INDIRECT, REGISTER, SYMBOL}},
-            {3, {REG_INDIRECT, SYMBOL, SYMBOL}},
-        },
-        25
+        {3,
+            {CLASS_DEST, CLASS_SOURCE, CLASS_SOURCE}
+        }
     },
     {
         "AND",
         0,
         0x2,
-        {
-            {3, {REGISTER, REGISTER, REGISTER}},
-            {3, {REGISTER, IMMEDIATE, REGISTER}},
-            {3, {REGISTER, REGISTER, IMMEDIATE}},
-            {3, {REGISTER, IMMEDIATE, IMMEDIATE}},
-            {3, {REGISTER, REGISTER, REG_INDIRECT}},
-            {3, {REGISTER, REG_INDIRECT, REGISTER}},
-            {3, {REGISTER, REG_INDIRECT, REG_INDIRECT}},
-            {3, {REGISTER, IMMEDIATE, REG_INDIRECT}},
-            {3, {REGISTER, REG_INDIRECT, IMMEDIATE}},
-            {3, {REG_INDIRECT, REGISTER, REGISTER}},
-            {3, {REG_INDIRECT, IMMEDIATE, REGISTER}},
-            {3, {REG_INDIRECT, REGISTER, IMMEDIATE}},
-            {3, {REG_INDIRECT, IMMEDIATE, IMMEDIATE}},
-            {3, {REGISTER, SYMBOL, REGISTER}},
-            {3, {REGISTER, REGISTER, SYMBOL}},
-            {3, {REGISTER, SYMBOL, SYMBOL}},
-            {3, {REGISTER, REGISTER, REG_INDIRECT}},
-            {3, {REGISTER, REG_INDIRECT, REGISTER}},
-            {3, {REGISTER, REG_INDIRECT, REG_INDIRECT}},
-            {3, {REGISTER, SYMBOL, REG_INDIRECT}},
-            {3, {REGISTER, REG_INDIRECT, SYMBOL}},
-            {3, {REG_INDIRECT, REGISTER, REGISTER}},
-            {3, {REG_INDIRECT, SYMBOL, REGISTER}},
-            {3, {REG_INDIRECT, REGISTER, SYMBOL}},
-            {3, {REG_INDIRECT, SYMBOL, SYMBOL}},
-        },
-        25
+        {3,
+            {CLASS_DEST, CLASS_SOURCE, CLASS_SOURCE}
+        }
     },
     {
         "OR",
         0,
         0x3,
-        {
-            {3, {REGISTER, REGISTER, REGISTER}},
-            {3, {REGISTER, IMMEDIATE, REGISTER}},
-            {3, {REGISTER, REGISTER, IMMEDIATE}},
-            {3, {REGISTER, IMMEDIATE, IMMEDIATE}},
-            {3, {REGISTER, REGISTER, REG_INDIRECT}},
-            {3, {REGISTER, REG_INDIRECT, REGISTER}},
-            {3, {REGISTER, REG_INDIRECT, REG_INDIRECT}},
-            {3, {REGISTER, IMMEDIATE, REG_INDIRECT}},
-            {3, {REGISTER, REG_INDIRECT, IMMEDIATE}},
-            {3, {REG_INDIRECT, REGISTER, REGISTER}},
-            {3, {REG_INDIRECT, IMMEDIATE, REGISTER}},
-            {3, {REG_INDIRECT, REGISTER, IMMEDIATE}},
-            {3, {REG_INDIRECT, IMMEDIATE, IMMEDIATE}},
-            {3, {REGISTER, SYMBOL, REGISTER}},
-            {3, {REGISTER, REGISTER, SYMBOL}},
-            {3, {REGISTER, SYMBOL, SYMBOL}},
-            {3, {REGISTER, REGISTER, REG_INDIRECT}},
-            {3, {REGISTER, REG_INDIRECT, REGISTER}},
-            {3, {REGISTER, REG_INDIRECT, REG_INDIRECT}},
-            {3, {REGISTER, SYMBOL, REG_INDIRECT}},
-            {3, {REGISTER, REG_INDIRECT, SYMBOL}},
-            {3, {REG_INDIRECT, REGISTER, REGISTER}},
-            {3, {REG_INDIRECT, SYMBOL, REGISTER}},
-            {3, {REG_INDIRECT, REGISTER, SYMBOL}},
-            {3, {REG_INDIRECT, SYMBOL, SYMBOL}},
-        },
-        25
+        {3,
+            {CLASS_DEST, CLASS_SOURCE, CLASS_SOURCE}
+        }
     },
     {
         "XOR",
         0,
         0x4,
-        {
-            {3, {REGISTER, REGISTER, REGISTER}},
-            {3, {REGISTER, IMMEDIATE, REGISTER}},
-            {3, {REGISTER, REGISTER, IMMEDIATE}},
-            {3, {REGISTER, IMMEDIATE, IMMEDIATE}},
-            {3, {REGISTER, REGISTER, REG_INDIRECT}},
-            {3, {REGISTER, REG_INDIRECT, REGISTER}},
-            {3, {REGISTER, REG_INDIRECT, REG_INDIRECT}},
-            {3, {REGISTER, IMMEDIATE, REG_INDIRECT}},
-            {3, {REGISTER, REG_INDIRECT, IMMEDIATE}},
-            {3, {REG_INDIRECT, REGISTER, REGISTER}},
-            {3, {REG_INDIRECT, IMMEDIATE, REGISTER}},
-            {3, {REG_INDIRECT, REGISTER, IMMEDIATE}},
-            {3, {REG_INDIRECT, IMMEDIATE, IMMEDIATE}},
-            {3, {REGISTER, SYMBOL, REGISTER}},
-            {3, {REGISTER, REGISTER, SYMBOL}},
-            {3, {REGISTER, SYMBOL, SYMBOL}},
-            {3, {REGISTER, REGISTER, REG_INDIRECT}},
-            {3, {REGISTER, REG_INDIRECT, REGISTER}},
-            {3, {REGISTER, REG_INDIRECT, REG_INDIRECT}},
-            {3, {REGISTER, SYMBOL, REG_INDIRECT}},
-            {3, {REGISTER, REG_INDIRECT, SYMBOL}},
-            {3, {REG_INDIRECT, REGISTER, REGISTER}},
-            {3, {REG_INDIRECT, SYMBOL, REGISTER}},
-            {3, {REG_INDIRECT, REGISTER, SYMBOL}},
-            {3, {REG_INDIRECT, SYMBOL, SYMBOL}},
-        },
-        25
+        {3,
+            {CLASS_DEST, CLASS_SOURCE, CLASS_SOURCE}
+        }
     },
     {
         "NOT",
         0,
         0x5,
-        {
-            {2, {REGISTER, REGISTER}},
-            {2, {REGISTER, IMMEDIATE}},
-            {2, {REGISTER, REG_INDIRECT}},
-            {2, {REGISTER, SYMBOL}},
-            {2, {REG_INDIRECT, REGISTER}},
-            {2, {REG_INDIRECT, IMMEDIATE}},
-        },
-        6
+        {2,
+            {CLASS_DEST, CLASS_SOURCE}
+        }
     },
     {
         "CMP",
         0,
         0x6,
-        {
-            {2, {REGISTER, REGISTER}},
-            {2, {REGISTER, IMMEDIATE}},
-            {2, {REGISTER, REG_INDIRECT}},
-            {2, {REGISTER, SYMBOL}},
-            {2, {REG_INDIRECT, REGISTER}},
-            {2, {REG_INDIRECT, IMMEDIATE}},
-        },
-        6
+        {2,
+            {CLASS_DEST, CLASS_SOURCE}
+        }
     },
     {
         "TEST",
         0,
         0x7,
-        {
-            {2, {REGISTER, REGISTER}},
-            {2, {REGISTER, IMMEDIATE}},
-            {2, {REGISTER, REG_INDIRECT}},
-            {2, {REGISTER, SYMBOL}},
-            {2, {REG_INDIRECT, REGISTER}},
-            {2, {REG_INDIRECT, IMMEDIATE}},
-        },
-        6
+        {2,
+            {CLASS_DEST, CLASS_SOURCE}
+        }
     },
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -222,98 +79,72 @@ InstructionSpec ISA[] = {
         "MOV",
         1,
         0x0,
-        {
-            {2, {REGISTER, REGISTER}},
-            {2, {REGISTER, IMMEDIATE}},
-            {2, {REGISTER, REG_INDIRECT}},
-            {2, {REGISTER, SYMBOL}},
-            {2, {REG_INDIRECT, REGISTER}},
-            {2, {REG_INDIRECT, IMMEDIATE}},
-        },
-        6
+        {2,
+            {CLASS_DEST, CLASS_SOURCE}
+        }
     },
     {
         "MOVSR", // dest is GPR and source is a usage of an SPR
         1,
         0x1,
-        {
-            {2, {REGISTER, REGISTER}},
-            {2, {REG_INDIRECT, REGISTER}},
-            {2, {REGISTER, REG_INDIRECT}},
-            {2, {REG_INDIRECT, REG_INDIRECT}},
-        },
-        4
+        {2,
+            {CLASS_DEST, CLASS_SOURCE}
+        }
     },
     {
         "MOVRS", // dest is usage of SPR and source is SPR/immediate/memory...
         1,
         0x2,
-        {
-            {2, {REGISTER, REGISTER}},
-            {2, {REGISTER, REG_INDIRECT}},
-            {2, {REGISTER, IMMEDIATE}},
-            {2, {REGISTER, SYMBOL}},
-            {2, {REG_INDIRECT, REGISTER}},
-            {2, {REG_INDIRECT, IMMEDIATE}},
-            {2, {REG_INDIRECT, SYMBOL}},
-        },
-        7
+        {2,
+            {CLASS_DEST, CLASS_SOURCE}
+        }
     },
     {
         "PUSH",
         1,
         0x3,
-        {
-            {1, {REGISTER}},
-            {1, {IMMEDIATE}},
-            {1, {REG_INDIRECT}},
-            {1, {SYMBOL}},
-        },
-        4
+        {2,
+            {CLASS_DEST, CLASS_SOURCE}
+        }
     },
     {
         "POP",
         1,
         0x4,
-        {
-            {1, {REGISTER}},
-            {1, {REG_INDIRECT}},
-        },
-        2
+        {1,
+            {CLASS_DEST},
+        }
     },
     {
         "LEA",
         1,
         0x5,
-        {
-            {2, {REGISTER, REG_INDIRECT}},
-        },
-        1
+        {2,
+            {CLASS_DEST, CLASS_DEST},
+        }
     },
     {
         "MOVS",
         1,
         0x6,
-        {
-            {2, {REGISTER, REGISTER}},
+        {2,
+            {CLASS_REGISTER_ONLY, CLASS_REGISTER_ONLY},
         }
     },
     {
         "PUSHS",
         1,
         0x7,
-        {
-            {1, {REGISTER}},
-            {1, {REG_INDIRECT}},
+        {1,
+            {CLASS_DEST},
         }
     },
     {
         "POPS",
         1,
         0x8,
-        {
-            {1, {REGISTER}},
-            {1, {REG_INDIRECT}},
+        {1,
+            {CLASS_REGISTER_ONLY},
         }
     },
 
@@ -325,34 +156,23 @@ InstructionSpec ISA[] = {
         "JMP",
         2,
         0x0,
-        {
-            {1, {REGISTER}},
-            {1, {IMMEDIATE}},
-            {1, {REG_INDIRECT}},
-            {1, {SYMBOL}}
-        },
-        4
+        {1,
+            {CLASS_SOURCE}
+        }
     },
     {
         "RET",
         2,
         0xF,
-        {
-            {0, {0}}
-        },
-        1
+        {0}
     },
     {
         "CALL",
         2,
         0x10,
-        {
-            {1, {REGISTER}},
-            {1, {IMMEDIATE}},
-            {1, {REG_INDIRECT}},
-            {1, {SYMBOL}}
-        },
-        4
+        {1,
+            {CLASS_SOURCE}
+        }
     },
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -363,19 +183,13 @@ InstructionSpec ISA[] = {
         "NOP",
         3,
         0x0,
-        {
-            {0, {0}}
-        },
-        1
+        {0}
     },
     {
         "HLT",
         3,
         0x1,
-        {
-            {0, {0}}
-        },
-        1
+        {0}
     }
 };
 
@@ -426,11 +240,9 @@ InstructionSpec cond_jump_template = {
     nullptr,
     2,
     0x0,
-    {
-        {1, {DISPLACEMENT}},
-        {1, {SYMBOL}},
-    },
-    2
+    {1,
+        {CLASS_DISP_OR_SYM}
+    }
 };
 
 InstructionSpec get_spec(const char *mnemonic) {
@@ -474,6 +286,34 @@ InstructionSpec get_spec(const char *mnemonic) {
         }
     }
     InstructionSpec ret = {0};
-    ret.signature_count = -1;
+    ret.operand_pattern.operand_count = -1;
     return ret;
+}
+
+bool operand_matches_class(operand_types type, OperandClass cls, bool is_cond_jump) {
+    if (is_cond_jump) {
+        if (cls != CLASS_DISP_OR_SYM) return false;
+        return type == DISPLACEMENT || type == SYMBOL;
+    }
+
+    switch (cls) {
+        case CLASS_DEST:
+            return type == REGISTER     ||
+                type == REG_INDIRECT    ||
+                type == REG_IND_DISP    ||
+                type == ABSOLUTE        ||
+                type == SIB             ||
+                type == SIB_DISP;
+        case CLASS_SOURCE:
+            return type == REGISTER     ||
+                type == REG_INDIRECT    ||
+                type == REG_IND_DISP    ||
+                type == ABSOLUTE        ||
+                type == SIB             ||
+                type == SIB_DISP        ||
+                type == IMMEDIATE       ||
+                type == SYMBOL;
+        default:
+            return false;
+    }
 }

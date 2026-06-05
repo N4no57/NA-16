@@ -20,7 +20,7 @@ NodeSymbol *find_symbol(const SymbolTable *table, const char *symbol);
 
 bool wont_fit_u8(u64 value);
 bool wont_fit_s8(i64 value);
-bool require_16_bits(const NodeInstruction *node, const InstructionSignature *sig);
+bool require_16_bits(const NodeInstruction *node, i32 operand_count);
 
 void symbol_pass(NodeProgram *ast, SymbolTable *symbols, SectionTable *sections, RelocationTable *relocationTable);
 void generate_code(NodeProgram *ast, SymbolTable *symbols, SectionTable *sections, RelocationTable *relocationTable);

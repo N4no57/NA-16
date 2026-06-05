@@ -36,6 +36,13 @@ void push_bytes(Section *section, const u8 *buff, const u64 buff_size) {
     section->count += buff_size;
 }
 
+void encode_number(i64 number, u8 *buff, u8 *idx, u8 size) {
+    for (u8 i = 0; i < size; i++) {
+        buff[*idx] = number >> (8 * i) & 0xFF;
+        *idx += 1;
+    }
+}
+
 void visit_NodeOperand(const NodeOperand *operand, bool use_16bits, u8 *buff, u8 *idx) {
     if (operand->kind == REGISTER || operand->kind == REG_INDIRECT) {
         i16 status = get_register_encoding(operand->reg);
@@ -43,13 +50,38 @@ void visit_NodeOperand(const NodeOperand *operand, bool use_16bits, u8 *buff, u8
             error(operand->pos, "Invalid register");
         }
         buff[(*idx)++] = status;
-    } else if (operand->kind == IMMEDIATE) {
-        if (!use_16bits) {
-            buff[(*idx)++] = operand->immediate & 0xFF;
-        } else {
-            buff[(*idx)++] = operand->immediate & 0xFF;
-            buff[(*idx)++] = (operand->immediate & 0xFF00) >> 8;
+    } else if (operand->kind == IMMEDIATE || operand->kind == ABSOLUTE) {
+        encode_number(operand->immediate, buff, idx, use_16bits + 1);
+    } else if (operand->kind == REG_IND_DISP) {
+        i16 status = get_register_encoding(operand->reg);
+        if (status < 0) {
+            error(operand->pos, "Invalid register");
         }
+        buff[(*idx)++] = status;
+
+        encode_number(operand->immediate, buff, idx, use_16bits + 1);
+    } else if (operand->kind == SIB) {
+        i16 status = get_register_encoding(operand->reg);
+        if (status < 0)error(operand->pos, "Invalid register");
+        buff[(*idx)++] = status;
+
+        status = get_register_encoding(operand->idx_reg);
+        if (status < 0) error(operand->pos, "Invalid register");
+        buff[(*idx)++] = status;
+
+        buff[(*idx)++] = operand->scale;
+    } else if (operand->kind == SIB_DISP) {
+        i16 status = get_register_encoding(operand->reg);
+        if (status < 0)error(operand->pos, "Invalid register");
+        buff[(*idx)++] = status;
+
+        status = get_register_encoding(operand->idx_reg);
+        if (status < 0) error(operand->pos, "Invalid register");
+        buff[(*idx)++] = status;
+
+        buff[(*idx)++] = operand->scale;
+
+        encode_number(operand->immediate, buff, idx, use_16bits + 1);
     } else {
         error(operand->pos, "Invalid operand type");
     }
@@ -60,30 +92,42 @@ typedef struct {
     u8 offset[3];
 } OperandLayout;
 
-OperandLayout layout_for(const InstructionSignature *sig, bool use_16bits) {
+OperandLayout layout_for(const InstructionSpec *info, const NodeInstruction *node, bool use_16bits) {
     OperandLayout l = {0};
-
-    for (i32 i = 0; i < sig->operand_count; i++) {
-        if (sig->kinds[i] == REGISTER || sig->kinds[i] == REG_INDIRECT) {
+    for (i32 i = 0; i < info->operand_pattern.operand_count; i++) {
+        if (node->operands[i].kind == REGISTER ||
+            node->operands[i].kind == REG_INDIRECT) {
             l.size[i] = 1;
-        } else if (sig->kinds[i] == IMMEDIATE || sig->kinds[i] == DISPLACEMENT) {
+        } else if (node->operands[i].kind == IMMEDIATE ||
+            node->operands[i].kind == DISPLACEMENT ||
+            node->operands[i].kind == ABSOLUTE) {
             l.size[i] = use_16bits ? 2 : 1;
+        } else if (node->operands[i].kind == REG_IND_DISP) {
+            l.size[i] = 1;
+            l.size[i] += use_16bits ? 2 : 1;
+        } else if (node->operands[i].kind == SIB) {
+            l.size[i] = 2;
+        } else if (node->operands[i].kind == SIB_DISP) {
+            l.size[i] = 3;
+            l.size[i] += use_16bits ? 2 : 1;
         }
     }
 
     l.offset[0] = 0;
-    for (i32 i = 1; i < sig->operand_count; i++) {
+    for (i32 i = 1; i < info->operand_pattern.operand_count; i++) {
         l.offset[i] = l.offset[i-1] + l.size[i-1];
     }
 
     return l;
 }
 
-u16 pack_registers(const InstructionSignature *sig, u8 **op, u8 op_count) {
+u16 pack_registers(const NodeInstruction *node, u8 **op, u8 op_count) {
     u16 reg_pack = 0;
 
     for (i32 i = 0; i < op_count; i++) {
-        if (sig->kinds[i] == REGISTER || sig->kinds[i] == REG_INDIRECT) {
+        if (node->operands[i].kind == REGISTER || node->operands[i].kind == REG_INDIRECT ||
+            node->operands[i].kind == REG_IND_DISP || node->operands[i].kind == SIB ||
+            node->operands[i].kind == SIB_DISP) {
             reg_pack |= (*op[i] & 0x7) << (6 - 3 * i);
         }
     }
@@ -91,7 +135,7 @@ u16 pack_registers(const InstructionSignature *sig, u8 **op, u8 op_count) {
     return reg_pack;
 }
 
-void fold(const char *mnemonic, const InstructionSignature *sig, bool use_16bits, u8 inst_slot, u8 *buff, u8 *idx) {
+void fold(const char *mnemonic, const InstructionSpec *info, const NodeInstruction *node, bool use_16bits, u8 inst_slot, u8 *buff, u8 *idx) {
     char mnemonic_buff[MAXTEMPSIZE];
     strcpy(mnemonic_buff, mnemonic);
     toUpper((u8 *)mnemonic_buff);
@@ -108,43 +152,84 @@ void fold(const char *mnemonic, const InstructionSignature *sig, bool use_16bits
         return;
     }
 
-    if (sig->operand_count == 0) {
+    if (info->operand_pattern.operand_count == 0) {
         fatal((Position){nullptr, nullptr, 0, 0, 0}, "AAAAAAAAAAAAAAAAAAAAAAAAAA");
     }
 
-    OperandLayout l = layout_for(sig, use_16bits);
+    OperandLayout l = layout_for(info, node, use_16bits);
     u8 *base = &buff[inst_slot+2];
 
     u8 *op[3] = {0};
 
-    for (i32 i = 0; i < sig->operand_count; i++) {
+    for (i32 i = 0; i < info->operand_pattern.operand_count; i++) {
         op[i] = base + l.offset[i];
     }
 
-    u16 reg_pack = pack_registers(sig, op, sig->operand_count);
+    u16 reg_pack = pack_registers(node, op, info->operand_pattern.operand_count);
     buff[inst_slot]     |= (reg_pack & 0xFF00) >> 8;
     buff[inst_slot+1]   |= reg_pack & 0xFF;
 
-    u8 reg_count_behind[3] = {0};
-
-    for (i32 i = 1; i < sig->operand_count; i++) {
-        reg_count_behind[i] = reg_count_behind[i-1];
-        if (sig->kinds[i-1] == REGISTER || sig->kinds[i-1] == REG_INDIRECT) {
-            reg_count_behind[i]++;
+    for (i32 i = 0; i < info->operand_pattern.operand_count; i++) {
+        if (node->operands[i].kind == SIB || node->operands[i].kind == SIB_DISP) {
+            u8 idx_reg = *(op[i]+1);
+            u8 scale = *(op[i]+2);
+            if (scale == 1) {
+                scale = 0;
+            } else if (scale == 2) {
+                scale = 1;
+            } else if (scale == 4) {
+                scale = 2;
+            } else if (scale == 8) {
+                scale = 3;
+            }
+            u8 pack = (scale & 0x3) << 6;
+            pack |= (idx_reg & 0x7) << 3;
+            *op[i] = pack;
         }
     }
 
-    for (i32 i = 0; i < sig->operand_count; i++) {
+    u8 reg_count_behind[3] = {0};
+
+    for (i32 i = 1; i < info->operand_pattern.operand_count; i++) {
+        reg_count_behind[i] = reg_count_behind[i-1];
+        if (node->operands[i-1].kind == REGISTER || node->operands[i-1].kind == REG_INDIRECT ||
+            node->operands[i-1].kind == REG_IND_DISP) {
+            reg_count_behind[i]++;
+        } else if (node->operands[i-1].kind == SIB ||node->operands[i-1].kind == SIB_DISP) {
+            reg_count_behind[i] += 2;
+        }
+    }
+
+    if (node->operands[0].kind == REG_IND_DISP) {
+        memmove(op[0], op[0]+1, l.size[0]-1);
+    } else if (node->operands[0].kind == SIB_DISP) {
+        memmove(op[0]+1, op[0]+3, l.size[0]-1);
+    }
+
+    for (i32 i = 0; i < info->operand_pattern.operand_count; i++) {
         if (reg_count_behind[i] > 0) {
-            if (sig->kinds[i] == IMMEDIATE || sig->kinds[i] == DISPLACEMENT) {
-                memcpy(op[i]-reg_count_behind[i], op[i], l.size[i]);
+            if (node->operands[i].kind == IMMEDIATE || node->operands[i].kind == DISPLACEMENT ||
+                node->operands[i].kind == ABSOLUTE) {
+                memmove(op[i]-reg_count_behind[i], op[i], l.size[i]);
+            } else if (node->operands[i].kind == REG_IND_DISP) {
+                memmove(op[i]-reg_count_behind[i], op[i]+1, l.size[i]-1);
+            } else if (node->operands[i].kind == SIB) {
+                memmove(op[i]-reg_count_behind[i], op[i], 1);
+            } else if (node->operands[i].kind == SIB_DISP) {
+                memmove(op[i]-reg_count_behind[i], op[i], 1);
+                memmove(op[i]+1-reg_count_behind[i], op[i]+3, l.size[i]-3);
             }
         }
     }
 
-    u8 removal = reg_count_behind[sig->operand_count-1];
-    if (sig->kinds[sig->operand_count-1] == REGISTER || sig->kinds[sig->operand_count-1] == REG_INDIRECT) {
+    u8 removal = reg_count_behind[info->operand_pattern.operand_count-1];
+    if (node->operands[info->operand_pattern.operand_count-1].kind == REGISTER
+        || node->operands[info->operand_pattern.operand_count-1].kind == REG_INDIRECT
+        || node->operands[info->operand_pattern.operand_count-1].kind == REG_IND_DISP) {
         removal++;
+    } else if (node->operands[info->operand_pattern.operand_count-1].kind == SIB ||
+        node->operands[info->operand_pattern.operand_count-1].kind == SIB_DISP) {
+        removal += 2;
     }
 
     *idx -= removal;
@@ -176,32 +261,27 @@ void visit_NodeInstruction(const NodeInstruction *node, SectionTable *sections) 
         return;
     }
 
-    u64 sig_id = 0;
-    InstructionSignature *sig = &info.signatures[sig_id];
-    for (sig_id = 0; sig_id < info.signature_count; sig_id++) {
-        if (match_signature(node, sig)) break;
-        sig = &info.signatures[sig_id+1];
-    }
-
-    if (sig_id > 0) {
+    if (info.operand_pattern.operand_count != 0) {
         u16 MEX_prefix = 0;
-        if (sig->operand_count == 3) {
-            MEX_prefix = GEN_MEX(sig->kinds[0], sig->kinds[1], sig->kinds[2]);
-        } else if (sig->operand_count == 2) {
-            MEX_prefix = GEN_MEX(sig->kinds[0], sig->kinds[1], 0);
-        } else if (sig->operand_count == 1) {
-            MEX_prefix = GEN_MEX(sig->kinds[0], 0, 0);
+        if (info.operand_pattern.operand_count == 3) {
+            MEX_prefix = GEN_MEX(node->operands[0].kind, node->operands[1].kind, node->operands[2].kind);
+        } else if (info.operand_pattern.operand_count == 2) {
+            MEX_prefix = GEN_MEX(node->operands[0].kind, node->operands[1].kind, 0);
+        } else if (info.operand_pattern.operand_count == 1) {
+            MEX_prefix = GEN_MEX(node->operands[0].kind, 0, 0);
         }
 
         if (MEX_prefix == 0) {
             fatal(node->pos, "MEX prefix error\n");
         }
 
-        buff[buff_idx++] = (MEX_prefix & 0xFF00) >> 8;
-        buff[buff_idx++] = MEX_prefix & 0xFF;
+        if (MEX_prefix & 0xFFF) {
+            buff[buff_idx++] = (MEX_prefix & 0xFF00) >> 8;
+            buff[buff_idx++] = MEX_prefix & 0xFF;
+        }
     }
 
-    bool use_16bits = require_16_bits(node, sig);
+    bool use_16bits = require_16_bits(node, info.operand_pattern.operand_count);
 
     if (use_16bits) {
         buff[buff_idx++] = GEN_AEX;
@@ -220,7 +300,7 @@ void visit_NodeInstruction(const NodeInstruction *node, SectionTable *sections) 
 
     buff[inst_slot] |= (info.class & 0x7) << 5 | (info.opcode & 0xF) << 1;
 
-    fold(node->mnemonic, sig, use_16bits, inst_slot, buff, &buff_idx);
+    fold(node->mnemonic, &info, node, use_16bits, inst_slot, buff, &buff_idx);
 
     push_bytes(&sections->sections[sections->current], buff, buff_idx);
 }

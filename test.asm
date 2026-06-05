@@ -7,7 +7,7 @@ _start:
     mov bp, sp ; bp = sp
 
     mov r1, 0x2000
-    mov r2, 0
+    xor r2, r2, r2
     mov r3, 80
     call memcpy
 
@@ -31,10 +31,8 @@ init_heap:
     ; heap_chunk *next
     mov r0, 0x4000
     mov byte [r0], 0
-    add r0, r0, 1
-    mov word [r0], 0x1000
-    add r0, r0, 2
-    mov word [r0], 0
+    mov word [r0+1], 0x1000
+    mov word [r0+3], 0
     ret
 
 malloc:
@@ -50,56 +48,46 @@ malloc_while: ; while (chunk != NULL)
     ; if (!chunk->inuse && chunk->size >= size)
     mov byte r2, [r0]
     test r2, r2
-    jne l0
-    add r2, r0, 1
-    mov word r3, [r2]
+    jne malloc_next
+    mov word r3, [r0+1]
     cmp word r3, r1
-    jb l0
+    jb malloc_next
     jmp malloc_while_end
-l0:
-    add r2, r0, 3 ; chunk = chunk->next
-    mov word r0, [r2]
+malloc_next:
+    mov word r0, [r0+3]
     jmp malloc_while
 malloc_while_end:
     test word r0, r0 ; if (chunk == NULL)
     jz malloc_ret_null
     ; u16 leftover = chunk->size - size
-    add r2, r0, 1
-    mov word r2, [r2]
+    mov word r2, [r0+1]
     sub r2, r2, r1
     ; if (leftover > MIN_CHUNK_SIZE)
     cmp r2, 9
-    jbe l1
+    jb malloc_no_split
     ; struct heapchunk_t *new_chunk = (struct heapchunk_t *)((void *)chunk + sizeof(struct heapchunk_t) + size)
-    mov r3, r0
-    add r3, r3, 5
-    add r3, r3, r1
+    lea r3, [r0+r1+5]
     ; new_chunk->inuse = false
     mov byte [r3], 0
     ; new_chunk->size = leftover - sizeof(struct heapchunk_t)
-    add r4, r3, 1
     sub r5, r2, 5
-    mov word [r4], r5
+    mov word [r3+1], r5
     ; new_chunk->next = chunk->next
-    add r2, r0, 3
-    mov word r4, [r2]
-    add r2, r3, 3
-    mov word [r2], r4
+    mov word r4, [r0+3]
+    mov word [r3+3], r4
     ; chunk->next = new_chunk
-    add r2, r0, 3
-    mov word [r2], r3
+    mov word [r0+3], r3
     ; chunk->size = size
-    add r2, r0, 1
-    mov word [r2], r1
-l1:
+    mov word [r0+1], r1
+malloc_no_split:
     ; chunk->inuse = true;
     mov byte [r0], 1
     ; return (void *)chunk + sizeof(struct heapchunk_t)
-    add r0, r0, 5
+    lea r0, [r0+5]
     ret
 malloc_ret_null:
     ; return NULL;
-    mov r0, 0
+    xor r0, r0, r0
     ret
 
 free:
@@ -107,7 +95,21 @@ free:
     test word r1, r1
     jz free_ret
 
-    sub r1, r1, 5
-    mov byte [r0], 0
+    mov byte [r1-5], 0
+
+    ; if (chunk->next && !chunk->next->in_use)
+    mov byte r2, [r1-2]
+    test word r2, r2
+    jz free_ret
+    mov byte r3, [r2]
+    test r3, r3
+    jnz free_ret
+    mov r3, 5 ; chunk->size += sizeof(header) + chunk->next->size;
+    add word r3, r3, [r2+1]
+    add word r3, r3, [r1-4]
+    mov word [r1-4], r3
+    mov word r3, [r2+3] ; chunk->next = chunk->next->next;
+    mov word [r1-2], r3
+
 free_ret:
     ret

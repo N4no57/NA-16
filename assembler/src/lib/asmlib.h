@@ -57,12 +57,19 @@ typedef struct bytes {
     u64 size;
 } bytes;
 
-#define MAX_OPERANDS 4
+#define MAX_OPERANDS 3
+
+typedef enum {
+    CLASS_DEST,
+    CLASS_SOURCE,
+    CLASS_REGISTER_ONLY,
+    CLASS_DISP_OR_SYM,
+} OperandClass;
 
 typedef struct {
     i32 operand_count;
-    operand_types kinds[MAX_OPERANDS];
-} InstructionSignature;
+    OperandClass classes[MAX_OPERANDS];
+} OperandPattern;
 
 #define MAX_SIGNATURES 64
 
@@ -70,8 +77,7 @@ typedef struct InstructionSpec {
     char *mnemonic;
     u8 class;
     u8 opcode;
-    InstructionSignature signatures[MAX_SIGNATURES];
-    i32 signature_count;
+    OperandPattern operand_pattern;
 } InstructionSpec;
 
 InstructionSpec get_spec(const char *mnemonic);
@@ -84,6 +90,7 @@ bool ismnemonic(u8 *string);
 bool isregister(const u8 *string);
 bool isSPR(registers_t reg);
 bool issizespec(const u8 *string);
+bool operand_matches_class(operand_types type, OperandClass cls, bool is_cond_jump);
 
 i64 getregister(const u8 *string);
 i64 getsizespec(const u8 *string);

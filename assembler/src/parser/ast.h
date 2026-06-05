@@ -78,6 +78,4 @@ typedef struct {
     u64 size;
 } NodeProgram;
 
-i32 match_signature(const NodeInstruction* inst, const InstructionSignature* sig);
-
 #endif //NA_16_AST_H

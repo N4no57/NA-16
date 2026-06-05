@@ -30,16 +30,6 @@ char *size_specs[] = {
     [SS_WORD] = "WORD"
 };
 
-i32 match_signature(const NodeInstruction* inst, const InstructionSignature* sig) {
-    if (inst->operand_count != sig->operand_count) return 0;
-
-    for (i32 i = 0; i < inst->operand_count; i++) {
-        if (inst->operands[i].kind != sig->kinds[i]) return 0;
-    }
-
-    return 1;
-}
-
 void toUpper(u8 *str) {
     for (int i = 0; i < strlen((char *)str); i++) {
         if (str[i] >= 'a' && str[i] <= 'z') {
@@ -58,9 +48,7 @@ void toLower(u8 *str) {
 
 bool ismnemonic(u8 *string) {
     InstructionSpec spec = get_spec((char *)string);
-    if (spec.signature_count == -1) {
-        return false;
-    }
+    if (spec.operand_pattern.operand_count == -1) return false;
     return true;
 }
 
