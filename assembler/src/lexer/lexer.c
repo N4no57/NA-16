@@ -199,6 +199,14 @@ void tokenise(TokenList *list, u8 *filename, u8 *string) {
             continue;
         }
 
+        if (string[*i] == '*') {
+            t.pos = pos;
+            t.type = TT_ASTERISK;
+            token_push(list, &t);
+            advance(&pos, string);
+            continue;
+        }
+
         if (string[*i] == ',') {
             t.pos = pos;
             t.type = TT_COMMA;

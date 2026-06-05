@@ -16,6 +16,7 @@ typedef enum TokenType {
     TT_EQUALS,
     TT_PLUS,
     TT_MINUS,
+    TT_ASTERISK,
     TT_L_SQUARE_BRACKET,
     TT_R_SQUARE_BRACKET,
     TT_NEWLINE,
