@@ -1,13 +1,11 @@
 #include <string.h>
-
-#include "linker.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "lib/global_symbol_table.h"
 #include "lib/linked_section_table.h"
 #include "lib/section_map.h"
+#include "linker.h"
 
 i64 find_section(LinkedSectionTable *lst, char *name) {
     for (int i = 0; i < lst->count; i++) {

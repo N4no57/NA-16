@@ -10,8 +10,8 @@
 #define LINKER_VERSION "1.0.0"
 
 static struct option long_options[] = {
-    {"version", no_argument, 0, 0},
-    {nullptr, 0, 0, 0}
+    {"version", no_argument, nullptr, 0},
+    {nullptr, 0, nullptr, 0}
 };
 
 char *outfile = DEFAULT_OUTFILE;
