@@ -64,11 +64,11 @@ void glt_push_table(GlobalSymbolTable *table, Symbol *symbols, const u64 count, 
         Symbol *symbol = &table->items[table->count].symbols[i];
         if (symbol->flags & SYM_GLOBAL) {
             Symbol *sym = glt_get_global(table, symbol->name);
-            u64 tmp1 = (u64)sym;
-            u64 tmp2 = (u64)table->global_symbols.symbols;
-            u64 idx = (tmp1 - tmp2) / sizeof(Symbol);
-            char *og_file = table->items[table->global_symbols.file_refs[idx]].filename;
             if (sym) {
+                u64 tmp1 = (u64)sym;
+                u64 tmp2 = (u64)table->global_symbols.symbols;
+                u64 idx = (tmp1 - tmp2) / sizeof(Symbol);
+                char *og_file = table->items[table->global_symbols.file_refs[idx]].filename;
                 printf("\"%s\" is already declared as a global in %s but is redifined as global elsewhere\n", sym->name, og_file);
                 exit(-1);
             }
