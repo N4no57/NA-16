@@ -18,7 +18,11 @@ typedef int64_t i64;
 typedef enum {
     OP_REG,
     OP_IMM,
-    OP_REG_IND
+    OP_REG_IND,
+    OP_ABSOLUTE,
+    OP_REG_IND_DISP,
+    OP_SIB,
+    OP_SIB_DISP,
 } OperandMode;
 
 typedef struct {
@@ -27,6 +31,10 @@ typedef struct {
         u16 reg;
         u16 immediate;
         i16 displacement;
+
+        // SIB only
+        u16 idx_reg;
+        u8 scale;
     };
     u8 size;
 } Operand;

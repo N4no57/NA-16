@@ -6,10 +6,10 @@ _start:
     push word bp ; save old bp
     mov bp, sp ; bp = sp
 
-    mov r1, 0x2000
-    xor r2, r2, r2
-    mov r3, 80
-    call memcpy
+    ; mov r1, 0x2000
+    ; xor r2, r2, r2
+    ; mov r3, 80
+    ; call memcpy
 
     call init_heap
     mov r1, 10
@@ -64,7 +64,7 @@ malloc_while_end:
     sub r2, r2, r1
     ; if (leftover > MIN_CHUNK_SIZE)
     cmp r2, 9
-    jb malloc_no_split
+    jbe malloc_no_split
     ; struct heapchunk_t *new_chunk = (struct heapchunk_t *)((void *)chunk + sizeof(struct heapchunk_t) + size)
     lea r3, [r0+r1+5]
     ; new_chunk->inuse = false

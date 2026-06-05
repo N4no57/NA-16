@@ -46,8 +46,8 @@ void print_operands(const CPU *cpu, const Instruction *inst, const InstructionDe
         format[2] = ' ';
         format[3] = '\0';
         i16 value = inst->ops[0].displacement;
-        char sign[] = "+\0\0";
-        if (value < 0) sign[0] = '-';
+        char sign[] = "\0\0\0";
+        if (value > 0) sign[0] = '+';
         if (strlen(def->name) < 3) {
             sign[1] = sign[0];
             sign[0] = '\t';
@@ -75,17 +75,83 @@ void print_operands(const CPU *cpu, const Instruction *inst, const InstructionDe
             case OP_REG_IND:
                 char *reg_ind = get_register(inst->ops[i].reg);
                 if (nullptr == reg_ind) break;
-                char thingy[100];
-                snprintf(thingy, 100, "%c%s%c", '[', format, ']');
                 if (format[2] == ',') {
-                    thingy[3] = ']';
-                    thingy[4] = ',';
-                    thingy[5] = ' ';
-                    thingy[6] = '\0';
+                    printf("[%s], ", reg_ind);
+                } else {
+                    printf("[%s]", reg_ind);
                 }
-                printf(thingy, reg_ind);
+                break;
+            case OP_ABSOLUTE:
+                u16 absolute = inst->ops[i].immediate;
+                if (format[2] == ',') {
+                    printf("[%d], ", absolute);
+                } else {
+                    printf("[%d]", absolute);
+                }
+                break;
+            case OP_REG_IND_DISP:
+                reg_ind = get_register(inst->ops[i].reg);
+                if (nullptr == reg_ind) break;
+                i16 disp = inst->ops[i].displacement;
+                char sign = 0;
+                if (disp > 0) sign = '+';
+                if (format[2] == ',') {
+                    if (sign == '+') printf("[%s%c%d], ", reg_ind, sign, disp);
+                    else printf("[%s%d], ", reg_ind, disp);
+                } else {
+                    if (sign == '+') printf("[%s%c%d]", reg_ind, sign, disp);
+                    else printf("[%s%d]", reg_ind, disp);
+                }
+                break;
+            case OP_SIB:
+                reg = get_register(inst->ops[i].reg);
+                char *idx_reg = get_register(inst->ops[i].idx_reg);
+                u8 scale = inst->ops[i].scale;
+                if (scale == 0b00) {
+                    scale = '1';
+                } else if (scale == 0b01) {
+                    scale = '2';
+                } else if (scale == 0b10) {
+                    scale = '4';
+                } else if (scale == 0b11) {
+                    scale = '8';
+                }
+                if (format[2] == ',') {
+                    printf("[%s+%s*%c], ", idx_reg, idx_reg, scale);
+                } else {
+                    printf("[%s+%s*%c]", idx_reg, idx_reg, scale);
+                }
+            case OP_SIB_DISP:
+                reg = get_register(inst->ops[i].reg);
+                idx_reg = get_register(inst->ops[i].idx_reg);
+                scale = inst->ops[i].scale;
+                if (scale == 0b00) {
+                    scale = '1';
+                } else if (scale == 0b01) {
+                    scale = '2';
+                } else if (scale == 0b10) {
+                    scale = '4';
+                } else if (scale == 0b11) {
+                    scale = '8';
+                }
+                printf("[%s+%s*%c", reg, idx_reg, scale);
+
+                disp = inst->ops[i].displacement;
+
+                sign = 0;
+                if (disp > 0) sign = '+';
+                if (sign) printf("+");
+
+                printf("%d", disp);
+
+                if (format[2] == ',') {
+                    printf("], ");
+                } else {
+                    printf("]");
+                }
                 break;
             default:
+                printf(format, "BAD\0");
                 break;
         }
     }

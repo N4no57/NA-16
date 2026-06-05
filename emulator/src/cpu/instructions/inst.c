@@ -1,4 +1,7 @@
 #include "inst.h"
+
+#include <stdio.h>
+
 #include "../memory.h"
 
 bool has_MEX(const Instruction *inst) {
@@ -57,6 +60,7 @@ void collect_operands(CPU *cpu, Instruction *inst, const u8 *inst_ops) { // curr
             case OP_REG: // register
                 inst->ops[i].reg = inst_ops[i];
                 break;
+            case OP_ABSOLUTE:
             case OP_IMM: // immediate
                 u16 immediate;
 
@@ -73,13 +77,50 @@ void collect_operands(CPU *cpu, Instruction *inst, const u8 *inst_ops) { // curr
             case OP_REG_IND:
                 inst->ops[i].reg = inst_ops[i];
                 break;
+            case OP_REG_IND_DISP:
+                inst->ops[i].reg = inst_ops[i];
+                i16 displacement;
+                if (inst->ops[i].size == 1) {
+                    i8 tmp = (i8)fetch_byte(cpu);
+                    displacement = (i16)tmp;
+                    inst->size++;
+                } else {
+                    displacement = (i16)fetch_word(cpu);
+                    inst->size += 2;
+                }
+                inst->ops[i].displacement = displacement;
+                break;
+            case OP_SIB:
+                inst->ops[i].reg = inst_ops[i];
+                u8 SIB_block = fetch_byte(cpu);
+                inst->ops[i].scale = SIB_block >> 6 & 0x3;
+                inst->ops[i].idx_reg = SIB_block >> 3 & 0x7;
+                break;
+            case OP_SIB_DISP:
+                inst->ops[i].reg = inst_ops[i];
+                SIB_block = fetch_byte(cpu);
+                inst->ops[i].scale = SIB_block >> 6 & 0x3;
+                inst->ops[i].idx_reg = SIB_block >> 3 & 0x7;
+                if (inst->ops[i].size == 1) {
+                    i8 tmp = (i8)fetch_byte(cpu);
+                    displacement = (i16)tmp;
+                    inst->size++;
+                } else {
+                    displacement = (i16)fetch_word(cpu);
+                    inst->size += 2;
+                }
+                inst->ops[i].displacement = displacement;
+                break;
             default:
+                printf("OGOHGOHGOH");
                 break;
         }
     }
 }
 
 u16 operand_read(const CPU *cpu, const Operand op) {
+    u16 value;
+    u16 address;
     switch (op.mode) {
         case OP_REG:
             return read_reg(cpu, op.reg);
@@ -88,9 +129,35 @@ u16 operand_read(const CPU *cpu, const Operand op) {
             return op.immediate;
 
         case OP_REG_IND:
-            u16 value;
             if (op.size == 1) value = read_byte(cpu, read_reg(cpu, op.reg));
             else value = read_word(cpu, read_reg(cpu, op.reg));
+            return value;
+
+        case OP_ABSOLUTE:
+            if (op.size == 1) value = read_byte(cpu, op.immediate);
+            else value = read_word(cpu, op.immediate);
+            return value;
+
+        case OP_REG_IND_DISP:
+            address = read_reg(cpu, op.reg);
+            address += op.displacement;
+            if (op.size == 1) value = read_byte(cpu, address);
+            else value = read_word(cpu, address);
+            return value;
+
+        case OP_SIB:
+            address = read_reg(cpu, op.reg);
+            address += read_reg(cpu, op.idx_reg) << op.scale;
+            if (op.size == 1) value = read_byte(cpu, address);
+            else value = read_word(cpu, address);
+            return value;
+
+        case OP_SIB_DISP:
+            address = read_reg(cpu, op.reg);
+            address += read_reg(cpu, op.idx_reg) << op.scale;
+            address += op.displacement;
+            if (op.size == 1) value = read_byte(cpu, address);
+            else value = read_word(cpu, address);
             return value;
     }
 
@@ -98,15 +165,43 @@ u16 operand_read(const CPU *cpu, const Operand op) {
 }
 
 void operand_write(CPU *cpu, const Operand op, const u16 value) {
-    if (op.mode == OP_REG) {
-        set_reg(cpu, op.reg, value);
-        return;
-    }
+    u16 address;
+    switch (op.mode) {
+        case OP_REG:
+            set_reg(cpu, op.reg, value);
+            break;
 
-    if (op.mode == OP_REG_IND) {
-        if (op.size == 1) write_byte(cpu, read_reg(cpu, op.reg), value);
-        else write_word(cpu, read_reg(cpu, op.reg), value);
-        return;
+        case OP_REG_IND:
+            if (op.size == 1) write_byte(cpu, read_reg(cpu, op.reg), value);
+            else write_word(cpu, read_reg(cpu, op.reg), value);
+            break;
+
+        case OP_ABSOLUTE:
+            if (op.size == 1) write_byte(cpu, op.immediate, value);
+            else write_word(cpu, op.immediate, value);
+            break;
+
+        case OP_REG_IND_DISP:
+            address = read_reg(cpu, op.reg);
+            address += op.displacement;
+            if (op.size == 1) write_byte(cpu, address, value);
+            else write_word(cpu, address, value);
+            break;
+
+        case OP_SIB:
+            address = read_reg(cpu, op.reg);
+            address += read_reg(cpu, op.idx_reg) << op.scale;
+            if (op.size == 1) write_byte(cpu, address, value);
+            else write_word(cpu, address, value);
+            break;
+
+        case OP_SIB_DISP:
+            address = read_reg(cpu, op.reg);
+            address += read_reg(cpu, op.idx_reg) << op.scale;
+            address += op.displacement;
+            if (op.size == 1) write_byte(cpu, address, value);
+            else write_word(cpu, address, value);
+            break;
     }
 }
 
