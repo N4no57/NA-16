@@ -10,9 +10,74 @@ void init_parser(NodeProgram *ast) {
     if (!ast->statements) exit(1);
 }
 
-void consume_tok(TokenList *tokens, u64 *idx, Token *tok) {
+void consume_tok(const TokenList *tokens, u64 *idx, Token *tok) {
     (*idx)++;
     *tok = tokens->tokens[*idx];
+}
+
+void parse_memory_op(NodeOperand *operand, const TokenList *tokens, u64 *idx, Token *tok) {
+    // stuff like [10], [r0], [r0+1]\[r0-1], [r0+r1*1] and [r0+r1*1+10]
+    consume_tok(tokens, idx, tok); // consume '['
+
+    if (tok->type == TT_IMMEDIATE) {
+        operand->kind = ABSOLUTE;
+        operand->immediate = *(i64 *)tok->value;
+        consume_tok(tokens, idx, tok); // consume immediate
+
+        if (tok->type != TT_R_SQUARE_BRACKET) {
+            error(tok->pos, "Expected a ']'");
+            return;
+        }
+
+        consume_tok(tokens, idx, tok); // consume ']'
+        return;
+    }
+
+    if (tok->type == TT_REGISTER) {
+        operand->reg = *(i64 *)tok->value;
+        consume_tok(tokens, idx, tok);
+        if (tok->type == TT_PLUS || tok->type == TT_MINUS) {
+            // either register indirect with displacement, SIB or SIB with displacement
+            bool sign = tok->type == TT_MINUS;
+            consume_tok(tokens, idx, tok); // consume '+'/'-'
+            if (tok->type == TT_IMMEDIATE) {
+                // reg indirect with displacement
+                operand->kind = REG_IND_DISP;
+
+                operand->immediate = *(i64 *)tok->value;
+                if (sign) {
+                    operand->immediate *= -1;
+                }
+
+                consume_tok(tokens, idx, tok); // consume number
+            } else if (tok->type == TT_REGISTER) {
+                // SIB or SIB with displacement
+            }
+        } else {
+            operand->kind = REG_INDIRECT;
+            consume_tok(tokens, idx, tok); // consume reg
+        }
+
+        if (tok->type != TT_R_SQUARE_BRACKET) {
+            error(tok->pos, "Expected a ']'");
+            return;
+        }
+
+        consume_tok(tokens, idx, tok); // consume ']'
+    } else {
+        error(tok->pos, "Expected a register or an immediate inside the square brackets");
+        return;
+    }
+
+    operand->reg = getregister(tok->value);
+    consume_tok(tokens, idx, tok); // consume reg
+
+    if (tok->type != TT_R_SQUARE_BRACKET) {
+        error(tok->pos, "Expected a ']'");
+        return;
+    }
+
+    consume_tok(tokens, idx, tok); // consume ']'
 }
 
 void parse_operand(NodeOperand *operand, TokenList *tokens, u64 *idx, Token *tok) {
@@ -43,24 +108,7 @@ void parse_operand(NodeOperand *operand, TokenList *tokens, u64 *idx, Token *tok
 
         consume_tok(tokens, idx, tok); // consume number
     } else if (tok->type == TT_L_SQUARE_BRACKET) {
-        // register indirect only (for now)
-        operand->kind = REG_INDIRECT;
-        consume_tok(tokens, idx, tok); // consume '['
-
-        if (tok->type != TT_REGISTER) {
-            error(tok->pos, "Expected a register");
-            return;
-        }
-
-        operand->reg = getregister(tok->value);
-        consume_tok(tokens, idx, tok); // consume reg
-
-        if (tok->type != TT_R_SQUARE_BRACKET) {
-            error(tok->pos, "Expected a ']'");
-            return;
-        }
-
-        consume_tok(tokens, idx, tok); // consume ']'
+        parse_memory_op(operand, tokens, idx, tok);
     } else if (tok->type == TT_IDENTIFIER) {
         operand->kind = SYMBOL;
         operand->symbol_name = tok->value;
@@ -146,7 +194,7 @@ void parse_directive(NodeDirective *directive, TokenList *tokens, u64 *idx, Toke
     }
 }
 
-NodeStatement parse_statement(NodeProgram *ast, TokenList *tokens, u64 *idx, Token *tok) {
+NodeStatement parse_statement(TokenList *tokens, u64 *idx, Token *tok) {
     NodeStatement ret_val = {0};
 
     if (tok->type == TT_MNEMONIC) {
@@ -182,7 +230,7 @@ void parse(NodeProgram *ast, TokenList *tokens) {
             if (!tmp) exit(1);
             ast->statements = tmp;
         }
-        NodeStatement node = parse_statement(ast, tokens, &idx, tok);
+        NodeStatement node = parse_statement(tokens, &idx, tok);
         if (node.kind == ST_NONE) continue;
         ast->statements[ast->count] = node;
         ast->count++;
