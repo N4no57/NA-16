@@ -29,7 +29,7 @@
  * The most significant nibble is used to identify it and the rest of the nibbles are used to change the addressing mode
  * of each of the 3 operands
  * layout example:
- * bits 15-12 =  MEX tag
+ * bits 15-12 = MEX tag
  * bits 11-8 = op1 mode
  * bits 7-4 = op2 mode
  * bits 3-0 = op3 mode
@@ -45,6 +45,13 @@
  * 0x5 = SIB addressing
  * 0x6 = SIB ± 8/16-bit displacement
  * 0x7-0xF = reserved
+ */
+
+/*
+ * SIB encoding uses the register of the corresponding op inside the base encoding but adds on an extra byte
+ * bits 7-6 = scale (1, 2, 4, or 8)
+ * bits 5-3 = index register
+ * bits 2-0 = reserved
  */
 
 /* the native size when accessing memory or using immediate or offsets/displacements is 1 byte
