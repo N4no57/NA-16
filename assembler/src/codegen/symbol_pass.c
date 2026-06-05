@@ -84,6 +84,8 @@ void handle_globals(NodeDirective *node, SymbolTable *table) {
 
             if (symbol == nullptr) {
                 error(tok->pos, "Undefined symbol reference \"%s\"", tok->value);
+                tok = &node->args.tokens[++tok_idx];
+                continue;
             }
 
             symbol->flags |= SYM_GLOBAL;
