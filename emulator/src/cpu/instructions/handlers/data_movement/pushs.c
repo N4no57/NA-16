@@ -2,8 +2,7 @@
 #include "../../../memory.h"
 
 void pushs_handler(CPU *cpu, Instruction *inst) {
-    inst->ops[0].reg++;
-    inst->ops[0].reg <<= 6;
+    inst->ops[0].reg += 0x40;
     const u16 source = operand_read(cpu, inst->ops[0]);
 
     if (inst->ops[0].size == 2) {

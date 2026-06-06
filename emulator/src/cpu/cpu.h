@@ -53,23 +53,27 @@ typedef struct Instruction {
     u64 size; // debugging metadata
 } Instruction;
 
-#define MEMORY_SIZE 0x10000
+#define MEMORY_SIZE 0x20000
 
 typedef union {
     struct {
-        uint8_t C : 1;
-        uint8_t Z : 1;
-        uint8_t O : 1;
-        uint8_t N : 1;
-        uint8_t I : 1;
+        u8 C : 1; // Carry
+        u8 Z : 1; // Zero
+        u8 O : 1; // Overflow
+        u8 N : 1; // Negative
+        u8 I : 1; // (Maskable) Interrupt enable
+        u8 D : 1; // Debug
+        u8 V : 1; // Virtual memory enable
+        u8 U : 1; // User mode
     };
-    uint8_t flags;
+    u16 flags;
 } flags;
 
 typedef struct CPU {
     u16 PC;
     u16 SP;
     u16 BP;
+    u16 CR0, CR1; // use for MMU CR0 for kernel page table start and CR1 for user
     u16 R0, R1, R2, R3, R4, R5, R6, R7;
 
     flags FR;
@@ -85,8 +89,8 @@ typedef struct InstructionDef {
     InstructionHandler handler;
 } InstructionDef;
 
-void set_reg(CPU *cpu, u16 reg, u16 value);
-u16 read_reg(const CPU *cpu, u16 reg);
+void set_reg(CPU *cpu, u8 reg, u16 value);
+u16 read_reg(const CPU *cpu, u8 reg);
 
 void cpu_init(CPU *cpu);
 void cpu_reset(CPU *cpu);

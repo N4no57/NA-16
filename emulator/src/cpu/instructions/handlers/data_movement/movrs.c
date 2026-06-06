@@ -3,7 +3,6 @@
 void movrs_handler(CPU *cpu, Instruction *inst) {
     const u16 source = operand_read(cpu, inst->ops[1]);
 
-    inst->ops[0].reg++;
-    inst->ops[0].reg <<= 6;
+    inst->ops[0].reg += 0x40;
     operand_write(cpu, inst->ops[0], source);
 }

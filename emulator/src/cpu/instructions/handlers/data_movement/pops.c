@@ -11,7 +11,6 @@ void pops_handler(CPU *cpu, Instruction *inst) {
         source = read_byte(cpu, ++cpu->SP);
     }
 
-    inst->ops[0].reg++;
-    inst->ops[0].reg <<= 6;
+    inst->ops[0].reg += 0x40;
     operand_write(cpu, inst->ops[0], source);
 }
