@@ -65,14 +65,14 @@ void parse_memory_op(NodeOperand *operand, const TokenList *tokens, u64 *idx, To
                     }
                     operand->scale = *(i8 *)tok->value;
 
-                    if (operand->scale != 1 || operand->scale != 2 || operand->scale != 4 || operand->scale != 8) {
+                    if (operand->scale != 1 && operand->scale != 2 && operand->scale != 4 && operand->scale != 8) {
                         error(tok->pos, "Scale can only be 1, 2, 4 or 8 not %d", operand->scale);
                     }
                     consume_tok(tokens, idx, tok); // consume immediate
                 }
 
                 operand->kind = SIB;
-                if (tok->type != TT_PLUS || tok->type != TT_MINUS) {
+                if (tok->type == TT_PLUS || tok->type == TT_MINUS) {
                     // SIB with disp
                     operand->kind = SIB_DISP;
                     sign = tok->type == TT_MINUS;
