@@ -16,7 +16,7 @@ _start:
     mov cr0, page_table_start
 
     mov r0, fr
-    or r0, r0, 0x40
+    or r0, r0, 0x40 ; VME set
     mov fr, r0
 
     mov r0, 0xF000

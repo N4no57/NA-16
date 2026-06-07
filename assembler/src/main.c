@@ -40,10 +40,10 @@
  * 0x0 = register ✔
  * 0x1 = 8/16 bit immediate ✔/✔
  * 0x2 = register indirect ✔
- * 0x3 = Absolute
- * 0x4 = register indirect ± 8/16-bit displacement
- * 0x5 = SIB addressing
- * 0x6 = SIB ± 8/16-bit displacement
+ * 0x3 = Absolute ✔
+ * 0x4 = register indirect ± 8/16-bit displacement ✔
+ * 0x5 = SIB addressing ✔
+ * 0x6 = SIB ± 8/16-bit displacement ✔
  * 0x7-0xF = reserved
  */
 

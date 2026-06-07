@@ -8,7 +8,7 @@ int main() {
     CPU cpu;
     cpu_init(&cpu);
     cpu.memory[0xFFFE] = 0x00;
-    cpu.memory[0xFFFF] = 0xF0;
+    cpu.memory[0xFFFF] = 0x00;
     cpu_reset(&cpu);
 
     FILE *f = fopen("test.bin", "rb");
@@ -21,7 +21,6 @@ int main() {
     fclose(f);
 
     memcpy(&cpu.memory[0x0000], program, size);
-    cpu.PC = 0x0000;
 
     free(program);
 
