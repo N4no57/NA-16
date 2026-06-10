@@ -7,7 +7,7 @@
 
 void run_emulator(Machine *machine) {
     while (machine->powered_on) {
-        execute_inst(machine);
+        machine_step(machine);
     }
 }
 
