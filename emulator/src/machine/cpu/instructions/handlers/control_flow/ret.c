@@ -1,9 +1,10 @@
 #include "../../inst.h"
-#include "../../../memory.h"
+#include "../../../../ram/memory.h"
 
-void ret_handler(CPU *cpu, Instruction *inst) {
-    u16 address = read_byte(cpu, ++cpu->SP) << 8; // pop return address
-    address |= read_byte(cpu, ++cpu->SP);
+void ret_handler(Machine *machine, Instruction *inst) {
+    CPU *cpu = &machine->cpu;
+    u16 address = read_byte(machine, ++cpu->sys.SP) << 8; // pop return address
+    address |= read_byte(machine, ++cpu->sys.SP);
 
-    cpu->PC = address;
+    cpu->sys.PC = address;
 }

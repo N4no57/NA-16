@@ -21,7 +21,7 @@ u32 translate(Machine *machine, const u32 vaddr) {
         entry.frame = *tmp;
 
         if ((entry.frame & PT_PRESENT) != PT_PRESENT) {
-            interrupt(cpu, PF);
+            // interrupt(cpu, PF);
             return 0;
         }
 
@@ -32,7 +32,7 @@ u32 translate(Machine *machine, const u32 vaddr) {
     entry.frame = *tmp;
 
     if ((entry.frame & PT_PRESENT) != PT_PRESENT) {
-        interrupt(cpu, PF);
+        // interrupt(cpu, PF);
         return 0;
     }
 
@@ -48,7 +48,7 @@ u8 read_byte(Machine *machine, const u16 address) {
     }
 
     if (address >= machine->ram.memory_size) {
-        interrupt(cpu, GP);
+        // interrupt(cpu, GP);
         return 0;
     }
 
@@ -77,7 +77,7 @@ u16 read_word(Machine *machine, const u16 address) {
     }
 
     if (address+1 >= machine->ram.memory_size) {
-        interrupt(cpu, GP);
+        // interrupt(cpu, GP);
         return 0;
     }
 

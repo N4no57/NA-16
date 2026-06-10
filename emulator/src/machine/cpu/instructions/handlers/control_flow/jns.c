@@ -1,7 +1,8 @@
 #include "../../inst.h"
 
-void jns_handler(CPU *cpu, Instruction *inst) {
-    if (cpu->FR.N) return;
+void jns_handler(Machine *machine, Instruction *inst) {
+    CPU *cpu = &machine->cpu;
+    if (cpu->sys.FR.N) return;
 
-    cpu->PC += inst->ops[0].displacement;
+    cpu->sys.PC += inst->ops[0].displacement;
 }

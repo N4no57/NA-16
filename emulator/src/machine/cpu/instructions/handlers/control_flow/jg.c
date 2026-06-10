@@ -1,7 +1,8 @@
 #include "../../inst.h"
 
-void jg_handler(CPU *cpu, Instruction *inst) {
-    if (!cpu->FR.Z || cpu->FR.O != cpu->FR.N) return;
+void jg_handler(Machine *machine, Instruction *inst) {
+    CPU *cpu = &machine->cpu;
+    if (!cpu->sys.FR.Z || cpu->sys.FR.O != cpu->sys.FR.N) return;
 
-    cpu->PC += inst->ops[0].displacement;
+    cpu->sys.PC += inst->ops[0].displacement;
 }

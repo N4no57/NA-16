@@ -1,7 +1,7 @@
 #include "../../inst.h"
 
-void mov_handler(CPU *cpu, Instruction *inst) {
-    const u16 source = operand_read(cpu, inst->ops[1]);
+void mov_handler(Machine *machine, Instruction *inst) {
+    const u16 source = operand_read(machine, inst->ops[1]);
 
-    operand_write(cpu, inst->ops[0], source);
+    operand_write(machine, inst->ops[0], source);
 }

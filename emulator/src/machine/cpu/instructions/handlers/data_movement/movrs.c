@@ -1,8 +1,8 @@
 #include "../../inst.h"
 
-void movrs_handler(CPU *cpu, Instruction *inst) {
-    const u16 source = operand_read(cpu, inst->ops[1]);
+void movrs_handler(Machine *machine, Instruction *inst) {
+    const u16 source = operand_read(machine, inst->ops[1]);
 
     inst->ops[0].reg += 0x40;
-    operand_write(cpu, inst->ops[0], source);
+    operand_write(machine, inst->ops[0], source);
 }

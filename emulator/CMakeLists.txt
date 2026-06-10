@@ -45,4 +45,6 @@ add_executable(Emulator src/main.c
         src/machine/cpu/instructions/handlers/control_flow/call.c
         src/machine/cpu/instructions/handlers/control_flow/ret.c
         src/machine/machine.h
+        src/machine/mmu.c
+        src/machine/mmu.h
 )

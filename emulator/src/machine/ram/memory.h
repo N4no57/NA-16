@@ -3,11 +3,6 @@
 
 #include "../machine.h"
 
-typedef struct Memory {
-    u8 *memory;
-    u64 memory_size;
-} Memory;
-
 u8 read_byte(Machine *machine, u16 address);
 u16 read_word(Machine *machine, u16 address);
 

@@ -1,11 +1,12 @@
 #include "../../inst.h"
-#include "../../../memory.h"
+#include "../../../../ram/memory.h"
 
-void call_handler(CPU *cpu, Instruction *inst) {
-    write_byte(cpu, cpu->SP--, cpu->PC & 0xFF); // push return address
-    write_byte(cpu, cpu->SP--, cpu->PC >> 8);
+void call_handler(Machine *machine, Instruction *inst) {
+    CPU *cpu = &machine->cpu;
+    write_byte(machine, cpu->sys.SP--, cpu->sys.PC & 0xFF); // push return address
+    write_byte(machine, cpu->sys.SP--, cpu->sys.PC >> 8);
 
-    const u16 address = operand_read(cpu, inst->ops[0]);
+    const u16 address = operand_read(machine, inst->ops[0]);
 
-    cpu->PC = address;
+    cpu->sys.PC = address;
 }

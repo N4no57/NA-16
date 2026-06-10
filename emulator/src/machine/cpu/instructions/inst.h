@@ -3,18 +3,6 @@
 
 #include "../cpu.h"
 
-#include <stdint.h>
-
-typedef uint8_t u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef uint64_t u64;
-
-typedef int8_t i8;
-typedef int16_t i16;
-typedef int32_t i32;
-typedef int64_t i64;
-
 typedef enum {
     // op table 1
     // class 0: ALU ops
@@ -73,55 +61,55 @@ typedef enum {
 
 bool is_cond_jump(const Instruction *inst);
 
-void collect_operands(CPU *cpu, Instruction *inst, const u8 *inst_ops);
-u16 operand_read(CPU *cpu, Operand op);
-void operand_write(CPU *cpu, Operand op, u16 value);
+void collect_operands(Machine *machine, Instruction *inst, const u8 *inst_ops);
+u16 operand_read(Machine *machine, Operand op);
+void operand_write(Machine *machine, Operand op, u16 value);
 
-void set_flags(CPU *cpu, u32 value, const u32 values[2], u8 mask, u8 size);
+void set_flags(Machine *machine, u32 value, const u32 values[2], u8 mask, u8 size);
 
 InstructionDef *fetch_InstDef(Ops idx, bool has_escape_byte);
-Instruction decode(CPU *cpu);
+Instruction decode(Machine *machine);
 
 // Instruction handlers
 // class 0: ALU ops
-void add_handler(CPU *cpu, Instruction *inst);
-void sub_handler(CPU *cpu, Instruction *inst);
-void and_handler(CPU *cpu, Instruction *inst);
-void or_handler(CPU *cpu, Instruction *inst);
-void xor_handler(CPU *cpu, Instruction *inst);
-void not_handler(CPU *cpu, Instruction *inst);
-void cmp_handler(CPU *cpu, Instruction *inst);
-void test_handler(CPU *cpu, Instruction *inst);
+void add_handler(Machine *machine, Instruction *inst);
+void sub_handler(Machine *machine, Instruction *inst);
+void and_handler(Machine *machine, Instruction *inst);
+void or_handler(Machine *machine, Instruction *inst);
+void xor_handler(Machine *machine, Instruction *inst);
+void not_handler(Machine *machine, Instruction *inst);
+void cmp_handler(Machine *machine, Instruction *inst);
+void test_handler(Machine *machine, Instruction *inst);
 
 // class 1: data movement
-void mov_handler(CPU *cpu, Instruction *inst);
-void movsr_handler(CPU *cpu, Instruction *inst);
-void movrs_handler(CPU *cpu, Instruction *inst);
-void push_handler(CPU *cpu, Instruction *inst);
-void pop_handler(CPU *cpu, Instruction *inst);
-void lea_handler(CPU *cpu, Instruction *inst);
-void movs_handler(CPU *cpu, Instruction *inst);
-void pushs_handler(CPU *cpu, Instruction *inst);
-void pops_handler(CPU *cpu, Instruction *inst);
+void mov_handler(Machine *machine, Instruction *inst);
+void movsr_handler(Machine *machine, Instruction *inst);
+void movrs_handler(Machine *machine, Instruction *inst);
+void push_handler(Machine *machine, Instruction *inst);
+void pop_handler(Machine *machine, Instruction *inst);
+void lea_handler(Machine *machine, Instruction *inst);
+void movs_handler(Machine *machine, Instruction *inst);
+void pushs_handler(Machine *machine, Instruction *inst);
+void pops_handler(Machine *machine, Instruction *inst);
 
 // class 2: control flow
-void jmp_handler(CPU *cpu, Instruction *inst);
-void jz_handler(CPU *cpu, Instruction *inst);
-void jnz_handler(CPU *cpu, Instruction *inst);
-void jc_handler(CPU *cpu, Instruction *inst);
-void jnc_handler(CPU *cpu, Instruction *inst);
-void jo_handler(CPU *cpu, Instruction *inst);
-void jno_handler(CPU *cpu, Instruction *inst);
-void js_handler(CPU *cpu, Instruction *inst);
-void jns_handler(CPU *cpu, Instruction *inst);
-void ja_handler(CPU *cpu, Instruction *inst);
-void jbe_handler(CPU *cpu, Instruction *inst);
-void jg_handler(CPU *cpu, Instruction *inst);
-void jge_handler(CPU *cpu, Instruction *inst);
-void jl_handler(CPU *cpu, Instruction *inst);
-void jle_handler(CPU *cpu, Instruction *inst);
-void call_handler(CPU *cpu, Instruction *inst);
-void ret_handler(CPU *cpu, Instruction *inst);
+void jmp_handler(Machine *machine, Instruction *inst);
+void jz_handler(Machine *machine, Instruction *inst);
+void jnz_handler(Machine *machine, Instruction *inst);
+void jc_handler(Machine *machine, Instruction *inst);
+void jnc_handler(Machine *machine, Instruction *inst);
+void jo_handler(Machine *machine, Instruction *inst);
+void jno_handler(Machine *machine, Instruction *inst);
+void js_handler(Machine *machine, Instruction *inst);
+void jns_handler(Machine *machine, Instruction *inst);
+void ja_handler(Machine *machine, Instruction *inst);
+void jbe_handler(Machine *machine, Instruction *inst);
+void jg_handler(Machine *machine, Instruction *inst);
+void jge_handler(Machine *machine, Instruction *inst);
+void jl_handler(Machine *machine, Instruction *inst);
+void jle_handler(Machine *machine, Instruction *inst);
+void call_handler(Machine *machine, Instruction *inst);
+void ret_handler(Machine *machine, Instruction *inst);
 
 // class 3: system instructions
 

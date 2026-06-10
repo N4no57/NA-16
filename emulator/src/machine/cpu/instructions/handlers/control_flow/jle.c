@@ -1,7 +1,8 @@
 #include "../../inst.h"
 
-void jle_handler(CPU *cpu, Instruction *inst) {
-    if (!cpu->FR.Z && cpu->FR.N == cpu->FR.O) return;
+void jle_handler(Machine *machine, Instruction *inst) {
+    CPU *cpu = &machine->cpu;
+    if (!cpu->sys.FR.Z && cpu->sys.FR.N == cpu->sys.FR.O) return;
 
-    cpu->PC += inst->ops[0].displacement;
+    cpu->sys.PC += inst->ops[0].displacement;
 }

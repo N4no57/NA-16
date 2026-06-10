@@ -18,7 +18,7 @@ bool is_cond_jump(const Instruction *inst) {
     return false;
 }
 
-void collect_operands(CPU *cpu, Instruction *inst, const u8 *inst_ops) { // current implementation 3 operand only
+void collect_operands(Machine *machine, Instruction *inst, const u8 *inst_ops) { // current implementation 3 operand only
     if (has_MEX(inst)) {
         for (u8 i = 0; i < inst->op_count; i++) {
             inst->ops[i].mode = inst->prefixes.MEX >> (8 - 4 * i) & 0xF;
@@ -41,13 +41,13 @@ void collect_operands(CPU *cpu, Instruction *inst, const u8 *inst_ops) { // curr
 
     if (is_cond_jump(inst)) {
         if (inst->ops[0].size == 1) {
-            i8 value = (i8)fetch_byte(cpu);
+            i8 value = (i8)fetch_byte(machine);
             inst->ops[0].displacement = (i16)value;
             inst->size++;
         } else {
             u8 bytes[2];
-            bytes[0] = fetch_byte(cpu);
-            bytes[1] = fetch_byte(cpu);
+            bytes[0] = fetch_byte(machine);
+            bytes[1] = fetch_byte(machine);
             u16 u = (u16)bytes[0] | ((u16)bytes[1] << 8);
             inst->ops[0].displacement = (i16)u;
             inst->size += 2;
@@ -65,10 +65,10 @@ void collect_operands(CPU *cpu, Instruction *inst, const u8 *inst_ops) { // curr
                 u16 immediate;
 
                 if (inst->ops[i].size == 1) {
-                    immediate = fetch_byte(cpu);
+                    immediate = fetch_byte(machine);
                     inst->size++;
                 } else {
-                    immediate = fetch_word(cpu);
+                    immediate = fetch_word(machine);
                     inst->size += 2;
                 }
 
@@ -81,32 +81,32 @@ void collect_operands(CPU *cpu, Instruction *inst, const u8 *inst_ops) { // curr
                 inst->ops[i].reg = inst_ops[i];
                 i16 displacement;
                 if (inst->ops[i].size == 1) {
-                    i8 tmp = (i8)fetch_byte(cpu);
+                    i8 tmp = (i8)fetch_byte(machine);
                     displacement = (i16)tmp;
                     inst->size++;
                 } else {
-                    displacement = (i16)fetch_word(cpu);
+                    displacement = (i16)fetch_word(machine);
                     inst->size += 2;
                 }
                 inst->ops[i].displacement = displacement;
                 break;
             case OP_SIB:
                 inst->ops[i].reg = inst_ops[i];
-                u8 SIB_block = fetch_byte(cpu);
+                u8 SIB_block = fetch_byte(machine);
                 inst->ops[i].scale = SIB_block >> 6 & 0x3;
                 inst->ops[i].idx_reg = SIB_block >> 3 & 0x7;
                 break;
             case OP_SIB_DISP:
                 inst->ops[i].reg = inst_ops[i];
-                SIB_block = fetch_byte(cpu);
+                SIB_block = fetch_byte(machine);
                 inst->ops[i].scale = SIB_block >> 6 & 0x3;
                 inst->ops[i].idx_reg = SIB_block >> 3 & 0x7;
                 if (inst->ops[i].size == 1) {
-                    i8 tmp = (i8)fetch_byte(cpu);
+                    i8 tmp = (i8)fetch_byte(machine);
                     displacement = (i16)tmp;
                     inst->size++;
                 } else {
-                    displacement = (i16)fetch_word(cpu);
+                    displacement = (i16)fetch_word(machine);
                     inst->size += 2;
                 }
                 inst->ops[i].displacement = displacement;
@@ -118,111 +118,113 @@ void collect_operands(CPU *cpu, Instruction *inst, const u8 *inst_ops) { // curr
     }
 }
 
-u16 operand_read(CPU *cpu, const Operand op) {
+u16 operand_read(Machine *machine, const Operand op) {
     u16 value;
     u16 address;
     switch (op.mode) {
         case OP_REG:
-            return read_reg(cpu, op.reg);
+            return read_reg(machine, op.reg);
 
         case OP_IMM:
             return op.immediate;
 
         case OP_REG_IND:
-            if (op.size == 1) value = read_byte(cpu, read_reg(cpu, op.reg));
-            else value = read_word(cpu, read_reg(cpu, op.reg));
+            if (op.size == 1) value = read_byte(machine, read_reg(machine, op.reg));
+            else value = read_word(machine, read_reg(machine, op.reg));
             return value;
 
         case OP_ABSOLUTE:
-            if (op.size == 1) value = read_byte(cpu, op.immediate);
-            else value = read_word(cpu, op.immediate);
+            if (op.size == 1) value = read_byte(machine, op.immediate);
+            else value = read_word(machine, op.immediate);
             return value;
 
         case OP_REG_IND_DISP:
-            address = read_reg(cpu, op.reg);
+            address = read_reg(machine, op.reg);
             address += op.displacement;
-            if (op.size == 1) value = read_byte(cpu, address);
-            else value = read_word(cpu, address);
+            if (op.size == 1) value = read_byte(machine, address);
+            else value = read_word(machine, address);
             return value;
 
         case OP_SIB:
-            address = read_reg(cpu, op.reg);
-            address += read_reg(cpu, op.idx_reg) << op.scale;
-            if (op.size == 1) value = read_byte(cpu, address);
-            else value = read_word(cpu, address);
+            address = read_reg(machine, op.reg);
+            address += read_reg(machine, op.idx_reg) << op.scale;
+            if (op.size == 1) value = read_byte(machine, address);
+            else value = read_word(machine, address);
             return value;
 
         case OP_SIB_DISP:
-            address = read_reg(cpu, op.reg);
-            address += read_reg(cpu, op.idx_reg) << op.scale;
+            address = read_reg(machine, op.reg);
+            address += read_reg(machine, op.idx_reg) << op.scale;
             address += op.displacement;
-            if (op.size == 1) value = read_byte(cpu, address);
-            else value = read_word(cpu, address);
+            if (op.size == 1) value = read_byte(machine, address);
+            else value = read_word(machine, address);
             return value;
     }
 
     return 0;
 }
 
-void operand_write(CPU *cpu, const Operand op, const u16 value) {
+void operand_write(Machine *machine, const Operand op, const u16 value) {
     u16 address;
     switch (op.mode) {
         case OP_REG:
-            set_reg(cpu, op.reg, value);
+            set_reg(machine, op.reg, value);
             break;
 
         case OP_REG_IND:
-            if (op.size == 1) write_byte(cpu, read_reg(cpu, op.reg), value);
-            else write_word(cpu, read_reg(cpu, op.reg), value);
+            if (op.size == 1) write_byte(machine, read_reg(machine, op.reg), value);
+            else write_word(machine, read_reg(machine, op.reg), value);
             break;
 
         case OP_ABSOLUTE:
-            if (op.size == 1) write_byte(cpu, op.immediate, value);
-            else write_word(cpu, op.immediate, value);
+            if (op.size == 1) write_byte(machine, op.immediate, value);
+            else write_word(machine, op.immediate, value);
             break;
 
         case OP_REG_IND_DISP:
-            address = read_reg(cpu, op.reg);
+            address = read_reg(machine, op.reg);
             address += op.displacement;
-            if (op.size == 1) write_byte(cpu, address, value);
-            else write_word(cpu, address, value);
+            if (op.size == 1) write_byte(machine, address, value);
+            else write_word(machine, address, value);
             break;
 
         case OP_SIB:
-            address = read_reg(cpu, op.reg);
-            address += read_reg(cpu, op.idx_reg) << op.scale;
-            if (op.size == 1) write_byte(cpu, address, value);
-            else write_word(cpu, address, value);
+            address = read_reg(machine, op.reg);
+            address += read_reg(machine, op.idx_reg) << op.scale;
+            if (op.size == 1) write_byte(machine, address, value);
+            else write_word(machine, address, value);
             break;
 
         case OP_SIB_DISP:
-            address = read_reg(cpu, op.reg);
-            address += read_reg(cpu, op.idx_reg) << op.scale;
+            address = read_reg(machine, op.reg);
+            address += read_reg(machine, op.idx_reg) << op.scale;
             address += op.displacement;
-            if (op.size == 1) write_byte(cpu, address, value);
-            else write_word(cpu, address, value);
+            if (op.size == 1) write_byte(machine, address, value);
+            else write_word(machine, address, value);
             break;
     }
 }
 
-void set_flags(CPU *cpu, const u32 value, const u32 values[2], const u8 mask, u8 size) {
+void set_flags(Machine *machine, const u32 value, const u32 values[2], const u8 mask, const u8 size) {
+    CPU *cpu = &machine->cpu;
+
     // mask = 0b0000, 1 - O, 2 - C, 3 - N, 4 - Z
     u32 width_mask = size == 4 ? 0xFFFFFFFF : size == 2 ? 0xFFFF : 0xFF;
 
     u32 sign_bit = 1u << (size * 8 - 1);
 
-    if (mask & 0b1) cpu->FR.Z = (value & width_mask) == 0;
+    if (mask & 0b1) cpu->sys.FR.Z = (value & width_mask) == 0;
 
-    if (mask & 0b10) cpu->FR.N = (value & sign_bit) != 0;
+    if (mask & 0b10) cpu->sys.FR.N = (value & sign_bit) != 0;
 
-    if (mask & 0b100) cpu->FR.C = value > width_mask;
+    if (mask & 0b100) cpu->sys.FR.C = value > width_mask;
 
     if (mask & 0b1000) {
         u32 a = values[0];
         u32 b = values[1];
         u32 r = value;
 
-        cpu->FR.O = (~(a ^ b) & (a ^ r) & sign_bit) != 0;
+        cpu->sys.FR.O = (~(a ^ b) & (a ^ r) & sign_bit) != 0;
     }
 }
 
@@ -287,36 +289,37 @@ InstructionDef *fetch_InstDef(const Ops idx, bool has_escape_byte) {
     return &instruction_table[idx];
 }
 
-Instruction decode(CPU *cpu) {
+Instruction decode(Machine *machine) {
+    CPU *cpu = &machine->cpu;
     Instruction ret = {{0}, 255, {0}, 0, 0};
 
     // OBTAIN PREFIXES
     while (1) {
-        const u8 byte = read_byte(cpu, cpu->PC);
+        const u8 byte = read_byte(machine, cpu->sys.PC);
         if (!(byte & 0x80)) break;
 
         if ((byte & 0xF0) == 0x80) {
-            const u16 MEX_prefix = fetch_word(cpu);
+            const u16 MEX_prefix = fetch_word(machine);
             ret.prefixes.MEX = (MEX_prefix & 0xFF) << 8 | MEX_prefix >> 8 & 0xFF;
             ret.size += 2;
             continue;
         }
         if ((byte & 0xF0) == 0x90) {
-            ret.prefixes.AEX = fetch_byte(cpu);
+            ret.prefixes.AEX = fetch_byte(machine);
             ret.size++;
             continue;
         }
 
         if ((byte & 0xF0) == 0xF0) {
             ret.prefixes.has_escape_byte = true;
-            cpu->PC++;
+            cpu->sys.PC++;
             ret.size++;
             continue;
         }
     }
 
-    u16 instruction = fetch_byte(cpu) << 8;
-    instruction |= fetch_byte(cpu);
+    u16 instruction = fetch_byte(machine) << 8;
+    instruction |= fetch_byte(machine);
 
     ret.opcode = instruction >> 9 & 0x7F;
     ret.size += 2;
@@ -330,7 +333,7 @@ Instruction decode(CPU *cpu) {
         instruction & 0x7
     };
 
-    collect_operands(cpu, &ret, op);
+    collect_operands(machine, &ret, op);
 
     return ret;
 }

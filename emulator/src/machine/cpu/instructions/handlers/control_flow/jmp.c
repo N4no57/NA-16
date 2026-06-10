@@ -1,7 +1,8 @@
 #include "../../inst.h"
 
-void jmp_handler(CPU *cpu, Instruction *inst) {
-    const u16 address = operand_read(cpu, inst->ops[0]);
+void jmp_handler(Machine *machine, Instruction *inst) {
+    CPU *cpu = &machine->cpu;
+    const u16 address = operand_read(machine, inst->ops[0]);
 
-    cpu->PC = address;
+    cpu->sys.PC = address;
 }

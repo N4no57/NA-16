@@ -1,7 +1,8 @@
 #include "../../inst.h"
 
-void jo_handler(CPU *cpu, Instruction *inst) {
-    if (!cpu->FR.O) return;
+void jo_handler(Machine *machine, Instruction *inst) {
+    CPU *cpu = &machine->cpu;
+    if (!cpu->sys.FR.O) return;
 
-    cpu->PC += inst->ops[0].displacement;
+    cpu->sys.PC += inst->ops[0].displacement;
 }
