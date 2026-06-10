@@ -3,17 +3,7 @@
 
 #define MAX_BUFF_SIZE 100
 
-#include <stdint.h>
-
-typedef uint8_t u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef uint64_t u64;
-
-typedef int8_t i8;
-typedef int16_t i16;
-typedef int32_t i32;
-typedef int64_t i64;
+#include "../machine.h"
 
 typedef enum {
     DVZ,    // DiVide by Zero
@@ -75,21 +65,21 @@ typedef union {
     u16 flags;
 } flags;
 
-typedef struct CPU {
-    // sp registers
+typedef struct GPRegisters {
+    u16 R[16];
+} GPRegisters;
+
+typedef struct SystemRegisters {
     u16 PC;
     u16 SP;
     u16 BP;
-    u16 CR0, CR1; // use for MMU CR0 for kernel page table start and CR1 for user
-    u16 IVBR;
     u16 KSP;
     flags FR;
+} SystemRegisters;
 
-    // GP registers
-    u16 R0, R1, R2, R3, R4, R5, R6, R7;
-
-    u8 *memory;
-    u64 memory_size;
+typedef struct CPU {
+    GPRegisters gp;
+    SystemRegisters sys;
 
     bool halt;
 } CPU;

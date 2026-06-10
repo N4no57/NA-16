@@ -5,7 +5,7 @@ set(CMAKE_C_STANDARD 23)
 
 add_executable(Emulator src/main.c
         src/machine/cpu/cpu.c src/machine/cpu/cpu.h
-        src/machine/memory.c src/machine/memory.h
+        src/machine/ram/memory.c src/machine/ram/memory.h
         src/machine/cpu/instructions/inst.h src/machine/cpu/instructions/inst.c
 
         src/machine/cpu/instructions/handlers/ALU_ops/add.c
@@ -44,4 +44,5 @@ add_executable(Emulator src/main.c
         src/machine/cpu/instructions/handlers/control_flow/jle.c
         src/machine/cpu/instructions/handlers/control_flow/call.c
         src/machine/cpu/instructions/handlers/control_flow/ret.c
+        src/machine/machine.h
 )

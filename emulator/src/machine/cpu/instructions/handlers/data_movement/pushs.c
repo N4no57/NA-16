@@ -1,5 +1,5 @@
 #include "../../inst.h"
-#include "../../../../memory.h"
+#include "../../../../ram/memory.h"
 
 void pushs_handler(CPU *cpu, Instruction *inst) {
     inst->ops[0].reg += 0x40;
