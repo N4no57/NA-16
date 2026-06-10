@@ -3,7 +3,7 @@
 bool translate(const Machine *machine, const u32 vaddr, u32 *address) {
     const CPU *cpu = &machine->cpu;
     PageTableEntry entry;
-    if (cpu->sys.FR.V  == 1) {
+    if (cpu->sys.FR.U == 1) {
         const u32 *tmp = (u32 *)&machine->ram.memory[machine->mmu.user_page_table + (vaddr >> 12) * sizeof(u32)];
         entry.frame = *tmp;
 

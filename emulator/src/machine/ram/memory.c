@@ -2,118 +2,138 @@
 #include "../machine.h"
 #include "../mmu/mmu.h"
 
-u8 read_byte(Machine *machine, const u16 address) {
+bool read_byte(Machine *machine, const u16 address, u64 *value) {
     CPU *cpu = &machine->cpu;
     if (cpu->sys.FR.V  == 1) {
-        const u64 true_address = translate(machine, address);
+        u32 true_address = 0;
+        bool success = translate(machine, address, &true_address);
+        if (!success) return false;
 
-        return machine->ram.memory[true_address];
+        *value = machine->ram.memory[true_address];
+        return true;
     }
 
     if (address >= machine->ram.memory_size) {
         // interrupt(cpu, GP);
-        return 0;
+        return false;
     }
 
-    return machine->ram.memory[address];
+    *value = machine->ram.memory[address];
+    return true;
 }
 
-u16 read_word(Machine *machine, const u16 address) {
-    CPU *cpu = &machine->cpu;
+bool read_word(const Machine *machine, const u64 address, u64 *value) {
+    const CPU *cpu = &machine->cpu;
     if (cpu->sys.FR.V  == 1) {
-        u64 true_address = translate(machine, address);
+        u32 true_address;
+        bool success = translate(machine, address, &true_address);
+        if (!success) return false;
         if (true_address >= machine->ram.memory_size) {
             // interrupt(cpu, GP);
-            return 0;
+            return false;
         }
 
-        u64 ret_val = machine->ram.memory[true_address];
+        *value = machine->ram.memory[true_address];
 
-        true_address = translate(machine, address + 1);
+        success = translate(machine, address + 1, &true_address);
+        if (!success) return false;
         if (true_address >= machine->ram.memory_size) {
             // interrupt(cpu, GP);
-            return 0;
+            return false;
         }
 
-        ret_val |= machine->ram.memory[true_address];
-        return ret_val;
+        *value |= machine->ram.memory[true_address];
+        return true;
     }
 
     if (address+1 >= machine->ram.memory_size) {
         // interrupt(cpu, GP);
-        return 0;
+        return false;
     }
 
-    return machine->ram.memory[address] | machine->ram.memory[address + 1] << 8;
+    *value = machine->ram.memory[address] | machine->ram.memory[address + 1] << 8;
+    return true;
 }
 
-void write_byte(Machine *machine, const u16 address, const u8 value) {
+bool write_byte(Machine *machine, const u16 address, const u8 value) {
     const CPU *cpu = &machine->cpu;
     if (cpu->sys.FR.V  == 1) {
-        const u64 true_address = translate(machine, address);
+        u32 true_address = 0;
+        const bool success = translate(machine, address, &true_address);
+        if (!success) return false;
 
         if (true_address >= machine->ram.memory_size) {
             // interrupt(cpu, GP);
-            return;
+            return false;
         }
 
         machine->ram.memory[true_address] = value;
     } else {
         if (address >= machine->ram.memory_size) {
             // interrupt(cpu, GP);
-            return;
+            return false;
         }
 
         machine->ram.memory[address] = value;
     }
+
+    return true;
 }
 
-void write_word(Machine *machine, const u16 address, const u16 value) {
+bool write_word(const Machine *machine, const u16 address, const u16 value) {
     const CPU *cpu = &machine->cpu;
     if (cpu->sys.FR.V == 1) {
-        u64 true_address = translate(machine, address);
+        u32 true_address = 0;
+        bool success = translate(machine, address, &true_address);
+        if (!success) return false;
         if (true_address >= machine->ram.memory_size) {
             // interrupt(cpu, GP);
-            return;
+            return false;
         }
 
         machine->ram.memory[true_address] = value & 0xFF;
 
-        true_address = translate(machine, true_address + 1);
+        success = translate(machine, true_address + 1, &true_address);
+        if (!success) return false;
         if (true_address >= machine->ram.memory_size) {
             // interrupt(cpu, GP);
-            return;
+            return false;
         }
 
         machine->ram.memory[true_address] = value >> 8 & 0xFF;
     } else {
         if (address+1 >= machine->ram.memory_size) {
             // interrupt(cpu, GP);
-            return;
+            return false;
         }
 
         machine->ram.memory[address] = value & 0xFF;
         machine->ram.memory[address + 1] = value >> 8 & 0xFF;
     }
+
+    return true;
 }
 
-u8 fetch_byte(Machine *machine) {
+bool fetch_byte(Machine *machine, u64 *value) {
     if (machine->cpu.sys.FR.V == 1) {
-        is_executable(machine);
+        const bool success = is_executable(machine);
+        if (!success) return false;
     }
 
-    return read_byte(machine, machine->cpu.sys.PC++);
+    return read_byte(machine, machine->cpu.sys.PC++, value);
 }
 
-u16 fetch_word(Machine *machine) {
+bool fetch_word(Machine *machine, u64 *value) {
     if (machine->cpu.sys.FR.V == 1) {
-        is_executable(machine);
+        bool success = is_executable(machine);
+        if (!success) return false;
         machine->cpu.sys.PC++;
-        is_executable(machine);
+        success = is_executable(machine);
+        if (!success) return false;
         machine->cpu.sys.PC++;
     } else {
         machine->cpu.sys.PC += 2;
     }
 
-    return read_word(machine, machine->cpu.sys.PC-2);
+    return read_word(machine, machine->cpu.sys.PC-2, value);
 }

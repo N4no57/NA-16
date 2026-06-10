@@ -3,13 +3,13 @@
 
 #include "../machine.h"
 
-u8 read_byte(Machine *machine, u16 address);
-u16 read_word(Machine *machine, u16 address);
+bool read_byte(Machine *machine, u16 address, u64 *value);
+bool read_word(const Machine *machine, u64 address, u64 *value);
 
-void write_byte(Machine *machine, u16 address, u8 value);
-void write_word(Machine *machine, u16 address, u16 value);
+bool write_byte(Machine *machine, u16 address, u8 value);
+bool write_word(const Machine *machine, u16 address, u16 value);
 
-u8 fetch_byte(Machine *machine);
-u16 fetch_word(Machine *machine);
+bool fetch_byte(Machine *machine, u64 *value);
+bool fetch_word(Machine *machine, u64 *value);
 
 #endif //NA_16_MEMORY_H
