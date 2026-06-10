@@ -19,6 +19,7 @@ u32 translate(CPU *cpu, u32 vaddr) {
 
         if ((entry.frame & PT_PRESENT) != PT_PRESENT) {
             interrupt(cpu, PF);
+            return 0;
         }
 
         return entry.frame << 12 | vaddr & 0xFFF;
@@ -29,6 +30,7 @@ u32 translate(CPU *cpu, u32 vaddr) {
 
     if ((entry.frame & PT_PRESENT) != PT_PRESENT) {
         interrupt(cpu, PF);
+        return 0;
     }
 
     return entry.frame & 0xFFFFF000 | vaddr & 0xFFF;
@@ -36,34 +38,109 @@ u32 translate(CPU *cpu, u32 vaddr) {
 
 u8 read_byte(CPU *cpu, const u16 address) {
     if (cpu->FR.V == 1) {
-        return cpu->memory[translate(cpu, address)];
+        u64 old_interrupt_count = interrupt_count;
+        u64 true_address = translate(cpu, address);
+
+        if (old_interrupt_count != interrupt_count) return 0;
+
+        if (true_address >= cpu->memory_size) {
+            interrupt(cpu, GP);
+            return 0;
+        }
+
+        return cpu->memory[true_address];
     }
+
+    if (address >= cpu->memory_size) {
+        interrupt(cpu, GP);
+        return 0;
+    }
+
     return cpu->memory[address];
 }
 
 u16 read_word(CPU *cpu, const u16 address) {
     if (cpu->FR.V == 1) {
-        u32 true_address = translate(cpu, address);
-        return cpu->memory[true_address] | cpu->memory[true_address + 1] << 8;
+        u64 old_interrupt_count = interrupt_count;
+
+        u64 true_address = translate(cpu, address);
+        if (old_interrupt_count != interrupt_count) return 0;
+        if (true_address >= cpu->memory_size) {
+            interrupt(cpu, GP);
+            return 0;
+        }
+
+        u64 ret_val = cpu->memory[true_address];
+
+        true_address = translate(cpu, address + 1);
+        if (old_interrupt_count != interrupt_count) return 0;
+        if (true_address >= cpu->memory_size) {
+            interrupt(cpu, GP);
+            return 0;
+        }
+
+        ret_val |= cpu->memory[true_address];
+        return ret_val;
     }
+
+    if (address+1 >= cpu->memory_size) {
+        interrupt(cpu, GP);
+        return 0;
+    }
+
     return cpu->memory[address] | cpu->memory[address + 1] << 8;
 }
 
 void write_byte(CPU *cpu, const u16 address, const u8 value) {
     if (cpu->FR.V == 1) {
-        cpu->memory[translate(cpu, address)] = value;
+        u64 old_interrupt_count = interrupt_count;
+
+        u64 true_address = translate(cpu, address);
+        if (old_interrupt_count != interrupt_count) return;
+
+        if (true_address >= cpu->memory_size) {
+            interrupt(cpu, GP);
+            return;
+        }
+
+        cpu->memory[true_address] = value;
     } else {
+        if (address >= cpu->memory_size) {
+            interrupt(cpu, GP);
+            return;
+        }
+
         cpu->memory[address] = value;
     }
 }
 
 void write_word(CPU *cpu, const u16 address, const u16 value) {
     if (cpu->FR.V == 1) {
-        u32 true_address = translate(cpu, address);
+        u64 old_interrupt_count = interrupt_count;
+
+        u64 true_address = translate(cpu, address);
+        if (old_interrupt_count != interrupt_count) return;
+        if (true_address >= cpu->memory_size) {
+            interrupt(cpu, GP);
+            return;
+        }
+
         cpu->memory[true_address] = value & 0xFF;
+
         true_address = translate(cpu, true_address + 1);
+        if (old_interrupt_count != interrupt_count) return;
+        if (true_address >= cpu->memory_size) {
+            interrupt(cpu, GP);
+            return;
+        }
+
         cpu->memory[true_address] = value >> 8 & 0xFF;
     } else {
+        if (address+1 >= cpu->memory_size) {
+            interrupt(cpu, GP);
+            return;
+        }
+
         cpu->memory[address] = value & 0xFF;
         cpu->memory[address + 1] = value >> 8 & 0xFF;
     }
@@ -89,8 +166,10 @@ void is_executable(CPU *cpu) {
 }
 
 u8 fetch_byte(CPU *cpu) {
+    u64 old_interrupt_count = interrupt_count;
     if (cpu->FR.V == 1) {
         is_executable(cpu);
+        if (old_interrupt_count != interrupt_count) return 0;
     }
 
     return read_byte(cpu, cpu->PC++);
@@ -98,9 +177,15 @@ u8 fetch_byte(CPU *cpu) {
 
 u16 fetch_word(CPU *cpu) {
     if (cpu->FR.V == 1) {
+        u64 old_interrupt_count = interrupt_count;
+
         is_executable(cpu);
+        if (old_interrupt_count != interrupt_count) return 0;
+
         cpu->PC++;
         is_executable(cpu);
+        if (old_interrupt_count != interrupt_count) return 0;
+
         cpu->PC++;
     } else {
         cpu->PC += 2;

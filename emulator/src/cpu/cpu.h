@@ -103,6 +103,8 @@ typedef struct InstructionDef {
     bool privileged;
 } InstructionDef;
 
+extern u64 interrupt_count;
+
 void set_reg(CPU *cpu, u8 reg, u16 value);
 u16 read_reg(const CPU *cpu, u8 reg);
 

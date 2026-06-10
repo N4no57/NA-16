@@ -119,6 +119,8 @@ u16 pop_word(CPU *cpu) {
     return ret_val;
 }
 
+u64 interrupt_count = 0;
+
 void interrupt(CPU *cpu, Exceptions int_code) {
     if (int_code >= 0x20 && cpu->FR.I == 0) return; // maskable interrupt to ignore it
 
@@ -144,7 +146,7 @@ void interrupt(CPU *cpu, Exceptions int_code) {
     }
 
     cpu->halt = false;
-    execute(cpu);
+    interrupt_count++;
 }
 
 void iret(CPU *cpu) {

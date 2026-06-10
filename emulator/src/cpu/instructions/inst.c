@@ -275,7 +275,7 @@ InstructionDef instruction_table[] = {
     // class 0: ALU ops
 
     // class 1: data movement
-    [CALL] = {"CALL", 1, call_handler},
+    [CALL] = {"CALL", 1, call_handler, false},
 
     // class 2: control flow
 
