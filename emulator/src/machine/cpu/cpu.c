@@ -1,5 +1,5 @@
 #include "cpu.h"
-#include "memory.h"
+#include "../memory.h"
 #include "instructions/inst.h"
 
 #include <stdlib.h>

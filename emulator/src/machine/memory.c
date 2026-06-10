@@ -1,4 +1,4 @@
-#include "memory.h"
+#include "cpu/memory.h"
 
 typedef enum {
     PT_PRESENT = 1 << 11,

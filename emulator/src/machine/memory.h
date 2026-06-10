@@ -1,7 +1,7 @@
 #ifndef NA_16_MEMORY_H
 #define NA_16_MEMORY_H
 
-#include "cpu.h"
+#include "cpu/cpu.h"
 
 u8 read_byte(CPU *cpu, u16 address);
 u16 read_word(CPU *cpu, u16 address);

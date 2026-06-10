@@ -1,5 +1,5 @@
 #include "../../inst.h"
-#include "../../../memory.h"
+#include "../../../../memory.h"
 
 void pops_handler(CPU *cpu, Instruction *inst) {
     u16 source = 0;

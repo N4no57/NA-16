@@ -2,7 +2,7 @@
 
 #include <stdio.h>
 
-#include "../memory.h"
+#include "../../memory.h"
 
 bool has_MEX(const Instruction *inst) {
     return (inst->prefixes.MEX >> 8 & 0xF0) == 0x80 ? true : false;
