@@ -117,7 +117,7 @@ void execute_inst(Machine *machine) {
     if (cpu->halt) return;
 
     Instruction inst;
-    bool success = decode(machine, &inst);
+    const bool success = decode(machine, &inst);
 
     if (!success) return;
 
