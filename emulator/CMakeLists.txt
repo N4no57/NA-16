@@ -44,6 +44,4 @@ add_executable(Emulator src/main.c
         src/cpu/instructions/handlers/control_flow/jle.c
         src/cpu/instructions/handlers/control_flow/call.c
         src/cpu/instructions/handlers/control_flow/ret.c
-        src/cpu/debugger/debugger.c
-        src/cpu/debugger/debugger.h
 )

@@ -4,8 +4,16 @@
 
 #include "cpu/cpu.h"
 
+void run_emulator(CPU *cpu) {
+    while (1) {
+        execute_inst(cpu);
+    }
+}
+
 int main() {
     CPU cpu;
+    cpu.memory_size = 0x10000;
+    cpu.memory = malloc(cpu.memory_size);
     cpu_init(&cpu);
     cpu.memory[0xFFFE] = 0x00;
     cpu.memory[0xFFFF] = 0x00;
@@ -24,5 +32,7 @@ int main() {
 
     free(program);
 
-    execute(&cpu);
+    run_emulator(&cpu);
+
+    free(cpu.memory);
 }

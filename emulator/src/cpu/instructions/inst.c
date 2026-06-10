@@ -118,7 +118,7 @@ void collect_operands(CPU *cpu, Instruction *inst, const u8 *inst_ops) { // curr
     }
 }
 
-u16 operand_read(const CPU *cpu, const Operand op) {
+u16 operand_read(CPU *cpu, const Operand op) {
     u16 value;
     u16 address;
     switch (op.mode) {
@@ -229,47 +229,47 @@ void set_flags(CPU *cpu, const u32 value, const u32 values[2], const u8 mask, u8
 InstructionDef instruction_table[] = {
     // op table 1
     // class 0: ALU ops
-    [ADD] = {"ADD", 3, add_handler},
-    [SUB] = {"SUB", 3, sub_handler},
-    [AND] = {"AND", 3, and_handler},
-    [OR] = {"OR", 3, or_handler},
-    [XOR] = {"XOR", 3, xor_handler},
-    [NOT] = {"NOT", 2, not_handler},
-    [CMP] = {"CMP", 2, cmp_handler},
-    [TEST] = {"TEST", 2, test_handler},
+    [ADD] = {"ADD", 3, add_handler, false},
+    [SUB] = {"SUB", 3, sub_handler, false},
+    [AND] = {"AND", 3, and_handler, false},
+    [OR] = {"OR", 3, or_handler, false},
+    [XOR] = {"XOR", 3, xor_handler, false},
+    [NOT] = {"NOT", 2, not_handler, false},
+    [CMP] = {"CMP", 2, cmp_handler, false},
+    [TEST] = {"TEST", 2, test_handler, false},
 
     // class 1: data movement
-    [MOV] = {"MOV", 2, mov_handler},
-    [MOVSR] = {"MOVSR", 2, movsr_handler},
-    [MOVRS] = {"MOVRS", 2, movrs_handler},
-    [PUSH] = {"PUSH", 1, push_handler},
-    [POP] = {"POP", 1, pop_handler},
-    [LEA] = {"LEA", 2, lea_handler},
-    [MOVS] = {"MOVS", 2, movs_handler},
-    [PUSHS] = {"PUSHS", 1, pushs_handler},
-    [POPS] = {"POPS", 1, pops_handler},
+    [MOV] = {"MOV", 2, mov_handler, false},
+    [MOVSR] = {"MOVSR", 2, movsr_handler, false},
+    [MOVRS] = {"MOVRS", 2, movrs_handler, false},
+    [PUSH] = {"PUSH", 1, push_handler, false},
+    [POP] = {"POP", 1, pop_handler, false},
+    [LEA] = {"LEA", 2, lea_handler, false},
+    [MOVS] = {"MOVS", 2, movs_handler, false},
+    [PUSHS] = {"PUSHS", 1, pushs_handler, false},
+    [POPS] = {"POPS", 1, pops_handler, false},
 
     // class 2: control flow
-    [JMP] = {"JMP", 1, jmp_handler},
-    [JZ] = {"JZ", 1, jz_handler},
-    [JNZ] = {"JNZ", 1, jnz_handler},
-    [JC] = {"JC", 1, jc_handler},
-    [JNC] = {"JNC", 1, jnc_handler},
-    [JO] = {"JO", 1, jo_handler},
-    [JNO] = {"JNO", 1, jno_handler},
-    [JS] = {"JS", 1, js_handler},
-    [JNS] = {"JNS", 1, jns_handler},
-    [JA] = {"JA", 1, ja_handler},
-    [JBE] = {"JBE", 1, jbe_handler},
-    [JG] = {"JG", 1, jg_handler},
-    [JGE] = {"JGE", 1, jge_handler},
-    [JL] = {"JL", 1, jl_handler},
-    [JLE] = {"JLE", 1, jle_handler},
-    [RET] = {"RET", 0, ret_handler},
+    [JMP] = {"JMP", 1, jmp_handler, false},
+    [JZ] = {"JZ", 1, jz_handler, false},
+    [JNZ] = {"JNZ", 1, jnz_handler, false},
+    [JC] = {"JC", 1, jc_handler, false},
+    [JNC] = {"JNC", 1, jnc_handler, false},
+    [JO] = {"JO", 1, jo_handler, false},
+    [JNO] = {"JNO", 1, jno_handler, false},
+    [JS] = {"JS", 1, js_handler, false},
+    [JNS] = {"JNS", 1, jns_handler, false},
+    [JA] = {"JA", 1, ja_handler, false},
+    [JBE] = {"JBE", 1, jbe_handler, false},
+    [JG] = {"JG", 1, jg_handler, false},
+    [JGE] = {"JGE", 1, jge_handler, false},
+    [JL] = {"JL", 1, jl_handler, false},
+    [JLE] = {"JLE", 1, jle_handler, false},
+    [RET] = {"RET", 0, ret_handler, false},
 
     // class 3: system instructions
-    [NOP] = {"NOP", 1, nullptr},
-    [HLT] = {"HLT", 1, nullptr},
+    [NOP] = {"NOP", 1, nullptr, false},
+    [HLT] = {"HLT", 1, nullptr, false},
 
     // op table 2
     // class 0: ALU ops

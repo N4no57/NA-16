@@ -21,8 +21,8 @@ char *registers[] = {
     "FR", // 11
     "CR0", // 12
     "CR1", // 13
-    "NAN", // 14
-    "NAN" // 15
+    "IVBR", // 14
+    "KSP" // 15
 };
 
 char *size_specs[] = {

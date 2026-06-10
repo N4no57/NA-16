@@ -1,9 +1,7 @@
 #include "cpu.h"
 #include "memory.h"
 #include "instructions/inst.h"
-#include "debugger/debugger.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -51,6 +49,12 @@ void set_reg(CPU *cpu, const u8 reg, const u16 value) {
         case 0x45:
             cpu->CR1 = value;
             break;
+        case 0x46:
+            cpu->IVBR = value;
+            break;
+        case 0x47:
+            cpu->KSP = value;
+            break;
         default:
             break;
     }
@@ -86,15 +90,70 @@ u16 read_reg(const CPU *cpu, const u8 reg) {
             return cpu->CR0;
         case 0x45:
             return cpu->CR1;
-
+        case 0x46:
+            return cpu->IVBR;
+        case 0x47:
+            return cpu->KSP;
         default:
             break;
     }
     return 0;
 }
 
+void push_byte(CPU *cpu, u8 value) {
+    write_byte(cpu, cpu->SP--, value);
+}
+
+void push_word(CPU *cpu, u16 value) {
+    write_byte(cpu, cpu->SP--, value & 0xFF);
+    write_byte(cpu, cpu->SP--, value >> 8);
+}
+
+u8 pop_byte(CPU *cpu) {
+    return read_byte(cpu, ++cpu->SP);
+}
+
+u16 pop_word(CPU *cpu) {
+    u16 ret_val = read_byte(cpu, ++cpu->SP) << 8;
+    ret_val |= read_byte(cpu, ++cpu->SP);
+    return ret_val;
+}
+
+void interrupt(CPU *cpu, Exceptions int_code) {
+    if (int_code >= 0x20 && cpu->FR.I == 0) return; // maskable interrupt to ignore it
+
+    if (cpu->FR.U) {
+        // userland is more complex
+        const u16 tmp = cpu->SP;
+        cpu->SP = cpu->KSP;
+        cpu->KSP = tmp;
+        push_word(cpu, cpu->PC);
+        push_word(cpu, cpu->FR.flags);
+        cpu->FR.U = 0;
+
+        u16 IVTB = cpu->IVBR;
+        u16 address = cpu->memory[IVTB+int_code*2];
+        cpu->PC = address;
+    } else {
+        push_word(cpu, cpu->PC);
+        push_word(cpu, cpu->FR.flags);
+
+        u16 IVTB = cpu->IVBR;
+        u16 address = cpu->memory[IVTB+int_code*2];
+        cpu->PC = address;
+    }
+
+    cpu->halt = false;
+    execute(cpu);
+}
+
+void iret(CPU *cpu) {
+    cpu->FR.flags = pop_word(cpu);
+    cpu->PC = pop_word(cpu);
+}
+
 void cpu_init(CPU *cpu) {
-    memset(cpu->memory, 0, sizeof(cpu->memory));
+    memset(cpu->memory, 0, cpu->memory_size);
     cpu_reset(cpu);
 }
 
@@ -105,43 +164,31 @@ void cpu_reset(CPU *cpu) {
     cpu->SP = cpu->BP = 0x1000;
     cpu->PC = read_word(cpu, cpu->PC);
     cpu->CR0 = cpu->CR1 = 0;
+    cpu->KSP = cpu->IVBR = 0;
+    cpu->halt = false;
 }
 
-bool should_stop = false;
-bool halt = false;
-
 void execute_inst(CPU *cpu) {
-    if (!halt) halt = check_breakpoint(cpu);
     Instruction inst = decode(cpu);
 
     const InstructionDef *def = fetch_InstDef(inst.opcode, inst.prefixes.has_escape_byte);
 
-    if (halt) {
-        print_instruction(cpu, &inst, def);
-        // commands(&halt);
-    }
-
     if (inst.opcode == NOP) return;
     if (inst.opcode == HLT) {
-        should_stop = true;
+        cpu->halt = true;
         return;
     }
 
     if (!def->handler) {
-        if (def->name != nullptr)
-            fprintf(stderr, "\"%s\" has no handler\n", def->name);
-        else
-            fprintf(stderr, "Either invalid instruction or an instruction has no handler\n");
-        exit(EXIT_FAILURE);
+        interrupt(cpu, UO);
     }
 
     def->handler(cpu, &inst);
 }
 
 void execute(CPU *cpu) {
-    add_breakpoint(0);
     while (1) {
         execute_inst(cpu);
-        if (should_stop) break;
+        if (cpu->halt) break;
     }
 }

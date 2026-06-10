@@ -88,11 +88,11 @@ InstructionSpec ISA[] = {
         1,
         0x1,
         {2,
-            {CLASS_DEST, CLASS_SOURCE}
+            {CLASS_DEST, CLASS_REGISTER_ONLY}
         }
     },
     {
-        "MOVRS", // dest is usage of SPR and source is SPR/immediate/memory...
+        "MOVRS", // dest is usage of SPR and source is GPR/immediate/memory...
         1,
         0x2,
         {2,

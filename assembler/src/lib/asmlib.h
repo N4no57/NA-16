@@ -19,7 +19,7 @@ typedef enum registers {
     // general registers
     R0, R1, R2, R3, R4, R5, R6, R7,
     // special registers
-    PC, SP, BP, FR, CR0, CR1,
+    PC, SP, BP, FR, CR0, CR1, IVBR, KSP,
     NONE
 } registers_t;
 

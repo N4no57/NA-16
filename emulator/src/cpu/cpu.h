@@ -16,6 +16,14 @@ typedef int32_t i32;
 typedef int64_t i64;
 
 typedef enum {
+    DVZ,    // DiVide by Zero
+    UO,     // Unknown Opcode
+    PV,     // Privilege Violation
+    PF,     // Page Fault
+    GP,     // General Protection
+} Exceptions;
+
+typedef enum {
     OP_REG,
     OP_IMM,
     OP_REG_IND,
@@ -53,8 +61,6 @@ typedef struct Instruction {
     u64 size; // debugging metadata
 } Instruction;
 
-#define MEMORY_SIZE 0x20000
-
 typedef union {
     struct {
         u8 C : 1; // Carry
@@ -70,15 +76,22 @@ typedef union {
 } flags;
 
 typedef struct CPU {
+    // sp registers
     u16 PC;
     u16 SP;
     u16 BP;
     u16 CR0, CR1; // use for MMU CR0 for kernel page table start and CR1 for user
-    u16 R0, R1, R2, R3, R4, R5, R6, R7;
-
+    u16 IVBR;
+    u16 KSP;
     flags FR;
 
-    u8 memory[MEMORY_SIZE];
+    // GP registers
+    u16 R0, R1, R2, R3, R4, R5, R6, R7;
+
+    u8 *memory;
+    u64 memory_size;
+
+    bool halt;
 } CPU;
 
 typedef void (*InstructionHandler)(CPU*, Instruction*);
@@ -87,13 +100,17 @@ typedef struct InstructionDef {
     const char *name;
     u8 operand_count;
     InstructionHandler handler;
+    bool privileged;
 } InstructionDef;
 
 void set_reg(CPU *cpu, u8 reg, u16 value);
 u16 read_reg(const CPU *cpu, u8 reg);
 
+void interrupt(CPU *cpu, Exceptions int_code);
+
 void cpu_init(CPU *cpu);
 void cpu_reset(CPU *cpu);
+void execute_inst(CPU *cpu);
 void execute(CPU *cpu);
 
 #endif //NA_16_CPU_H

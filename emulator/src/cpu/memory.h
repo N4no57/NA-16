@@ -3,8 +3,8 @@
 
 #include "cpu.h"
 
-u8 read_byte(const CPU *cpu, u16 address);
-u16 read_word(const CPU *cpu, u16 address);
+u8 read_byte(CPU *cpu, u16 address);
+u16 read_word(CPU *cpu, u16 address);
 
 void write_byte(CPU *cpu, u16 address, u8 value);
 void write_word(CPU *cpu, u16 address, u16 value);

@@ -74,7 +74,7 @@ typedef enum {
 bool is_cond_jump(const Instruction *inst);
 
 void collect_operands(CPU *cpu, Instruction *inst, const u8 *inst_ops);
-u16 operand_read(const CPU *cpu, Operand op);
+u16 operand_read(CPU *cpu, Operand op);
 void operand_write(CPU *cpu, Operand op, u16 value);
 
 void set_flags(CPU *cpu, u32 value, const u32 values[2], u8 mask, u8 size);

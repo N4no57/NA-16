@@ -1,26 +1,30 @@
 .section text
 .global _start
 
-page_table_start = 0x1000
+table = 0x1002
 
 _start:
-    mov r0, 0x0E
-    xor r1, r1
-    xor r2, r2, r2
-    mov r3, page_table_start
-    mov byte [r3+r2*4+1], r0
-    add r0, r0, 0x20
-    add r2, r2, 15
-    mov byte [r3+r2*4+1], r0
+    mov r0, handler
+    mov r1, 0xFF
+    mov word r2, table
+loop:
+    mov word [r2], r0
+    add r2, r2, 2
+    sub r1, r1, 1
+    test r1, r1
+    jnz loop
+    mov IVBR, table
+    mov KSP, 0x1000
+stop:
+    hlt
+    hlt
+    hlt
+    jmp stop
 
-    mov cr0, page_table_start
+.dq 0, 0, 0, 0
 
-    mov r0, fr
-    or r0, r0, 0x40 ; VME set
-    mov fr, r0
-
-    mov r0, 0xF000
-    mov byte [r0], 10
-
+handler:
+    nop
+    nop
     nop
     hlt
