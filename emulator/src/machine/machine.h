@@ -71,4 +71,6 @@ typedef struct {
     bool powered_on;
 } Machine;
 
+void machine_step(Machine *machine);
+
 #endif //NA_16_MACHINE_H
