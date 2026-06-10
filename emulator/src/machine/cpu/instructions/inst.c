@@ -1,6 +1,7 @@
 #include "inst.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #include "../../ram/memory.h"
 
@@ -289,9 +290,9 @@ InstructionDef *fetch_InstDef(const Ops idx, bool has_escape_byte) {
     return &instruction_table[idx];
 }
 
-Instruction decode(Machine *machine) {
+bool decode(Machine *machine, Instruction *inst) {
     CPU *cpu = &machine->cpu;
-    Instruction ret = {{0}, 255, {0}, 0, 0};
+    memset(inst, 0, sizeof(Instruction));
 
     // OBTAIN PREFIXES
     while (1) {
@@ -300,20 +301,20 @@ Instruction decode(Machine *machine) {
 
         if ((byte & 0xF0) == 0x80) {
             const u16 MEX_prefix = fetch_word(machine);
-            ret.prefixes.MEX = (MEX_prefix & 0xFF) << 8 | MEX_prefix >> 8 & 0xFF;
-            ret.size += 2;
+            inst->prefixes.MEX = (MEX_prefix & 0xFF) << 8 | MEX_prefix >> 8 & 0xFF;
+            inst->size += 2;
             continue;
         }
         if ((byte & 0xF0) == 0x90) {
-            ret.prefixes.AEX = fetch_byte(machine);
-            ret.size++;
+            inst->prefixes.AEX = fetch_byte(machine);
+            inst->size++;
             continue;
         }
 
         if ((byte & 0xF0) == 0xF0) {
-            ret.prefixes.has_escape_byte = true;
+            inst->prefixes.has_escape_byte = true;
             cpu->sys.PC++;
-            ret.size++;
+            inst->size++;
             continue;
         }
     }
@@ -321,11 +322,11 @@ Instruction decode(Machine *machine) {
     u16 instruction = fetch_byte(machine) << 8;
     instruction |= fetch_byte(machine);
 
-    ret.opcode = instruction >> 9 & 0x7F;
-    ret.size += 2;
+    inst->opcode = instruction >> 9 & 0x7F;
+    inst->size += 2;
 
-    const InstructionDef *inst = &instruction_table[ret.opcode];
-    ret.op_count = inst->operand_count;
+    const InstructionDef *info = &instruction_table[inst->opcode];
+    inst->op_count = info->operand_count;
 
     const u8 op[3] = {
         instruction >> 6 & 0x7,
@@ -333,7 +334,7 @@ Instruction decode(Machine *machine) {
         instruction & 0x7
     };
 
-    collect_operands(machine, &ret, op);
+    collect_operands(machine, inst, op);
 
-    return ret;
+    return true;
 }

@@ -47,4 +47,7 @@ add_executable(Emulator src/main.c
         src/machine/machine.h
         src/machine/mmu/mmu.c
         src/machine/mmu/mmu.h
+        src/machine/PIC/pic.c
+        src/machine/PIC/pic.h
+        src/machine/machine.c
 )

@@ -116,7 +116,10 @@ void execute_inst(Machine *machine) {
     CPU *cpu = &machine->cpu;
     if (cpu->halt) return;
 
-    Instruction inst = decode(machine);
+    Instruction inst;
+    bool success = decode(machine, &inst);
+
+    if (!success) return;
 
     const InstructionDef *def = fetch_InstDef(inst.opcode, inst.prefixes.has_escape_byte);
 
