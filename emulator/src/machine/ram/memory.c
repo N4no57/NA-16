@@ -36,7 +36,11 @@ bool read_word(Machine *machine, const u64 address, u64 *value) {
     if (cpu->sys.FR.V  == 1) {
         u32 true_address;
         bool success = translate(machine, address, &true_address);
-        if (!success) return false;
+        if (!success) {
+            raise_exception(machine, PF, address);
+            return false;
+        }
+
         if (true_address >= machine->ram.memory_size) {
             raise_exception(machine, GP, address);
             return false;
@@ -45,7 +49,11 @@ bool read_word(Machine *machine, const u64 address, u64 *value) {
         *value = machine->ram.memory[true_address];
 
         success = translate(machine, address + 1, &true_address);
-        if (!success) return false;
+        if (!success) {
+            raise_exception(machine, PF, address);
+            return false;
+        }
+
         if (true_address >= machine->ram.memory_size) {
             raise_exception(machine, GP, address);
             return false;
@@ -56,7 +64,7 @@ bool read_word(Machine *machine, const u64 address, u64 *value) {
     }
 
     if (address+1 >= machine->ram.memory_size) {
-        // interrupt(cpu, GP);
+        raise_exception(machine, GP, address);
         return false;
     }
 
@@ -69,17 +77,20 @@ bool write_byte(Machine *machine, const u16 address, const u8 value) {
     if (cpu->sys.FR.V  == 1) {
         u32 true_address = 0;
         const bool success = translate(machine, address, &true_address);
-        if (!success) return false;
+        if (!success) {
+            raise_exception(machine, PF, address);
+            return false;
+        }
 
         if (true_address >= machine->ram.memory_size) {
-            // interrupt(cpu, GP);
+            raise_exception(machine, GP, address);
             return false;
         }
 
         machine->ram.memory[true_address] = value;
     } else {
         if (address >= machine->ram.memory_size) {
-            // interrupt(cpu, GP);
+            raise_exception(machine, GP, address);
             return false;
         }
 
@@ -89,30 +100,38 @@ bool write_byte(Machine *machine, const u16 address, const u8 value) {
     return true;
 }
 
-bool write_word(const Machine *machine, const u16 address, const u16 value) {
+bool write_word(Machine *machine, const u16 address, const u16 value) {
     const CPU *cpu = &machine->cpu;
     if (cpu->sys.FR.V == 1) {
         u32 true_address = 0;
         bool success = translate(machine, address, &true_address);
-        if (!success) return false;
+        if (!success) {
+            raise_exception(machine, PF, address);
+            return false;
+        }
+
         if (true_address >= machine->ram.memory_size) {
-            // interrupt(cpu, GP);
+            raise_exception(machine, GP, address);
             return false;
         }
 
         machine->ram.memory[true_address] = value & 0xFF;
 
         success = translate(machine, true_address + 1, &true_address);
-        if (!success) return false;
+        if (!success) {
+            raise_exception(machine, PF, address);
+            return false;
+        }
+
         if (true_address >= machine->ram.memory_size) {
-            // interrupt(cpu, GP);
+            raise_exception(machine, GP, address);
             return false;
         }
 
         machine->ram.memory[true_address] = value >> 8 & 0xFF;
     } else {
         if (address+1 >= machine->ram.memory_size) {
-            // interrupt(cpu, GP);
+            raise_exception(machine, GP, address);
             return false;
         }
 
@@ -126,7 +145,11 @@ bool write_word(const Machine *machine, const u16 address, const u16 value) {
 bool fetch_byte(Machine *machine, u64 *value) {
     if (machine->cpu.sys.FR.V == 1) {
         const bool success = is_executable(machine);
-        if (!success) return false;
+        if (!success) {
+            raise_exception(machine, PF, machine->cpu.sys.PC);
+            return false;
+        }
+
     }
 
     return read_byte(machine, machine->cpu.sys.PC++, value);
@@ -135,10 +158,18 @@ bool fetch_byte(Machine *machine, u64 *value) {
 bool fetch_word(Machine *machine, u64 *value) {
     if (machine->cpu.sys.FR.V == 1) {
         bool success = is_executable(machine);
-        if (!success) return false;
+        if (!success) {
+            raise_exception(machine, PF, machine->cpu.sys.PC);
+            return false;
+        }
+
         machine->cpu.sys.PC++;
         success = is_executable(machine);
-        if (!success) return false;
+        if (!success) {
+            raise_exception(machine, PF, machine->cpu.sys.PC);
+            return false;
+        }
+
         machine->cpu.sys.PC++;
     } else {
         machine->cpu.sys.PC += 2;

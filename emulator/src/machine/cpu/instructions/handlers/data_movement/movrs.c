@@ -1,4 +1,5 @@
 #include "../../inst.h"
+#include "../../../../PIC/pic.h"
 
 bool movrs_handler(Machine *machine, Instruction *inst) {
     CPU *cpu = &machine->cpu;
@@ -7,7 +8,10 @@ bool movrs_handler(Machine *machine, Instruction *inst) {
     if (!success) return false;
 
     inst->ops[0].reg += 0x40;
-    if (is_privileged_reg(inst->ops[0].reg) && cpu->sys.FR.U) return false;
+    if (is_privileged_reg(inst->ops[0].reg) && cpu->sys.FR.U) {
+        raise_exception(machine, PV, cpu->sys.PC);
+        return false;
+    }
 
     success = operand_write(machine, inst->ops[0], source);
     return success;

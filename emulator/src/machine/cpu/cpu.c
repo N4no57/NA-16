@@ -162,7 +162,7 @@ void execute_inst(Machine *machine) {
     }
 
     if (!def->handler) {
-        // interrupt(cpu, UO);
+        raise_exception(machine, UO, cpu->sys.PC);
     }
 
     success = def->handler(machine, &inst);
