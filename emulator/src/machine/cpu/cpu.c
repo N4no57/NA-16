@@ -4,6 +4,8 @@
 
 #include <string.h>
 
+#include "../PIC/pic.h"
+
 bool is_privileged_reg(u64 reg) {
     if (reg == 0x40) return true;
     if (reg > 0x42) return true;
@@ -165,4 +167,21 @@ void execute_inst(Machine *machine) {
 
     success = def->handler(machine, &inst);
     if (!success) return;
+}
+
+void cpu_step(Machine *machine) {
+    if (machine->PIC.exception.pending) {
+        enter_exception(machine);
+        return;
+    }
+
+    if (machine->cpu.sys.FR.I) {
+        // interrupts are not masked
+        if (machine->PIC.interrupt_requests.read_ptr != machine->PIC.interrupt_requests.write_ptr) {
+            enter_irq(machine);
+            return;
+        }
+    }
+
+    execute_inst(machine);
 }

@@ -6,14 +6,6 @@
 #include "../machine.h"
 
 typedef enum {
-    DVZ,    // DiVide by Zero
-    UO,     // Unknown Opcode
-    PV,     // Privilege Violation
-    PF,     // Page Fault
-    GP,     // General Protection
-} Exceptions;
-
-typedef enum {
     OP_REG,
     OP_IMM,
     OP_REG_IND,
@@ -72,6 +64,6 @@ bool pop_word(Machine *machine, u64 *value);
 
 void cpu_init(Machine *machine);
 void cpu_reset(Machine *machine);
-void execute_inst(Machine *machine);
+void cpu_step(Machine *machine);
 
 #endif //NA_16_CPU_H

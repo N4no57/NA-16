@@ -1,20 +1,29 @@
 #include "memory.h"
 #include "../machine.h"
 #include "../mmu/mmu.h"
+#include "../PIC/pic.h"
 
 bool read_byte(Machine *machine, const u16 address, u64 *value) {
     CPU *cpu = &machine->cpu;
     if (cpu->sys.FR.V  == 1) {
         u32 true_address = 0;
         bool success = translate(machine, address, &true_address);
-        if (!success) return false;
+        if (!success) {
+            raise_exception(machine, PF, address);
+            return false;
+        }
+
+        if (true_address >= machine->ram.memory_size) {
+            raise_exception(machine, GP, address);
+            return false;
+        }
 
         *value = machine->ram.memory[true_address];
         return true;
     }
 
     if (address >= machine->ram.memory_size) {
-        // interrupt(cpu, GP);
+        raise_exception(machine, GP, address);
         return false;
     }
 
@@ -22,14 +31,14 @@ bool read_byte(Machine *machine, const u16 address, u64 *value) {
     return true;
 }
 
-bool read_word(const Machine *machine, const u64 address, u64 *value) {
+bool read_word(Machine *machine, const u64 address, u64 *value) {
     const CPU *cpu = &machine->cpu;
     if (cpu->sys.FR.V  == 1) {
         u32 true_address;
         bool success = translate(machine, address, &true_address);
         if (!success) return false;
         if (true_address >= machine->ram.memory_size) {
-            // interrupt(cpu, GP);
+            raise_exception(machine, GP, address);
             return false;
         }
 
@@ -38,7 +47,7 @@ bool read_word(const Machine *machine, const u64 address, u64 *value) {
         success = translate(machine, address + 1, &true_address);
         if (!success) return false;
         if (true_address >= machine->ram.memory_size) {
-            // interrupt(cpu, GP);
+            raise_exception(machine, GP, address);
             return false;
         }
 
