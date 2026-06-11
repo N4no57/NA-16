@@ -1,14 +1,18 @@
 #include "../../inst.h"
 #include "../../../../ram/memory.h"
 
-void push_handler(Machine *machine, Instruction *inst) {
-    CPU *cpu = &machine->cpu;
-    const u16 source = operand_read(machine, inst->ops[0]);
+bool push_handler(Machine *machine, Instruction *inst) {
+    u64 source;
+
+    bool success = operand_read(machine, inst->ops[0], &source);
+    if (!success) return false;
 
     if (inst->ops[0].size == 2) {
-        write_byte(machine, cpu->sys.SP--, source & 0xFF);
-        write_byte(machine, cpu->sys.SP--, source >> 8);
+        success = push_word(machine, source);
+        if (!success) return false;
     } else if (inst->ops[0].size == 1) {
-        write_byte(machine, cpu->sys.SP--, source & 0xFF);
+        success = push_byte(machine, source);
+        if (!success) return false;
     }
+    return true;
 }

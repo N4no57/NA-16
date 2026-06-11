@@ -51,7 +51,7 @@ typedef struct Instruction {
     u64 size; // debugging metadata
 } Instruction;
 
-typedef void (*InstructionHandler)(Machine*, Instruction*);
+typedef bool (*InstructionHandler)(Machine*, Instruction*);
 
 typedef struct InstructionDef {
     const char *name;
@@ -60,8 +60,15 @@ typedef struct InstructionDef {
     bool privileged;
 } InstructionDef;
 
+bool is_privileged_reg(u64 reg);
+
 void set_reg(Machine *machine, u8 reg, u16 value);
 u16 read_reg(const Machine *machine, u8 reg);
+
+bool push_byte(Machine *machine, u8 value);
+bool push_word(Machine *machine, u16 value);
+bool pop_byte(Machine *machine, u64 *value);
+bool pop_word(Machine *machine, u64 *value);
 
 void cpu_init(Machine *machine);
 void cpu_reset(Machine *machine);

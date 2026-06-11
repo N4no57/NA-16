@@ -61,9 +61,9 @@ typedef enum {
 
 bool is_cond_jump(const Instruction *inst);
 
-void collect_operands(Machine *machine, Instruction *inst, const u8 *inst_ops);
-u16 operand_read(Machine *machine, Operand op);
-void operand_write(Machine *machine, Operand op, u16 value);
+bool collect_operands(Machine *machine, Instruction *inst, const u8 *inst_ops);
+bool operand_read(Machine *machine, Operand op, u64 *value);
+bool operand_write(Machine *machine, Operand op, u16 value);
 
 void set_flags(Machine *machine, u32 value, const u32 values[2], u8 mask, u8 size);
 
@@ -72,44 +72,44 @@ bool decode(Machine *machine, Instruction *inst);
 
 // Instruction handlers
 // class 0: ALU ops
-void add_handler(Machine *machine, Instruction *inst);
-void sub_handler(Machine *machine, Instruction *inst);
-void and_handler(Machine *machine, Instruction *inst);
-void or_handler(Machine *machine, Instruction *inst);
-void xor_handler(Machine *machine, Instruction *inst);
-void not_handler(Machine *machine, Instruction *inst);
-void cmp_handler(Machine *machine, Instruction *inst);
-void test_handler(Machine *machine, Instruction *inst);
+bool add_handler(Machine *machine, Instruction *inst);
+bool sub_handler(Machine *machine, Instruction *inst);
+bool and_handler(Machine *machine, Instruction *inst);
+bool or_handler(Machine *machine, Instruction *inst);
+bool xor_handler(Machine *machine, Instruction *inst);
+bool not_handler(Machine *machine, Instruction *inst);
+bool cmp_handler(Machine *machine, Instruction *inst);
+bool test_handler(Machine *machine, Instruction *inst);
 
 // class 1: data movement
-void mov_handler(Machine *machine, Instruction *inst);
-void movsr_handler(Machine *machine, Instruction *inst);
-void movrs_handler(Machine *machine, Instruction *inst);
-void push_handler(Machine *machine, Instruction *inst);
-void pop_handler(Machine *machine, Instruction *inst);
-void lea_handler(Machine *machine, Instruction *inst);
-void movs_handler(Machine *machine, Instruction *inst);
-void pushs_handler(Machine *machine, Instruction *inst);
-void pops_handler(Machine *machine, Instruction *inst);
+bool mov_handler(Machine *machine, Instruction *inst);
+bool movsr_handler(Machine *machine, Instruction *inst);
+bool movrs_handler(Machine *machine, Instruction *inst);
+bool push_handler(Machine *machine, Instruction *inst);
+bool pop_handler(Machine *machine, Instruction *inst);
+bool lea_handler(Machine *machine, Instruction *inst);
+bool movs_handler(Machine *machine, Instruction *inst);
+bool pushs_handler(Machine *machine, Instruction *inst);
+bool pops_handler(Machine *machine, Instruction *inst);
 
 // class 2: control flow
-void jmp_handler(Machine *machine, Instruction *inst);
-void jz_handler(Machine *machine, Instruction *inst);
-void jnz_handler(Machine *machine, Instruction *inst);
-void jc_handler(Machine *machine, Instruction *inst);
-void jnc_handler(Machine *machine, Instruction *inst);
-void jo_handler(Machine *machine, Instruction *inst);
-void jno_handler(Machine *machine, Instruction *inst);
-void js_handler(Machine *machine, Instruction *inst);
-void jns_handler(Machine *machine, Instruction *inst);
-void ja_handler(Machine *machine, Instruction *inst);
-void jbe_handler(Machine *machine, Instruction *inst);
-void jg_handler(Machine *machine, Instruction *inst);
-void jge_handler(Machine *machine, Instruction *inst);
-void jl_handler(Machine *machine, Instruction *inst);
-void jle_handler(Machine *machine, Instruction *inst);
-void call_handler(Machine *machine, Instruction *inst);
-void ret_handler(Machine *machine, Instruction *inst);
+bool jmp_handler(Machine *machine, Instruction *inst);
+bool jz_handler(Machine *machine, Instruction *inst);
+bool jnz_handler(Machine *machine, Instruction *inst);
+bool jc_handler(Machine *machine, Instruction *inst);
+bool jnc_handler(Machine *machine, Instruction *inst);
+bool jo_handler(Machine *machine, Instruction *inst);
+bool jno_handler(Machine *machine, Instruction *inst);
+bool js_handler(Machine *machine, Instruction *inst);
+bool jns_handler(Machine *machine, Instruction *inst);
+bool ja_handler(Machine *machine, Instruction *inst);
+bool jbe_handler(Machine *machine, Instruction *inst);
+bool jg_handler(Machine *machine, Instruction *inst);
+bool jge_handler(Machine *machine, Instruction *inst);
+bool jl_handler(Machine *machine, Instruction *inst);
+bool jle_handler(Machine *machine, Instruction *inst);
+bool call_handler(Machine *machine, Instruction *inst);
+bool ret_handler(Machine *machine, Instruction *inst);
 
 // class 3: system instructions
 

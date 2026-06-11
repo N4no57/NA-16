@@ -1,7 +1,10 @@
 #include "../../inst.h"
 
-void mov_handler(Machine *machine, Instruction *inst) {
-    const u16 source = operand_read(machine, inst->ops[1]);
+bool mov_handler(Machine *machine, Instruction *inst) {
+    u64 source;
+    bool success = operand_read(machine, inst->ops[1], &source);
+    if (!success) return false;
 
-    operand_write(machine, inst->ops[0], source);
+    success = operand_write(machine, inst->ops[0], source);
+    return success;
 }

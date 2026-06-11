@@ -1,10 +1,12 @@
 #include "../../inst.h"
 #include "../../../../ram/memory.h"
 
-void ret_handler(Machine *machine, Instruction *inst) {
+bool ret_handler(Machine *machine, Instruction *inst) {
     CPU *cpu = &machine->cpu;
-    u16 address = read_byte(machine, ++cpu->sys.SP) << 8; // pop return address
-    address |= read_byte(machine, ++cpu->sys.SP);
+    u64 address;
+    const bool success = pop_word(machine, &address);
+    if (!success) return false;
 
     cpu->sys.PC = address;
+    return true;
 }

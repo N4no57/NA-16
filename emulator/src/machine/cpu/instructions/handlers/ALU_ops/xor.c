@@ -1,14 +1,20 @@
 #include "../../inst.h"
 
-void xor_handler(Machine *machine, Instruction *inst) {
+bool xor_handler(Machine *machine, Instruction *inst) {
     CPU *cpu = &machine->cpu;
-    const u16 l = operand_read(machine, inst->ops[1]);
-    const u16 r = operand_read(machine, inst->ops[2]);
+    u64 l, r;
+    bool success = operand_read(machine, inst->ops[1], &l);
+    if (!success) return false;
 
-    const u16 result = l ^ r;
+    success = operand_read(machine, inst->ops[2], &r);
+    if (!success) return false;
 
-    operand_write(machine, inst->ops[0], result);
+    const u64 result = l ^ r;
+
+    success = operand_write(machine, inst->ops[0], result);
+    if (!success) return false;
 
     set_flags(machine, result, nullptr, 0b0011, inst->ops[0].size);
     cpu->sys.FR.O = cpu->sys.FR.C = 0;
+    return true;
 }

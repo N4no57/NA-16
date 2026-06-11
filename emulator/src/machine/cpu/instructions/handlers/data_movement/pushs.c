@@ -1,20 +1,22 @@
 #include "../../inst.h"
 #include "../../../../ram/memory.h"
 
-void pushs_handler(Machine *machine, Instruction *inst) {
+bool pushs_handler(Machine *machine, Instruction *inst) {
     CPU *cpu = &machine->cpu;
+    u64 source;
+
     inst->ops[0].reg += 0x40;
-    if (inst->ops[0].mode == OP_REG) {
-        if (inst->ops[0].reg >= 0x43 && cpu->sys.FR.U) // interrupt(machine, PV); // any special purpose register that isn't
-        if (inst->ops[0].reg == 0x40 && cpu->sys.FR.U) // interrupt(machine, PV); // SP or BP causes a privilege violation
-        return;
-    }
-    const u16 source = operand_read(machine, inst->ops[0]);
+    if (is_privileged_reg(inst->ops[0].reg) && cpu->sys.FR.U) return false;
+
+    bool success = operand_read(machine, inst->ops[0], &source);
+    if (!success) return false;
 
     if (inst->ops[0].size == 2) {
-        write_byte(machine, cpu->sys.SP--, source & 0xFF);
-        write_byte(machine, cpu->sys.SP--, source >> 8);
+        success = push_word(machine, source);
+        if (!success) return false;
     } else if (inst->ops[0].size == 1) {
-        write_byte(machine, cpu->sys.SP--, source & 0xFF);
+        success = push_byte(machine, source);
+        if (!success) return false;
     }
+    return true;
 }

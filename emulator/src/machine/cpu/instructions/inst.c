@@ -19,7 +19,7 @@ bool is_cond_jump(const Instruction *inst) {
     return false;
 }
 
-void collect_operands(Machine *machine, Instruction *inst, const u8 *inst_ops) { // current implementation 3 operand only
+bool collect_operands(Machine *machine, Instruction *inst, const u8 *inst_ops) { // current implementation 3 operand only
     if (has_MEX(inst)) {
         for (u8 i = 0; i < inst->op_count; i++) {
             inst->ops[i].mode = inst->prefixes.MEX >> (8 - 4 * i) & 0xF;
@@ -42,18 +42,29 @@ void collect_operands(Machine *machine, Instruction *inst, const u8 *inst_ops) {
 
     if (is_cond_jump(inst)) {
         if (inst->ops[0].size == 1) {
-            i8 value = (i8)fetch_byte(machine);
+            u64 tmp;
+            const bool success = fetch_byte(machine, &tmp);
+            if (!success) return false;
+
+            i8 value = (i8)tmp;
             inst->ops[0].displacement = (i16)value;
             inst->size++;
         } else {
             u8 bytes[2];
-            bytes[0] = fetch_byte(machine);
-            bytes[1] = fetch_byte(machine);
+            u64 tmp;
+            bool success = fetch_byte(machine, &tmp);
+            if (!success) return false;
+
+            bytes[0] = tmp & 0xFF;
+            success = fetch_byte(machine, &tmp);
+            if (!success) return false;
+
+            bytes[1] = tmp & 0xFF;
             u16 u = (u16)bytes[0] | ((u16)bytes[1] << 8);
             inst->ops[0].displacement = (i16)u;
             inst->size += 2;
         }
-        return;
+        return true;
     }
 
     for (u64 i = 0; i < inst->op_count; i++) {
@@ -63,13 +74,17 @@ void collect_operands(Machine *machine, Instruction *inst, const u8 *inst_ops) {
                 break;
             case OP_ABSOLUTE:
             case OP_IMM: // immediate
-                u16 immediate;
+                u64 immediate;
 
                 if (inst->ops[i].size == 1) {
-                    immediate = fetch_byte(machine);
+                    const bool success = fetch_byte(machine, &immediate);
+                    if (!success) return false;
+
                     inst->size++;
                 } else {
-                    immediate = fetch_word(machine);
+                    const bool success = fetch_word(machine, &immediate);
+                    if (!success) return false;
+
                     inst->size += 2;
                 }
 
@@ -82,45 +97,64 @@ void collect_operands(Machine *machine, Instruction *inst, const u8 *inst_ops) {
                 inst->ops[i].reg = inst_ops[i];
                 i16 displacement;
                 if (inst->ops[i].size == 1) {
-                    i8 tmp = (i8)fetch_byte(machine);
+                    const bool success = fetch_byte(machine, &immediate);
+                    if (!success) return false;
+
+                    i8 tmp = (i8)immediate;
                     displacement = (i16)tmp;
                     inst->size++;
                 } else {
-                    displacement = (i16)fetch_word(machine);
+                    const bool success = fetch_word(machine, &immediate);
+                    if (!success) return false;
+
+                    displacement = (i16)immediate;
                     inst->size += 2;
                 }
                 inst->ops[i].displacement = displacement;
                 break;
             case OP_SIB:
                 inst->ops[i].reg = inst_ops[i];
-                u8 SIB_block = fetch_byte(machine);
+                bool success = fetch_byte(machine, &immediate);
+                if (!success) return false;
+
+                u8 SIB_block = immediate;
                 inst->ops[i].scale = SIB_block >> 6 & 0x3;
                 inst->ops[i].idx_reg = SIB_block >> 3 & 0x7;
                 break;
             case OP_SIB_DISP:
                 inst->ops[i].reg = inst_ops[i];
-                SIB_block = fetch_byte(machine);
+                success = fetch_byte(machine, &immediate);
+                if (!success) return false;
+
+                SIB_block = immediate;
                 inst->ops[i].scale = SIB_block >> 6 & 0x3;
                 inst->ops[i].idx_reg = SIB_block >> 3 & 0x7;
                 if (inst->ops[i].size == 1) {
-                    i8 tmp = (i8)fetch_byte(machine);
+                    success = fetch_byte(machine, &immediate);
+                    if (!success) return false;
+
+                    const i8 tmp = (i8)immediate;
                     displacement = (i16)tmp;
                     inst->size++;
                 } else {
-                    displacement = (i16)fetch_word(machine);
+                    success = fetch_word(machine, &immediate);
+                    if (!success) return false;
+
+                    displacement = (i16)immediate;
                     inst->size += 2;
                 }
                 inst->ops[i].displacement = displacement;
                 break;
             default:
                 printf("OGOHGOHGOH");
-                break;
+                return false;
         }
     }
+
+    return true;
 }
 
-u16 operand_read(Machine *machine, const Operand op) {
-    u16 value;
+bool operand_read(Machine *machine, const Operand op, u64 *value) {
     u16 address;
     switch (op.mode) {
         case OP_REG:
@@ -130,42 +164,67 @@ u16 operand_read(Machine *machine, const Operand op) {
             return op.immediate;
 
         case OP_REG_IND:
-            if (op.size == 1) value = read_byte(machine, read_reg(machine, op.reg));
-            else value = read_word(machine, read_reg(machine, op.reg));
-            return value;
+            if (op.size == 1) {
+                const bool success = read_byte(machine, read_reg(machine, op.reg), value);
+                if (!success) return false;
+            } else {
+                const bool success = read_word(machine, read_reg(machine, op.reg), value);
+                if (!success) return false;
+            }
+            return true;
 
         case OP_ABSOLUTE:
-            if (op.size == 1) value = read_byte(machine, op.immediate);
-            else value = read_word(machine, op.immediate);
-            return value;
+            if (op.size == 1) {
+                const bool success = read_byte(machine, op.immediate, value);
+                if (!success) return false;
+            } else {
+                const bool success = read_word(machine, op.immediate,value);
+                if (!success) return false;
+            }
+            return true;
 
         case OP_REG_IND_DISP:
             address = read_reg(machine, op.reg);
             address += op.displacement;
-            if (op.size == 1) value = read_byte(machine, address);
-            else value = read_word(machine, address);
-            return value;
+            if (op.size == 1) {
+                const bool success = read_byte(machine, address, value);
+                if (!success) return false;
+            } else {
+                const bool success = read_word(machine, address, value);
+                if (!success) return false;
+            }
+            return true;
 
         case OP_SIB:
             address = read_reg(machine, op.reg);
             address += read_reg(machine, op.idx_reg) << op.scale;
-            if (op.size == 1) value = read_byte(machine, address);
-            else value = read_word(machine, address);
-            return value;
+            if (op.size == 1) {
+                const bool success = read_byte(machine, address, value);
+                if (!success) return false;
+            } else {
+                const bool success = read_word(machine, address, value);
+                if (!success) return false;
+            }
+            return true;
 
         case OP_SIB_DISP:
             address = read_reg(machine, op.reg);
             address += read_reg(machine, op.idx_reg) << op.scale;
             address += op.displacement;
-            if (op.size == 1) value = read_byte(machine, address);
-            else value = read_word(machine, address);
-            return value;
+            if (op.size == 1) {
+                const bool success = read_byte(machine, address, value);
+                if (!success) return false;
+            } else {
+                const bool success = read_word(machine, address, value);
+                if (!success) return false;
+            }
+            return true;
     }
 
-    return 0;
+    return false;
 }
 
-void operand_write(Machine *machine, const Operand op, const u16 value) {
+bool operand_write(Machine *machine, const Operand op, const u16 value) {
     u16 address;
     switch (op.mode) {
         case OP_REG:
@@ -173,37 +232,69 @@ void operand_write(Machine *machine, const Operand op, const u16 value) {
             break;
 
         case OP_REG_IND:
-            if (op.size == 1) write_byte(machine, read_reg(machine, op.reg), value);
-            else write_word(machine, read_reg(machine, op.reg), value);
-            break;
+            if (op.size == 1) {
+                const bool success = write_byte(machine, read_reg(machine, op.reg), value);
+                if (!success) return false;
+            }
+            else {
+                const bool success = write_word(machine, read_reg(machine, op.reg), value);
+                if (!success) return false;
+            }
+            return true;
 
         case OP_ABSOLUTE:
-            if (op.size == 1) write_byte(machine, op.immediate, value);
-            else write_word(machine, op.immediate, value);
-            break;
+            if (op.size == 1) {
+                const bool success = write_byte(machine, op.immediate, value);
+                if (!success) return false;
+            }
+            else {
+                const bool success = write_word(machine, op.immediate, value);
+                if (!success) return false;
+            }
+            return true;
 
         case OP_REG_IND_DISP:
             address = read_reg(machine, op.reg);
             address += op.displacement;
-            if (op.size == 1) write_byte(machine, address, value);
-            else write_word(machine, address, value);
-            break;
+            if (op.size == 1) {
+                const bool success = write_byte(machine, address, value);
+                if (!success) return false;
+            }
+            else {
+                const bool success = write_word(machine, address, value);
+                if (!success) return false;
+            }
+            return true;
 
         case OP_SIB:
             address = read_reg(machine, op.reg);
             address += read_reg(machine, op.idx_reg) << op.scale;
-            if (op.size == 1) write_byte(machine, address, value);
-            else write_word(machine, address, value);
-            break;
+            if (op.size == 1) {
+                const bool success = write_byte(machine, address, value);
+                if (!success) return false;
+            }
+            else {
+                const bool success = write_word(machine, address, value);
+                if (!success) return false;
+            }
+            return true;
 
         case OP_SIB_DISP:
             address = read_reg(machine, op.reg);
             address += read_reg(machine, op.idx_reg) << op.scale;
             address += op.displacement;
-            if (op.size == 1) write_byte(machine, address, value);
-            else write_word(machine, address, value);
-            break;
+            if (op.size == 1) {
+                const bool success = write_byte(machine, address, value);
+                if (!success) return false;
+            }
+            else {
+                const bool success = write_word(machine, address, value);
+                if (!success) return false;
+            }
+            return true;
     }
+
+    return false;
 }
 
 void set_flags(Machine *machine, const u32 value, const u32 values[2], const u8 mask, const u8 size) {
@@ -294,19 +385,31 @@ bool decode(Machine *machine, Instruction *inst) {
     CPU *cpu = &machine->cpu;
     memset(inst, 0, sizeof(Instruction));
 
+    u64 value;
+    bool success = true;
     // OBTAIN PREFIXES
     while (1) {
-        const u8 byte = read_byte(machine, cpu->sys.PC);
+        success = read_byte(machine, cpu->sys.PC, &value);
+        if (!success) return false;
+
+        u8 byte = value & 0xFF;
         if (!(byte & 0x80)) break;
 
         if ((byte & 0xF0) == 0x80) {
-            const u16 MEX_prefix = fetch_word(machine);
+            success = fetch_word(machine, &value);
+            if (!success) return false;
+
+            const u16 MEX_prefix = value & 0xFFFF;
             inst->prefixes.MEX = (MEX_prefix & 0xFF) << 8 | MEX_prefix >> 8 & 0xFF;
             inst->size += 2;
             continue;
         }
+
         if ((byte & 0xF0) == 0x90) {
-            inst->prefixes.AEX = fetch_byte(machine);
+            success = fetch_byte(machine, &value);
+            if (!success) return false;
+
+            inst->prefixes.AEX = value;
             inst->size++;
             continue;
         }
@@ -319,8 +422,11 @@ bool decode(Machine *machine, Instruction *inst) {
         }
     }
 
-    u16 instruction = fetch_byte(machine) << 8;
-    instruction |= fetch_byte(machine);
+    success = fetch_word(machine, &value);
+    if (!success) return false;
+
+    u16 instruction = value << 8;
+    instruction |= value;
 
     inst->opcode = instruction >> 9 & 0x7F;
     inst->size += 2;
@@ -334,7 +440,8 @@ bool decode(Machine *machine, Instruction *inst) {
         instruction & 0x7
     };
 
-    collect_operands(machine, inst, op);
+    success = collect_operands(machine, inst, op);
+    if (!success) return false;
 
     return true;
 }

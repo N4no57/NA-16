@@ -1,12 +1,15 @@
 #include "../../inst.h"
 #include "../../../../ram/memory.h"
 
-void call_handler(Machine *machine, Instruction *inst) {
+bool call_handler(Machine *machine, Instruction *inst) {
     CPU *cpu = &machine->cpu;
-    write_byte(machine, cpu->sys.SP--, cpu->sys.PC & 0xFF); // push return address
-    write_byte(machine, cpu->sys.SP--, cpu->sys.PC >> 8);
+    bool success = push_word(machine, cpu->sys.PC); // push return address
+    if (!success) return false;
 
-    const u16 address = operand_read(machine, inst->ops[0]);
+    u64 address;
+    success = operand_read(machine, inst->ops[0], &address);
+    if (!success) return false;
 
     cpu->sys.PC = address;
+    return true;
 }

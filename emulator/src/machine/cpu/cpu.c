@@ -2,8 +2,14 @@
 #include "../ram/memory.h"
 #include "instructions/inst.h"
 
-#include <stdlib.h>
 #include <string.h>
+
+bool is_privileged_reg(u64 reg) {
+    if (reg == 0x40) return true;
+    if (reg > 0x42) return true;
+
+    return false;
+}
 
 void set_reg(Machine *machine, const u8 reg, const u16 value) {
     CPU *cpu = &machine->cpu;
@@ -71,28 +77,49 @@ u16 read_reg(const Machine *machine, const u8 reg) {
     return 0;
 }
 
-void push_byte(Machine *machine, u8 value) {
-    write_byte(machine, machine->cpu.sys.SP--, value);
+bool push_byte(Machine *machine, const u8 value) {
+    const bool success = write_byte(machine, machine->cpu.sys.SP--, value);
+    if (!success) return false;
+    return true;
 }
 
-void push_word(Machine *machine, u16 value) {
-    write_byte(machine, machine->cpu.sys.SP--, value & 0xFF);
-    write_byte(machine, machine->cpu.sys.SP--, value >> 8);
+bool push_word(Machine *machine, const u16 value) {
+    bool success = write_byte(machine, machine->cpu.sys.SP--, value & 0xFF);
+    if (!success) return false;
+    success = write_byte(machine, machine->cpu.sys.SP--, value >> 8);
+    if (!success) return false;
+    return true;
 }
 
-u8 pop_byte(Machine *machine) {
-    return read_byte(machine, ++machine->cpu.sys.SP);
+bool pop_byte(Machine *machine, u64 *value) {
+    const bool success = read_byte(machine, ++machine->cpu.sys.SP, value);
+    if (!success) return false;
+    return true;
 }
 
-u16 pop_word(Machine *machine) {
-    u16 ret_val = read_byte(machine, ++machine->cpu.sys.SP) << 8;
-    ret_val |= read_byte(machine, ++machine->cpu.sys.SP);
-    return ret_val;
+bool pop_word(Machine *machine, u64 *value) {
+    bool success = read_byte(machine, ++machine->cpu.sys.SP, value);
+    if (!success) return false;
+    u64 tmp;
+    success = read_byte(machine, ++machine->cpu.sys.SP, &tmp);
+    if (!success) return false;
+    *value = *value << 8 | tmp;
+    return true;
 }
 
-void iret(Machine *machine) {
-    machine->cpu.sys.FR.flags = pop_word(machine);
-    machine->cpu.sys.PC = pop_word(machine);
+bool iret(Machine *machine) {
+    u64 tmp;
+    bool success = pop_word(machine, &tmp);
+    if (!success) return false;
+
+    machine->cpu.sys.FR.flags = tmp;
+
+    success = pop_word(machine, &tmp);
+    if (!success) return false;
+
+    machine->cpu.sys.FR.flags = tmp;
+
+    return true;
 }
 
 void cpu_init(Machine *machine) {
@@ -104,12 +131,15 @@ void cpu_reset(Machine *machine) {
     CPU *cpu = &machine->cpu;
     memset(cpu->gp.R, 0, sizeof(machine->cpu.gp.R));
     cpu->sys.FR.flags = 0;
-    cpu->sys.PC =0xFFFE; // reset vec
+    cpu->sys.PC = 0xFFFE; // reset vec
     cpu->sys.SP = cpu->sys.BP = 0x1000;
-    cpu->sys.PC = read_word(machine, cpu->sys.PC);
     machine->mmu.kernel_page_table = machine->mmu.user_page_table = 0;
     cpu->sys.KSP = machine->PIC.IVBR = 0;
     cpu->halt = false;
+
+    u64 tmp;
+    read_word(machine, cpu->sys.PC, &tmp);
+    cpu->sys.PC = tmp;
 }
 
 void execute_inst(Machine *machine) {
@@ -117,7 +147,7 @@ void execute_inst(Machine *machine) {
     if (cpu->halt) return;
 
     Instruction inst;
-    const bool success = decode(machine, &inst);
+    bool success = decode(machine, &inst);
 
     if (!success) return;
 
@@ -133,5 +163,6 @@ void execute_inst(Machine *machine) {
         // interrupt(cpu, UO);
     }
 
-    def->handler(machine, &inst);
+    success = def->handler(machine, &inst);
+    if (!success) return;
 }

@@ -1,17 +1,22 @@
 #include "../../inst.h"
 #include "../../../../ram/memory.h"
 
-void pops_handler(Machine *machine, Instruction *inst) {
+bool pops_handler(Machine *machine, Instruction *inst) {
     CPU *cpu = &machine->cpu;
-    u16 source = 0;
+    u64 source = 0;
+    bool success;
 
     if (inst->ops[0].size == 2) {
-        source = read_byte(machine, ++cpu->sys.SP) << 8;
-        source |= read_byte(machine, ++cpu->sys.SP);
+        success = pop_word(machine, &source);
+        if (!success) return false;
     } else if (inst->ops[0].size == 1) {
-        source = read_byte(machine, ++cpu->sys.SP);
+        success = pop_byte(machine, &source);
+        if (!success) return false;
     }
 
     inst->ops[0].reg += 0x40;
-    operand_write(machine, inst->ops[0], source);
+    if (is_privileged_reg(inst->ops[0].reg) && cpu->sys.FR.U) return false;
+
+    success = operand_write(machine, inst->ops[0], source);
+    return success;
 }
