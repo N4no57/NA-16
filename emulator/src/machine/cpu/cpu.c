@@ -163,6 +163,13 @@ void execute_inst(Machine *machine) {
 
     if (!def->handler) {
         raise_exception(machine, UO, cpu->sys.PC);
+        return;
+    }
+
+    if (def->privileged && cpu->sys.FR.U) {
+        // User mode should not run this instruction
+        raise_exception(machine, PV, cpu->sys.PC);
+        return;
     }
 
     success = def->handler(machine, &inst);

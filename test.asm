@@ -5,7 +5,7 @@ table = 0x1002
 
 _start:
     mov r0, handler
-    mov r1, 0xFF
+    mov r1, 0x100
     mov word r2, table
 loop:
     mov word [r2], r0

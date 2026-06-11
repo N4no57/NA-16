@@ -158,10 +158,12 @@ bool operand_read(Machine *machine, const Operand op, u64 *value) {
     u16 address;
     switch (op.mode) {
         case OP_REG:
-            return read_reg(machine, op.reg);
+            *value = read_reg(machine, op.reg);
+            return true;
 
         case OP_IMM:
-            return op.immediate;
+            *value = op.immediate;
+            return true;
 
         case OP_REG_IND:
             if (op.size == 1) {
@@ -229,7 +231,7 @@ bool operand_write(Machine *machine, const Operand op, const u16 value) {
     switch (op.mode) {
         case OP_REG:
             set_reg(machine, op.reg, value);
-            break;
+            return true;
 
         case OP_REG_IND:
             if (op.size == 1) {
@@ -425,8 +427,8 @@ bool decode(Machine *machine, Instruction *inst) {
     success = fetch_word(machine, &value);
     if (!success) return false;
 
-    u16 instruction = value << 8;
-    instruction |= value;
+    u16 instruction = value << 8 & 0xFF00;
+    instruction |= value >> 8 & 0xFF;
 
     inst->opcode = instruction >> 9 & 0x7F;
     inst->size += 2;

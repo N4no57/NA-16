@@ -32,6 +32,7 @@ void interrupt_prelude(Machine *machine) {
     push_word(machine, cpu->sys.FR.flags);
 
     cpu->sys.FR.I = 0; // mask interrupts
+    cpu->halt = false;
 }
 
 void enter_exception(Machine *machine) {
@@ -40,6 +41,7 @@ void enter_exception(Machine *machine) {
     interrupt_prelude(machine);
 
     cpu->sys.PC = machine->PIC.exception.vector;
+    machine->PIC.exception.pending = false;
 }
 
 void enter_irq(Machine *machine) {
