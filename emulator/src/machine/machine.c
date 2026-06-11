@@ -3,5 +3,5 @@
 #include "cpu/cpu.h"
 
 void machine_step(Machine *machine) {
-    execute_inst(machine);
+    cpu_step(machine);
 }

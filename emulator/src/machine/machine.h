@@ -56,8 +56,22 @@ typedef struct Memory {
     u64 memory_size;
 } Memory;
 
+typedef struct {
+    bool pending;
+    u8 vector;
+    u64 fault_address;
+} ExceptionState;
+
+typedef struct IRQs {
+    u8 pending[0x100];
+    u8 write_ptr;
+    u8 read_ptr;
+} IRQs;
+
 typedef struct InterruptController {
     u16 IVBR;
+    IRQs interrupt_requests;
+    ExceptionState exception;
 } InterruptController;
 
 typedef struct {
