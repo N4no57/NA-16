@@ -50,4 +50,6 @@ add_executable(Emulator src/main.c
         src/machine/PIC/pic.c
         src/machine/PIC/pic.h
         src/machine/machine.c
+        src/machine/cpu/instructions/handlers/system_instructions/int.c
+        src/machine/cpu/instructions/handlers/system_instructions/iret.c
 )

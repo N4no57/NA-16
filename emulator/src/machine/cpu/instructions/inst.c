@@ -366,6 +366,8 @@ InstructionDef instruction_table[] = {
     // class 3: system instructions
     [NOP] = {"NOP", 1, nullptr, false},
     [HLT] = {"HLT", 1, nullptr, false},
+    [INT] = {"INT", 1, int_handler, false},
+    [IRET] = {"IRET", 0, iret_handler, true},
 
     // op table 2
     // class 0: ALU ops

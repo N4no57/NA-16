@@ -47,6 +47,8 @@ typedef enum {
     // class 3: system instructions
     NOP = 0x30,
     HLT = 0x31,
+    INT = 0x32,
+    IRET = 0x33,
 
     // op table 2
     // class 0: ALU ops
@@ -112,5 +114,7 @@ bool call_handler(Machine *machine, Instruction *inst);
 bool ret_handler(Machine *machine, Instruction *inst);
 
 // class 3: system instructions
+bool int_handler(Machine *machine, Instruction *inst);
+bool iret_handler(Machine *machine, Instruction *inst);
 
 #endif //NA_16_INST_H
