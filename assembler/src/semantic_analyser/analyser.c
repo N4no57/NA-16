@@ -44,6 +44,7 @@ i32 validate_instruction(const NodeInstruction* inst) {
         OperandClass cls = i == 0 ? CLASS_DEST : CLASS_SOURCE;
         if (spec.class == 2 && spec.opcode == 0) cls = CLASS_SOURCE; // jmp
         if (spec.class == 2 && spec.opcode == 0x10) cls = CLASS_SOURCE; // jmp
+        if (spec.class == 1 && spec.opcode == 0x3) cls = CLASS_SOURCE; // push
 
         if (operand_matches_class(inst->operands[i].kind, cls, false)) {
             return validate_registers(inst, &spec);

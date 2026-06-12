@@ -1,5 +1,6 @@
 1.7.2:
  - fix bug in instruction selector
+ - fixed a bug where assembler thinks push has 2 operands and push is not properly semantically analysed
  - added int and iret instructions
 
 1.7.1:

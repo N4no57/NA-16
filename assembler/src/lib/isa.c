@@ -103,8 +103,8 @@ InstructionSpec ISA[] = {
         "PUSH",
         1,
         0x3,
-        {2,
-            {CLASS_DEST, CLASS_SOURCE}
+        {1,
+            {CLASS_SOURCE}
         }
     },
     {
