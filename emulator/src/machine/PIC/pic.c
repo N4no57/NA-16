@@ -25,11 +25,12 @@ void interrupt_prelude(Machine *machine) {
         const u16 tmp = cpu->sys.SP;
         cpu->sys.SP = cpu->sys.KSP;
         cpu->sys.KSP = tmp;
-        cpu->sys.FR.U = 0;
     }
 
-    push_word(machine, cpu->sys.PC);
     push_word(machine, cpu->sys.FR.flags);
+    push_word(machine, cpu->sys.PC);
+
+    if (cpu->sys.FR.U) cpu->sys.FR.U = 0;
 
     cpu->sys.FR.I = 0; // mask interrupts
     cpu->halt = false;

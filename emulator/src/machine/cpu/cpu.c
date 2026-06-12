@@ -80,30 +80,30 @@ u16 read_reg(const Machine *machine, const u8 reg) {
 }
 
 bool push_byte(Machine *machine, const u8 value) {
-    const bool success = write_byte(machine, machine->cpu.sys.SP--, value);
+    const bool success = write_byte(machine, --machine->cpu.sys.SP, value);
     if (!success) return false;
     return true;
 }
 
 bool push_word(Machine *machine, const u16 value) {
-    bool success = write_byte(machine, machine->cpu.sys.SP--, value & 0xFF);
+    bool success = write_byte(machine, --machine->cpu.sys.SP, value & 0xFF);
     if (!success) return false;
-    success = write_byte(machine, machine->cpu.sys.SP--, value >> 8);
+    success = write_byte(machine, --machine->cpu.sys.SP, value >> 8);
     if (!success) return false;
     return true;
 }
 
 bool pop_byte(Machine *machine, u64 *value) {
-    const bool success = read_byte(machine, ++machine->cpu.sys.SP, value);
+    const bool success = read_byte(machine, machine->cpu.sys.SP++, value);
     if (!success) return false;
     return true;
 }
 
 bool pop_word(Machine *machine, u64 *value) {
-    bool success = read_byte(machine, ++machine->cpu.sys.SP, value);
+    bool success = read_byte(machine, machine->cpu.sys.SP++, value); // read high
     if (!success) return false;
     u64 tmp;
-    success = read_byte(machine, ++machine->cpu.sys.SP, &tmp);
+    success = read_byte(machine, machine->cpu.sys.SP++, &tmp); // read low
     if (!success) return false;
     *value = *value << 8 | tmp;
     return true;

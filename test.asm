@@ -13,10 +13,16 @@ loop:
     sub r1, r1, 1
     test r1, r1
     jnz loop
+
     mov IVBR, table
     mov KSP, 0x1000
+    mov r0, FR
+    or r0, r0, 0x90
+    push word r0
+    push word user_prog
+    iret
 stop:
-    int 0x8
+    hlt
     hlt
     hlt
     jmp stop
@@ -28,3 +34,11 @@ handler:
     nop
     nop
     iret
+
+user_prog:
+    mov r0, 0x10
+    mov r1, 0x20
+    int 0x80
+    hlt
+    hlt
+    hlt
