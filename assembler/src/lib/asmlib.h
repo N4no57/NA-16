@@ -63,7 +63,9 @@ typedef enum {
     CLASS_DEST,
     CLASS_SOURCE,
     CLASS_REGISTER_ONLY,
-    CLASS_DISP_OR_SYM,
+    CLASS_DISP,
+    CLASS_IMM,
+    CLASS_REG_AND_IMM
 } OperandClass;
 
 typedef struct {

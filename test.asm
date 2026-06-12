@@ -16,7 +16,7 @@ loop:
     mov IVBR, table
     mov KSP, 0x1000
 stop:
-    hlt
+    int 0x8
     hlt
     hlt
     jmp stop
@@ -27,4 +27,4 @@ handler:
     nop
     nop
     nop
-    hlt
+    iret

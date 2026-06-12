@@ -111,8 +111,7 @@ void parse_operand(NodeOperand *operand, TokenList *tokens, u64 *idx, Token *tok
     operand->pos = tok->pos;
     if (tok->type == TT_REGISTER) {
         operand->kind = REGISTER;
-        operand->reg = getregister(tok->value);
-        consume_tok(tokens, idx, tok); // consume reg
+        operand->reg = getregister(tok->value);consume_tok(tokens, idx, tok); // consume reg
     } else if (tok->type == TT_IMMEDIATE) {
         operand->kind = IMMEDIATE;
         operand->immediate = *(i64 *)tok->value;

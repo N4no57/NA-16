@@ -140,11 +140,7 @@ void fold(const char *mnemonic, const InstructionSpec *info, const NodeInstructi
     strcpy(mnemonic_buff, mnemonic);
     toUpper((u8 *)mnemonic_buff);
 
-    if (strcmp(mnemonic_buff, "HLT") == 0) {
-        return;
-    }
-
-    if (strcmp(mnemonic_buff, "NOP") == 0) {
+    if (info->class == 3) {
         return;
     }
 

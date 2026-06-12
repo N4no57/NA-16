@@ -94,7 +94,7 @@ void lower_instruction(NodeInstruction *inst) {
 }
 
 void lowerer(NodeProgram *ast) {
-    for (u64 i = 0; i < ast->size; i++) {
+    for (u64 i = 0; i < ast->count; i++) {
         if (ast->statements[i].kind != ST_INSTRUCTION) continue;
         lower_instruction(&ast->statements[i].instruction);
     }

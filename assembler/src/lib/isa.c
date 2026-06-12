@@ -190,6 +190,20 @@ InstructionSpec ISA[] = {
         3,
         0x1,
         {0}
+    },
+    {
+        "INT",
+        3,
+        0x2,
+        {1,
+            {CLASS_SOURCE}
+        }
+    },
+    {
+        "IRET",
+        3,
+        0x3,
+        {0}
     }
 };
 
@@ -241,7 +255,7 @@ InstructionSpec cond_jump_template = {
     2,
     0x0,
     {1,
-        {CLASS_DISP_OR_SYM}
+        {CLASS_DISP}
     }
 };
 
@@ -292,7 +306,7 @@ InstructionSpec get_spec(const char *mnemonic) {
 
 bool operand_matches_class(operand_types type, OperandClass cls, bool is_cond_jump) {
     if (is_cond_jump) {
-        if (cls != CLASS_DISP_OR_SYM) return false;
+        if (cls != CLASS_DISP) return false;
         return type == DISPLACEMENT || type == SYMBOL;
     }
 

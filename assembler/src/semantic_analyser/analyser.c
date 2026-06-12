@@ -37,7 +37,7 @@ i32 validate_instruction(const NodeInstruction* inst) {
 
     // handle special case
     if (is_cond_jump(spec.mnemonic)) {
-        return operand_matches_class(inst->operands[0].kind, CLASS_DISP_OR_SYM, true);
+        return operand_matches_class(inst->operands[0].kind, CLASS_DISP, true);
     }
 
     for (i32 i = 0; i < spec.operand_pattern.operand_count; i++) {

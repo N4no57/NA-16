@@ -1,3 +1,7 @@
+1.7.2:
+ - fix bug in instruction selector
+ - added int and iret instructions
+
 1.7.1:
  - section directive
 
