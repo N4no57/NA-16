@@ -11,7 +11,7 @@ bool iret_handler(Machine *machine, Instruction *inst) {
 
     // flags
     if (!pop_word(machine, &temp)) return false;
-    flags old_flags = cpu->sys.FR;
+    const flags old_flags = cpu->sys.FR;
     cpu->sys.FR.flags = temp;
 
     // detect transition

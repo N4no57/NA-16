@@ -14,7 +14,7 @@ typedef struct {
     u32 frame;
 } PageTableEntry;
 
-bool translate(const Machine *machine, u32 vaddr, u32 *address);
-bool is_executable(const Machine *machine);
+bool translate(Machine *machine, u32 vaddr, u32 *address);
+bool is_executable(Machine *machine);
 
 #endif //NA_16_MMU_H
