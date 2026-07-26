@@ -85,6 +85,7 @@ void lexer_init(Lexer *lexer, const SourceFile *source) {
         .column = 1,
         .start_of_line = true,
         .pending_space = false,
+        .inside_block_comment = false
     };
 }
 
@@ -218,6 +219,18 @@ bool lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
             return true;
         }
 
+        if (lexer->inside_block_comment) {
+            lexer_advance(lexer);
+            if (current == '*') {
+                if (lexer_peek(lexer, 0) == '/') {
+                    lexer->inside_block_comment = false;
+                    lexer_advance(lexer);
+                }
+            }
+
+            continue;
+        }
+
         SourceLocation begin = lexer_location(lexer);
 
         bool leading_space = lexer->pending_space;
@@ -315,18 +328,11 @@ bool lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
 
                     lexer->pending_space = true;
                 } else if (lexer_peek(lexer, 0) == '*') {
+                    lexer_advance(lexer);
                     lexer->inside_block_comment = true;
                 }
 
                 continue;
-
-            case '*':
-                if (lexer_peek(lexer, 1) == '/') {
-                    lexer->inside_block_comment = false;
-                    continue;
-                }
-
-                return false; // TODO
 
             default:
                 if (error != NULL) {
