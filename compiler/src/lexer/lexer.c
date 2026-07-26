@@ -307,24 +307,26 @@ bool lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
                 return true;
 
             case '/':
-                if (lexer_peek(lexer, 1) == '/') {
+                if (lexer_peek(lexer, 0) == '/') {
                     while (current != '\n' && current != '\0') {
-                        current = lexer_advance(lexer);
+                        lexer_advance(lexer);
+                        current = lexer_peek(lexer, 0);
                     }
 
                     lexer->pending_space = true;
-                } else if (lexer_peek(lexer, 1) == '*') {
+                } else if (lexer_peek(lexer, 0) == '*') {
                     lexer->inside_block_comment = true;
                 }
 
-                return true;
+                continue;
 
             case '*':
                 if (lexer_peek(lexer, 1) == '/') {
                     lexer->inside_block_comment = false;
+                    continue;
                 }
 
-                return true;
+                return false; // TODO
 
             default:
                 if (error != NULL) {
