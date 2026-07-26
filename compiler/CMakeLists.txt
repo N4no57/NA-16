@@ -8,4 +8,6 @@ add_compile_options(-Wall -Wextra -Wpedantic -Wconversion)
 add_executable(Compiler src/main.c
         src/target.c
         src/target.h
+        src/type.c
+        src/type.h
 )
