@@ -61,7 +61,7 @@ const CType *ctype_builtin(CTypeKind kind) {
     return &builtin_types[kind];
 }
 
-const CType *ctype_pointer_to(const CType *base) {
+CType *ctype_create_pointer_to(const CType *base) {
     if (base == nullptr) {
         return nullptr;
     }

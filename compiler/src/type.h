@@ -51,7 +51,7 @@ struct CType {
 };
 
 const CType *ctype_builtin(CTypeKind kind);
-const CType *ctype_pointer_to(const CType *base);
+CType *ctype_create_pointer_to(const CType *base);
 
 uint16_t ctype_size(const CType *type, const TargetInfo *target);
 uint16_t ctype_alignment(const CType *type, const TargetInfo *target);
