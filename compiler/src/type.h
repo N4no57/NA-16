@@ -1,7 +1,7 @@
 #ifndef NA_16_TYPE_H
 #define NA_16_TYPE_H
 
-#include "target.h"
+#include "target/target.h"
 
 typedef enum CTypeKind {
     CTYPE_VOID,

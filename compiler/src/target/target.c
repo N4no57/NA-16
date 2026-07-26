@@ -1,4 +1,4 @@
-#include "target.h"
+#include "../lexer/target.h"
 
 #include <stdio.h>
 
