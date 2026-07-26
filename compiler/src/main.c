@@ -1,7 +1,9 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "target.h"
+#include "type.h"
 
 static void print_integer_type(
     const char *name,
@@ -70,6 +72,24 @@ int main(void)
         (unsigned)target->object_pointer.size,
         (unsigned)target->object_pointer.alignment
     );
+
+    const CType *int_type = ctype_builtin(CTYPE_INT);
+
+    CType *int_pointer = ctype_create_pointer_to(int_type);
+
+    assert(ctype_is_integer(int_type));
+    assert(ctype_is_arithmetic(int_type));
+    assert(ctype_is_scalar(int_type));
+
+    assert(!ctype_is_integer(int_pointer));
+    assert(!ctype_is_arithmetic(int_pointer));
+    assert(ctype_is_scalar(int_pointer));
+
+    assert(ctype_size(int_type, target) == 2);
+    assert(ctype_alignment(int_type, target) == 2);
+
+    assert(ctype_size(int_pointer, target) == 2);
+    assert(ctype_alignment(int_pointer, target) == 2);
 
     return EXIT_SUCCESS;
 }
