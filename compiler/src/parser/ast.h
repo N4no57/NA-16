@@ -137,6 +137,7 @@ bool push_external_declaration(TranslationUnit *unit, const ExternalDeclaration 
 bool compound_statement_append(CompoundStatement *compound_statement, const BlockItem *item);
 
 void expression_destroy(Expression *expression);
+void statement_destroy(const Statement *statement);
 void compound_statement_destroy(const CompoundStatement *compound_statement);
 void translation_unit_destroy(const TranslationUnit *unit);
 
