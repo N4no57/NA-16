@@ -6,7 +6,6 @@
 #include "../lexer/source.h"
 #include "../type.h"
 
-typedef struct Statement Statement;
 typedef struct Declaration Declaration;
 
 typedef enum ExpressionKind {
@@ -63,18 +62,21 @@ typedef enum StatementKind {
     STATEMENT_JUMP
 } StatementKind;
 
-struct Statement {
+typedef struct CompoundStatement CompoundStatement;
+
+typedef struct Statement {
     StatementKind kind;
     SourceSpan span;
 
     union {
         JumpStatement jump_statement;
+        CompoundStatement *compound_statement;
 
         /*
          * Other statement representations added incrementally.
          */
     } data;
-};
+} Statement;
 
 typedef enum BlockItemKind {
     BLOCK_ITEM_DECLARATION,
@@ -87,7 +89,7 @@ typedef struct BlockItem {
 
     union {
         Declaration *declaration;
-        Statement *statement;
+        Statement statement;
     } data;
 } BlockItem;
 
@@ -129,11 +131,13 @@ typedef struct TranslationUnit {
     size_t capacity;
 } TranslationUnit;
 
-void translation_unit_init(TranslationUnit *unit);
+bool translation_unit_init(TranslationUnit *unit);
 
-void push_external_declaration(TranslationUnit *unit, const ExternalDeclaration *external_declaration);
-void compound_statement_append(CompoundStatement *compound_statement, const BlockItem *item);
+bool push_external_declaration(TranslationUnit *unit, const ExternalDeclaration *external_declaration);
+bool compound_statement_append(CompoundStatement *compound_statement, const BlockItem *item);
 
+void expression_destroy(Expression *expression);
+void compound_statement_destroy(const CompoundStatement *compound_statement);
 void translation_unit_destroy(const TranslationUnit *unit);
 
 #endif //NA_16_AST_H
