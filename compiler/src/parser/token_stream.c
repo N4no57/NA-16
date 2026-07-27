@@ -1,6 +1,6 @@
 #include "token_stream.h"
 
-void token_stream_init(TokenStream *token_stream, Preprocessor *preprocessor) {
+void token_stream_init(TokenStream *token_stream, const Preprocessor *preprocessor) {
     token_stream->preprocessor = *preprocessor;
     token_stream->current = (CToken){0};
     token_stream->has_current = false;
@@ -32,7 +32,11 @@ bool token_stream_consume(TokenStream *stream) {
     return true;
 }
 
-bool token_stream_match(TokenStream *stream, CToken expected) {
-    // TODO
-    return true;
+bool token_stream_match(TokenStream *stream, const CTokenKind expected) {
+    if (stream->current.kind == expected) {
+        token_stream_consume(stream);
+        return true;
+    }
+
+    return false;
 }
