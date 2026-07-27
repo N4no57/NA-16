@@ -6,6 +6,8 @@
 #include "target/target.h"
 #include "type.h"
 #include "lexer/lexer.h"
+#include "preprocessor/c_token.h"
+#include "preprocessor/preprocessor.h"
 
 int main(void) {
     SourceFile file = {0};
@@ -13,15 +15,20 @@ int main(void) {
     source_file_load(&file, "test.c");
 
     Lexer lexer;
+    Preprocessor preprocessor;
 
     lexer_init(&lexer, &file);
+    preprocessor_init(&preprocessor, &lexer);
 
-    PPToken tok;
+    PPToken pp_token;
+    CToken c_token;
     LexerError error;
-    while (true) {
-        lexer_next(&lexer, &tok, &error);
+    while (preprocessor_next(&preprocessor, &pp_token, &error)) {
+        if (!convert_ppt_to_ct(&pp_token, &c_token)) {
+            break;
+        }
 
-        if (tok.kind == PP_TOKEN_EOF) {
+        if (c_token.kind == C_TOKEN_EOF) {
             break;
         }
     }
