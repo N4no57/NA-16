@@ -10,6 +10,6 @@ typedef struct SemanticContext {
     const CType *current_function_return_type;
 } SemanticContext;
 
-bool analyse_function_definition(SemanticContext *context, FunctionDefinition *function);
+bool analyse_function_definition(SemanticContext *context, const FunctionDefinition *function);
 
 #endif //NA_16_ANALYSER_H
