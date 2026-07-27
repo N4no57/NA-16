@@ -17,6 +17,7 @@ typedef enum PPTokenKind {
     PP_TOKEN_LEFT_BRACE,
     PP_TOKEN_RIGHT_BRACE,
     PP_TOKEN_SEMICOLON,
+    PP_TOKEN_COMMA,
 
     PP_TOKEN_NEWLINE
 } PPTokenKind;

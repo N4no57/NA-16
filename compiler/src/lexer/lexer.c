@@ -314,6 +314,16 @@ bool lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
                 );
                 return true;
 
+            case ',':
+                *token = make_token(
+                    lexer,
+                    PP_TOKEN_COMMA,
+                    &begin,
+                    leading_space,
+                    start_of_line
+                );
+                return true;
+
             case '/':
                 if (lexer_peek(lexer, 0) == '/') {
                     while (current != '\n' && current != '\0') {

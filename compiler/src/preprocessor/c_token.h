@@ -17,7 +17,8 @@ typedef enum CTokenKind {
     C_TOKEN_RIGHT_PAREN,
     C_TOKEN_LEFT_BRACE,
     C_TOKEN_RIGHT_BRACE,
-    C_TOKEN_SEMICOLON
+    C_TOKEN_SEMICOLON,
+    C_TOKEN_COMMA
 } CTokenKind;
 
 typedef enum IntegerSuffixLength {

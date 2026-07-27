@@ -161,6 +161,10 @@ bool convert_ppt_to_ct(const PPToken *ppt, CToken *ct) {
             ct->kind = C_TOKEN_SEMICOLON;
             return true;
 
+        case PP_TOKEN_COMMA:
+            ct->kind = C_TOKEN_COMMA;
+            return true;
+
         case PP_TOKEN_IDENTIFIER:
             handle_identifier(ppt, ct);
             return true;
