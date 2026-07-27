@@ -54,7 +54,7 @@ static Expression *parser_parse_assignment_expression(const Parser *parser) {
         return nullptr;
     }
 
-    const CType *type = ctype_builtin(CTYPE_UNSIGNED_INT);
+    const CType *type = ctype_builtin(CTYPE_INT);
 
     *expression = (Expression){
         .kind = EXPRESSION_INTEGER_CONSTANT,
@@ -216,6 +216,8 @@ bool parser_parse_function_definition(Parser *parser, FunctionDefinition *functi
     if (!parser_expected(parser, C_TOKEN_KW_INT, nullptr)) {
         return false;
     }
+
+    function->return_type = ctype_builtin(CTYPE_INT);
 
     {
         CToken function_name;

@@ -16,4 +16,6 @@ add_executable(Compiler src/main.c
         src/parser/token_stream.c src/parser/token_stream.h
         src/parser/ast.c src/parser/ast.h
         src/parser/parser.c src/parser/parser.h
+        src/semantic_analyser/analyser.c
+        src/semantic_analyser/analyser.h
 )
