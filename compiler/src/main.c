@@ -6,6 +6,8 @@
 #include "target/target.h"
 #include "type.h"
 #include "lexer/lexer.h"
+#include "parser/parser.h"
+#include "parser/token_stream.h"
 #include "preprocessor/c_token.h"
 #include "preprocessor/preprocessor.h"
 
@@ -16,22 +18,18 @@ int main(void) {
 
     Lexer lexer;
     Preprocessor preprocessor;
+    TokenStream stream;
+    Parser parser;
 
     lexer_init(&lexer, &file);
     preprocessor_init(&preprocessor, &lexer);
+    token_stream_init(&stream, &preprocessor);
+    parser_init(&parser, &stream);
 
-    PPToken pp_token;
-    CToken c_token;
-    LexerError error;
-    while (preprocessor_next(&preprocessor, &pp_token, &error)) {
-        if (!convert_ppt_to_ct(&pp_token, &c_token)) {
-            break;
-        }
+    TranslationUnit unit;
+    ParserError parser_error;
 
-        if (c_token.kind == C_TOKEN_EOF) {
-            break;
-        }
-    }
+    parser_parse_translation_unit(&parser, &unit, &parser_error);
 
     source_file_destroy(&file);
 

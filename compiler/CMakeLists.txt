@@ -12,5 +12,8 @@ add_executable(Compiler src/main.c
         src/lexer/source.c src/lexer/source.h
         src/lexer/lexer.c src/lexer/lexer.h
         src/preprocessor/preprocessor.c src/preprocessor/preprocessor.h
+        src/preprocessor/c_token.c src/preprocessor/c_token.h
         src/parser/token_stream.c src/parser/token_stream.h
+        src/parser/ast.c src/parser/ast.h
+        src/parser/parser.c src/parser/parser.h
 )
