@@ -131,7 +131,8 @@ typedef struct TranslationUnit {
 
 void translation_unit_init(TranslationUnit *unit);
 
-void push_function(TranslationUnit *unit, const ExternalDeclaration *external_declaration) ;
+void push_external_declaration(TranslationUnit *unit, const ExternalDeclaration *external_declaration);
+void compound_statement_append(CompoundStatement *compound_statement, const BlockItem *item);
 
 void translation_unit_destroy(const TranslationUnit *unit);
 
