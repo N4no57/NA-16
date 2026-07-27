@@ -249,12 +249,7 @@ bool lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
 
         if (
             is_ascii_digit(current) ||
-            (
-                current == '.' &&
-                is_ascii_digit(
-                    lexer_peek(lexer, 1)
-                )
-            )
+            (current == '.' &&is_ascii_digit(lexer_peek(lexer, 1)))
         ) {
             *token = lex_pp_number(
                 lexer,
