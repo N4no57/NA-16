@@ -3,24 +3,24 @@
 #include <stdlib.h>
 
 void translation_unit_init(TranslationUnit *unit) {
-    unit->function_count = 8;
-    unit->function_capacity = 8;
-    unit->functions = malloc(sizeof(TranslationUnit) * unit->function_capacity);
+    unit->count = 8;
+    unit->capacity = 8;
+    unit->items = malloc(sizeof(ExternalDeclaration) * unit->capacity);
 }
 
-void push_function(TranslationUnit *unit, const FunctionDefinition *function) {
-    if (unit->function_count == unit->function_capacity) {
-        unit->function_capacity *= 2;
-        FunctionDefinition *tmp = realloc(unit->functions, sizeof(FunctionDefinition) * unit->function_capacity);
+void push_function(TranslationUnit *unit, const ExternalDeclaration *external_declaration) {
+    if (unit->count == unit->capacity) {
+        unit->capacity *= 2;
+        ExternalDeclaration *tmp = realloc(unit->items, sizeof(FunctionDefinition) * unit->capacity);
         if (!tmp) {
 
         }
-        unit->functions = tmp;
+        unit->items = tmp;
     }
 
-    unit->functions[unit->function_count] = *function;
+    unit->items[unit->count] = *external_declaration;
 }
 
 void translation_unit_destroy(const TranslationUnit *unit) {
-    free(unit->functions);
+    free(unit->items);
 }

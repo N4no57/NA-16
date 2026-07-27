@@ -6,11 +6,17 @@
 #include "../lexer/source.h"
 #include "../type.h"
 
+typedef struct Statement Statement;
+typedef struct Declaration Declaration;
+
 typedef enum ExpressionKind {
-    EXPRESSION_INTEGER_CONSTANT
+    EXPRESSION_INTEGER_CONSTANT,
+    EXPRESSION_COMMA
 } ExpressionKind;
 
-typedef struct Expression {
+typedef struct Expression Expression;
+
+struct Expression {
     ExpressionKind kind;
     SourceSpan span;
     const CType *type;
@@ -19,23 +25,79 @@ typedef struct Expression {
         struct {
             uint64_t value;
         } integer_constant;
+
+        struct {
+            Expression *left;
+            Expression *right;
+        } comma;
     } data;
-} Expression;
+};
 
-typedef enum StatementKind {
-    STATEMENT_RETURN
-} StatementKind;
+typedef enum JumpStatementKind {
+    JUMP_STATEMENT_GOTO,
+    JUMP_STATEMENT_CONTINUE,
+    JUMP_STATEMENT_BREAK,
+    JUMP_STATEMENT_RETURN
+} JumpStatementKind;
 
-typedef struct Statement {
-    StatementKind kind;
-    SourceSpan span;
+typedef struct JumpStatement {
+    JumpStatementKind kind;
 
     union {
+        struct {
+            char *label;
+        } goto_statement;
+
         struct {
             Expression *expression;
         } return_statement;
     } data;
-} Statement;
+} JumpStatement;
+
+typedef enum StatementKind {
+    STATEMENT_LABELED,
+    STATEMENT_EXPRESSION,
+    STATEMENT_COMPOUND,
+    STATEMENT_SELECTION,
+    STATEMENT_ITERATION,
+    STATEMENT_JUMP
+} StatementKind;
+
+struct Statement {
+    StatementKind kind;
+    SourceSpan span;
+
+    union {
+        JumpStatement jump_statement;
+
+        /*
+         * Other statement representations added incrementally.
+         */
+    } data;
+};
+
+typedef enum BlockItemKind {
+    BLOCK_ITEM_DECLARATION,
+    BLOCK_ITEM_STATEMENT
+} BlockItemKind;
+
+typedef struct BlockItem {
+    BlockItemKind kind;
+    SourceSpan span;
+
+    union {
+        Declaration *declaration;
+        Statement *statement;
+    } data;
+} BlockItem;
+
+typedef struct CompoundStatement {
+    SourceSpan span;
+
+    BlockItem *items;
+    size_t count;
+    size_t capacity;
+} CompoundStatement;
 
 typedef struct FunctionDefinition {
     SourceSpan span;
@@ -43,18 +105,33 @@ typedef struct FunctionDefinition {
     char *name;
     const CType *return_type;
 
-    Statement *body;
+    CompoundStatement body;
 } FunctionDefinition;
 
+typedef enum ExternalDeclarationKind {
+    EXTERNAL_DECLARATION_FUNCTION_DEFINITION,
+    EXTERNAL_DECLARATION_DECLARATION
+} ExternalDeclarationKind;
+
+typedef struct ExternalDeclaration {
+    ExternalDeclarationKind kind;
+    SourceSpan span;
+
+    union {
+        FunctionDefinition function_definition;
+        Declaration *declaration;
+    } data;
+} ExternalDeclaration;
+
 typedef struct TranslationUnit {
-    FunctionDefinition *functions;
-    size_t function_count;
-    size_t function_capacity;
+    ExternalDeclaration *items;
+    size_t count;
+    size_t capacity;
 } TranslationUnit;
 
 void translation_unit_init(TranslationUnit *unit);
 
-void push_function(TranslationUnit *unit, const FunctionDefinition *function);
+void push_function(TranslationUnit *unit, const ExternalDeclaration *external_declaration) ;
 
 void translation_unit_destroy(const TranslationUnit *unit);
 

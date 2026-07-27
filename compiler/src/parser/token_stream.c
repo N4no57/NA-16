@@ -33,7 +33,13 @@ bool token_stream_consume(TokenStream *stream) {
 }
 
 bool token_stream_match(TokenStream *stream, const CTokenKind expected) {
-    if (stream->current.kind == expected) {
+    const CToken *token = token_stream_peek(stream);
+
+    if (!token) {
+        return false;
+    }
+
+    if (token->kind == expected) {
         token_stream_consume(stream);
         return true;
     }
