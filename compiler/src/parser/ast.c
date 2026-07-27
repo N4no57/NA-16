@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 bool translation_unit_init(TranslationUnit *unit) {
-    unit->count = 8;
+    unit->count = 0;
     unit->capacity = 8;
     unit->items = malloc(sizeof(ExternalDeclaration) * unit->capacity);
 
@@ -85,4 +85,6 @@ void translation_unit_destroy(const TranslationUnit *unit) {
             compound_statement_destroy(&function_definition->body);
         }
     }
+
+    free(unit->items);
 }

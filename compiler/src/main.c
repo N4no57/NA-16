@@ -27,10 +27,12 @@ int main(void) {
     parser_init(&parser, &stream);
 
     TranslationUnit unit;
-    ParserError parser_error;
 
-    parser_parse_translation_unit(&parser, &unit, &parser_error);
+    translation_unit_init(&unit);
 
+    parser_parse_translation_unit(&parser, &unit);
+
+    translation_unit_destroy(&unit);
     source_file_destroy(&file);
 
     return EXIT_SUCCESS;
