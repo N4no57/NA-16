@@ -54,10 +54,12 @@ static Expression *parser_parse_assignment_expression(const Parser *parser) {
         return nullptr;
     }
 
+    const CType *type = ctype_builtin(CTYPE_UNSIGNED_INT);
+
     *expression = (Expression){
         .kind = EXPRESSION_INTEGER_CONSTANT,
         .span = token->span,
-        .type = nullptr,
+        .type = type,
         .data.integer_constant = {
             .value = token->data.integer.unsigned_int
         }
