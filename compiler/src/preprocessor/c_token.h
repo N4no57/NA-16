@@ -33,6 +33,7 @@ typedef struct IntegerSuffix {
 
 typedef struct CToken {
     CTokenKind kind;
+    SourceSpan span;
 
     union {
         struct {

@@ -134,6 +134,7 @@ static bool convert_pp_number(const PPToken *ppt, CToken *ct) {
 
 bool convert_ppt_to_ct(const PPToken *ppt, CToken *ct) {
     if (!ppt || !ct) return false;
+    ct->span = ppt->span;
 
     switch (ppt->kind) {
         case PP_TOKEN_EOF:
