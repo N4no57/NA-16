@@ -213,7 +213,9 @@ bool parser_parse_compound_statement(Parser *parser, CompoundStatement *result) 
 }
 
 bool parser_parse_function_definition(Parser *parser, FunctionDefinition *function) {
-    if (!parser_expected(parser, C_TOKEN_KW_INT, nullptr)) {
+    CToken declarator;
+
+    if (!parser_expected(parser, C_TOKEN_KW_INT, &declarator)) {
         return false;
     }
 
@@ -249,6 +251,11 @@ bool parser_parse_function_definition(Parser *parser, FunctionDefinition *functi
     if (!parser_parse_compound_statement(parser, &function->body)) {
         return false;
     }
+
+    function->span = (SourceSpan){
+        .begin = declarator.span.begin,
+        .end = function->body.span.end
+    };
 
     return true;
 }
