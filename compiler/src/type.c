@@ -251,7 +251,7 @@ uint16_t ctype_alignment(const CType *type, const TargetInfo *target) {
             ].object.alignment;
 
         case CTYPE_POINTER:
-            return target->object_pointer.size;
+            return target->object_pointer.alignment;
 
         case CTYPE_VOID:
             return 0;

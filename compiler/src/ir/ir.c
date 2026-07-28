@@ -77,7 +77,6 @@ static bool lower_expression(Expression *expression, IRValue *result) {
 static bool lower_jump_statement(JumpStatement *statement, IRBasicBlock *block) {
     IRInstruction instruction = {
         .kind = IR_INSTRUCTION_RETURN,
-        .source_span = nullptr,
         .data.return_instruction = {
             .has_value = statement->data.return_statement.expression != nullptr
         }
@@ -85,7 +84,10 @@ static bool lower_jump_statement(JumpStatement *statement, IRBasicBlock *block) 
 
     switch (statement->kind) {
         case JUMP_STATEMENT_RETURN:
-            if (!lower_expression(statement->data.return_statement.expression, &instruction.data.return_instruction.value)) return false;
+            if (statement->data.return_statement.expression != nullptr) {
+                if (!lower_expression(statement->data.return_statement.expression, &instruction.data.return_instruction.value)) return false;
+            }
+            instruction.source_span = statement->data.return_statement.expression->span;
             block->terminated = true;
             return ir_instruction_append(block, &instruction);
     }

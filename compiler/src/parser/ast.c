@@ -14,7 +14,7 @@ bool translation_unit_init(TranslationUnit *unit) {
 bool push_external_declaration(TranslationUnit *unit, const ExternalDeclaration *external_declaration) {
     if (unit->count == unit->capacity) {
         unit->capacity *= 2;
-        ExternalDeclaration *tmp = realloc(unit->items, sizeof(FunctionDefinition) * unit->capacity);
+        ExternalDeclaration *tmp = realloc(unit->items, sizeof(ExternalDeclaration) * unit->capacity);
         if (!tmp) return false;
 
         unit->items = tmp;

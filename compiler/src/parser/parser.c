@@ -125,7 +125,7 @@ static bool parser_parse_jump_statement(Parser *parser, Statement *result) {
 
     Expression *expression = nullptr;
 
-    if (!parser_match(parser, C_TOKEN_SEMICOLON)) {
+    if (parser_peek(parser)->kind != C_TOKEN_SEMICOLON) {
         expression = parser_parse_expression(parser);
 
         if (expression == nullptr) {
@@ -179,8 +179,8 @@ bool parser_parse_compound_statement(Parser *parser, CompoundStatement *result) 
     compound.capacity = 8;
     compound.items = malloc(sizeof(BlockItem) * compound.capacity);
 
-    while (!parser_match(parser, C_TOKEN_RIGHT_BRACE) &&
-           !parser_match(parser, C_TOKEN_EOF)) {
+    while (parser_peek(parser)->kind != C_TOKEN_RIGHT_BRACE &&
+           parser_peek(parser)->kind != C_TOKEN_EOF) {
         BlockItem item;
         item.kind = BLOCK_ITEM_STATEMENT;
 
@@ -276,7 +276,7 @@ bool parser_parse_external_declaration(Parser *parser, TranslationUnit *unit) {
 
 bool parser_parse_translation_unit(Parser *parser, TranslationUnit *unit) {
     while (parser_peek(parser)->kind != C_TOKEN_EOF) {
-        parser_parse_external_declaration(parser, unit);
+        if (!parser_parse_external_declaration(parser, unit)) return false;
     }
 
     return true;

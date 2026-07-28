@@ -37,7 +37,5 @@ bool analyse_compound_statement(SemanticContext *context, const CompoundStatemen
 bool analyse_function_definition(SemanticContext *context, const FunctionDefinition *function) {
     context->current_function_return_type = function->return_type;
 
-    analyse_compound_statement(context, &function->body);
-
-    return true;
+    return analyse_compound_statement(context, &function->body);
 }

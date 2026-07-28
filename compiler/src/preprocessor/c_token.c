@@ -170,8 +170,7 @@ bool convert_ppt_to_ct(const PPToken *ppt, CToken *ct) {
             return true;
 
         case PP_TOKEN_NUMBER:
-            convert_pp_number(ppt, ct);
-            return true;
+            return convert_pp_number(ppt, ct);
 
         default:
             // there was an error but not gonna handle that as of yet
