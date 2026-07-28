@@ -83,6 +83,63 @@ void preprocessor_init(Preprocessor *preprocessor, Lexer *lexer) {
     preprocessor->stack = malloc(sizeof(PPToken) * preprocessor->stack_size);
 }
 
+static bool parse_directive(Preprocessor *preprocessor, PPToken *token) {
+    char *directive = copy_string(&token->span);
+    lexer_next(preprocessor->lexer, token, nullptr);
+
+    if (strcmp("define", directive) == 0) {
+        if (token->kind != PP_TOKEN_IDENTIFIER) {
+            free(directive);
+            return false;
+        }
+
+        Macro macro = (Macro){
+            .name = copy_string(&token->span),
+        };
+
+        PPToken *replacement_list = malloc(sizeof(PPToken) * 8);
+        size_t capacity = 8;
+        size_t count = 0;
+
+        lexer_next(preprocessor->lexer, token, nullptr);
+
+        while (token->kind != PP_TOKEN_EOF &&
+            token->kind != PP_TOKEN_NEWLINE
+        ) {
+            if (count >= capacity) {
+                capacity *= 2;
+                PPToken *tmp = realloc(replacement_list, capacity * sizeof(PPToken));
+                if (!tmp) {
+                    free(directive);
+                    free(replacement_list);
+                    return false;
+                }
+                replacement_list = tmp;
+            }
+
+            replacement_list[count++] = *token;
+            lexer_next(preprocessor->lexer, token, nullptr);
+        }
+
+        macro.replacement_count = count;
+        macro.replacement = replacement_list;
+
+        macro_table_define(&preprocessor->macro_table, macro);
+    } else if (strcmp("undef", directive) == 0) {
+        if (token->kind != PP_TOKEN_IDENTIFIER) {
+            free(directive);
+            return false;
+        }
+        char *name = copy_string(&token->span);
+
+        macro_table_undef(&preprocessor->macro_table, name);
+        free(name);
+    }
+
+    free(directive);
+    return true;
+}
+
 bool preprocessor_next(Preprocessor *preprocessor, PPToken *token, LexerError *error) {
     if (!preprocessor || !preprocessor->lexer || !token) {
         return false;
@@ -100,7 +157,10 @@ bool preprocessor_next(Preprocessor *preprocessor, PPToken *token, LexerError *e
 
         if (token->kind == PP_TOKEN_HASH) {
             lexer_next(preprocessor->lexer, token, error);
-            is_directive(token);
+            if (!is_directive(token)) continue;
+
+            parse_directive(preprocessor, token);
+
             continue;
         }
 
@@ -110,7 +170,12 @@ bool preprocessor_next(Preprocessor *preprocessor, PPToken *token, LexerError *e
             Macro *macro = macro_table_find(&preprocessor->macro_table, identifier);
 
             if (macro != nullptr) {
+                for (size_t i = macro->replacement_count; i-- > 0;) {
+                    push_stack(preprocessor, macro->replacement);
+                }
 
+                free(identifier);
+                continue;
             }
 
             free(identifier);

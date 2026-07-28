@@ -16,7 +16,7 @@ Macro *macro_table_find(const MacroTable *table, const char *name) {
 }
 
 bool macro_table_define(MacroTable *table, const Macro macro) {
-    if (macro_table_find(table, macro.name) == nullptr) {
+    if (macro_table_find(table, macro.name) != nullptr) {
         return false;
     }
 
