@@ -1,0 +1,4 @@
+#ifndef NA_16_NA16_CODEGEN_H
+#define NA_16_NA16_CODEGEN_H
+
+#endif //NA_16_NA16_CODEGEN_H
