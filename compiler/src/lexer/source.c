@@ -16,7 +16,7 @@ char trigraph_replacement[] = {
     ['-'] = '~'
 };
 
-void phase_1_normalise(SourceFile *source) {
+static void phase_1_normalise(SourceFile *source) {
     char *text = source->contents;
     size_t i = 0;
 
@@ -44,7 +44,7 @@ void phase_1_normalise(SourceFile *source) {
                 case '<':
                 case '>':
                 case '-':
-                    text[start] = trigraph_replacement[text[i]];
+                    text[start] = trigraph_replacement[(size_t)text[i]];
                     memmove(text+start+1, text+i+1, source->length-i);
                     source->length -= 2;
                     i = start;
@@ -57,7 +57,7 @@ void phase_1_normalise(SourceFile *source) {
     }
 }
 
-void phase_2_splice(SourceFile *source) {
+static void phase_2_splice(SourceFile *source) {
     char *text = source->contents;
     size_t i = 0;
 
@@ -90,8 +90,8 @@ bool source_file_load(SourceFile *source, const char *path) {
     source->contents[source->length] = '\0';
     source->path = strdup(path);
 
-    void phase_1_normalise(SourceFile *source);
-    void phase_2_splice(SourceFile *source);
+    phase_1_normalise(source);
+    phase_2_splice(source);
 
     return true;
 }
