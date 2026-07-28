@@ -33,6 +33,6 @@ void lexer_init(Lexer *lexer, const SourceFile *source);
  * Lexical errors return false and populate error.
  */
 bool lexer_next(Lexer *lexer, PPToken *token, LexerError *error);
-bool lexer_next_header_name(Lexer *lexer, PPToken *token, LexerError *error);
+bool lexer_next_header_name(Lexer *lexer, PPToken *token, LexerError *error, bool h_char);
 
 #endif //NA_16_LEXER_H

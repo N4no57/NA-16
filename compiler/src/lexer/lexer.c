@@ -124,6 +124,48 @@ static bool is_ascii_digit(const char character) {
     return (character >= '0' && character <= '9');
 }
 
+static bool graphic_chars[] = {
+    ['_'] = true,
+    ['{'] = true,
+    ['}'] = true,
+    ['['] = true,
+    [']'] = true,
+    ['#'] = true,
+    ['('] = true,
+    [')'] = true,
+    ['<'] = true,
+    ['>'] = true,
+    ['%'] = true,
+    [':'] = true,
+    [';'] = true,
+    ['.'] = true,
+    ['?'] = true,
+    ['*'] = true,
+    ['+'] = true,
+    ['-'] = true,
+    ['/'] = true,
+    ['^'] = true,
+    ['&'] = true,
+    ['|'] = true,
+    ['~'] = true,
+    ['!'] = true,
+    ['='] = true,
+    [','] = true,
+    ['\\'] = true,
+    ['"'] = true,
+    ['\''] = true
+};
+
+static bool is_graphic_character(const char character) {
+    return graphic_chars[(size_t)character];
+}
+
+static bool is_source_character(const char character) {
+    return is_ascii_letter(character) ||
+        is_ascii_digit(character) ||
+        is_graphic_character(character);
+}
+
 static bool lexer_starts_ucn(const Lexer *lexer) {
     if (lexer_peek(lexer, 0) == '\\' &&
         (lexer_peek(lexer, 1) == 'u' || lexer_peek(lexer, 1) == 'U')
@@ -1101,6 +1143,50 @@ bool lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
     }
 }
 
-bool lexer_next_header_name(Lexer *lexer, PPToken *token, LexerError *error) {
+bool lexer_next_header_name(Lexer *lexer, PPToken *token, LexerError *error, const bool h_char) {
+    bool has_char = false;
+    const SourceLocation begin = lexer_location(lexer);
 
+    const bool leading_space = lexer->pending_space;
+    const bool start_of_line = lexer->start_of_line;
+
+    if (h_char) {
+        while (lexer_peek(lexer, 0) != '\n' ||
+            lexer_peek(lexer, 0) != '>' ||
+            is_source_character(lexer_peek(lexer, 0))) {
+            has_char = true;
+            lexer_advance(lexer);
+        }
+    } else {
+        while (lexer_peek(lexer, 0) != '\n' ||
+            lexer_peek(lexer, 0) != '"' ||
+            is_source_character(lexer_peek(lexer, 0))) {
+            has_char = true;
+            lexer_advance(lexer);
+        }
+    }
+
+    if (!has_char) {
+        if (error != nullptr) {
+            *error = (LexerError){
+                .span = {
+                    .begin = begin,
+                    .end = lexer_location(lexer),
+                },
+                .message = "header path is empty"
+            };
+        }
+
+        return false;
+    }
+
+    *token = make_token(
+        lexer,
+        PP_TOKEN_HEADER_NAME,
+        &begin,
+        leading_space,
+        start_of_line
+    );
+
+    return true;
 }
