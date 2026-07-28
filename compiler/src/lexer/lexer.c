@@ -1,5 +1,79 @@
 #include "lexer.h"
 
+typedef struct PunctuatorEntry {
+    const char *spelling;
+    size_t length;
+    PPTokenKind kind;
+} PunctuatorEntry;
+
+#define PUNCTUATOR(text, token_kind) \
+    { text, sizeof(text) - 1, token_kind }
+
+static const PunctuatorEntry punctuators[] = {
+    PUNCTUATOR("%:%:", PP_TOKEN_HASH_HASH),
+
+    PUNCTUATOR("<<=", PP_TOKEN_SHIFT_LEFT_ASSIGN),
+    PUNCTUATOR(">>=", PP_TOKEN_SHIFT_RIGHT_ASSIGN),
+    PUNCTUATOR("...", PP_TOKEN_ELLIPSIS),
+
+    PUNCTUATOR("->", PP_TOKEN_ARROW),
+    PUNCTUATOR("++", PP_TOKEN_INCREMENT),
+    PUNCTUATOR("--", PP_TOKEN_DECREMENT),
+    PUNCTUATOR("<<", PP_TOKEN_SHIFT_LEFT),
+    PUNCTUATOR(">>", PP_TOKEN_SHIFT_RIGHT),
+    PUNCTUATOR("<=", PP_TOKEN_LESS_EQUAL),
+    PUNCTUATOR(">=", PP_TOKEN_GREATER_EQUAL),
+    PUNCTUATOR("==", PP_TOKEN_EQUAL_EQUAL),
+    PUNCTUATOR("!=", PP_TOKEN_NOT_EQUAL),
+    PUNCTUATOR("&&", PP_TOKEN_LOGICAL_AND),
+    PUNCTUATOR("||", PP_TOKEN_LOGICAL_OR),
+    PUNCTUATOR("*=", PP_TOKEN_MULTIPLY_ASSIGN),
+    PUNCTUATOR("/=", PP_TOKEN_DIVIDE_ASSIGN),
+    PUNCTUATOR("%=", PP_TOKEN_REMAINDER_ASSIGN),
+    PUNCTUATOR("+=", PP_TOKEN_ADD_ASSIGN),
+    PUNCTUATOR("-=", PP_TOKEN_SUBTRACT_ASSIGN),
+    PUNCTUATOR("&=", PP_TOKEN_AND_ASSIGN),
+    PUNCTUATOR("^=", PP_TOKEN_XOR_ASSIGN),
+    PUNCTUATOR("|=", PP_TOKEN_OR_ASSIGN),
+
+    PUNCTUATOR("<:", PP_TOKEN_LEFT_BRACKET),
+    PUNCTUATOR(":>", PP_TOKEN_RIGHT_BRACKET),
+    PUNCTUATOR("<%", PP_TOKEN_LEFT_BRACE),
+    PUNCTUATOR("%>", PP_TOKEN_RIGHT_BRACE),
+    PUNCTUATOR("%:", PP_TOKEN_HASH),
+    PUNCTUATOR("##", PP_TOKEN_HASH_HASH),
+
+    PUNCTUATOR("[", PP_TOKEN_LEFT_BRACKET),
+    PUNCTUATOR("]", PP_TOKEN_RIGHT_BRACKET),
+    PUNCTUATOR("(", PP_TOKEN_LEFT_PAREN),
+    PUNCTUATOR(")", PP_TOKEN_RIGHT_PAREN),
+    PUNCTUATOR("{", PP_TOKEN_LEFT_BRACE),
+    PUNCTUATOR("}", PP_TOKEN_RIGHT_BRACE),
+    PUNCTUATOR(".", PP_TOKEN_DOT),
+    PUNCTUATOR("&", PP_TOKEN_AMPERSAND),
+    PUNCTUATOR("*", PP_TOKEN_ASTERISK),
+    PUNCTUATOR("+", PP_TOKEN_PLUS),
+    PUNCTUATOR("-", PP_TOKEN_MINUS),
+    PUNCTUATOR("~", PP_TOKEN_TILDE),
+    PUNCTUATOR("!", PP_TOKEN_EXCLAMATION),
+    PUNCTUATOR("/", PP_TOKEN_SLASH),
+    PUNCTUATOR("%", PP_TOKEN_PERCENT),
+    PUNCTUATOR("<", PP_TOKEN_LESS),
+    PUNCTUATOR(">", PP_TOKEN_GREATER),
+    PUNCTUATOR("^", PP_TOKEN_CARET),
+    PUNCTUATOR("|", PP_TOKEN_PIPE),
+    PUNCTUATOR("?", PP_TOKEN_QUESTION),
+    PUNCTUATOR(":", PP_TOKEN_COLON),
+    PUNCTUATOR(";", PP_TOKEN_SEMICOLON),
+    PUNCTUATOR("=", PP_TOKEN_ASSIGN),
+    PUNCTUATOR(",", PP_TOKEN_COMMA),
+    PUNCTUATOR("#", PP_TOKEN_HASH)
+};
+
+static size_t punctuator_list_size = sizeof(punctuators) / sizeof(punctuators[0]);
+
+#undef PUNCTUATOR
+
 static bool lexer_at_end(const Lexer *lexer) {
     return lexer->offset >= lexer->source->length;
 }
@@ -89,6 +163,16 @@ void lexer_init(Lexer *lexer, const SourceFile *source) {
     };
 }
 
+static bool lexer_matches(const Lexer *lexer, const char *text, const size_t length) {
+    for (size_t i = 0; i < length; ++i) {
+        if (lexer_peek(lexer, i) != text[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 static PPToken make_token(
     Lexer *lexer,
     const PPTokenKind kind,
@@ -117,16 +201,42 @@ static PPToken make_token(
     return token;
 }
 
+bool lex_punctuator(Lexer *lexer, PPToken *result, SourceLocation begin, bool leading_space, bool start_of_line) {
+    for (size_t i = 0; i < punctuator_list_size; i++) {
+        const PunctuatorEntry *entry = &punctuators[i];
+
+        if (!lexer_matches(lexer, entry->spelling, entry->length)) {
+            continue;
+        }
+
+        for (size_t j = 0; j < entry->length; j++) {
+            lexer_advance(lexer);
+        }
+
+        *result = make_token(
+            lexer,
+            entry->kind,
+            &begin,
+            leading_space,
+            start_of_line
+        );
+
+        return true;
+    }
+
+    return false;
+}
+
 static PPToken lex_pp_number(
     Lexer *lexer,
-    SourceLocation *begin,
+    const SourceLocation *begin,
     const bool leading_space,
     const bool start_of_line
 ) {
     char previous = '\0';
 
     while (!lexer_at_end(lexer)) {
-        char current = lexer_peek(lexer, 0);
+        const char current = lexer_peek(lexer, 0);
 
         if (is_pp_number_continue(current)) {
             previous = lexer_advance(lexer);
@@ -160,7 +270,7 @@ static PPToken lex_pp_number(
 
 static PPToken lex_identifier(
     Lexer *lexer,
-    SourceLocation *begin,
+    const SourceLocation *begin,
     const bool leading_space,
     const bool start_of_line
 ) {
@@ -182,7 +292,19 @@ static PPToken lex_identifier(
 bool lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
     for (;;) {
         if (lexer_at_end(lexer)) {
-            SourceLocation location = lexer_location(lexer);
+            const SourceLocation location = lexer_location(lexer);
+
+            if (lexer->inside_block_comment) {
+                *error = (LexerError){
+                    .span = {
+                        .begin = lexer->block_comment_start,
+                        .end = location
+                    },
+                    .message = "unterminated block comment"
+                };
+
+                return false;
+            }
 
             *token = make_token(
                 lexer,
@@ -204,7 +326,7 @@ bool lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
         }
 
         if (current == '\n') {
-            SourceLocation begin = lexer_location(lexer);
+            const SourceLocation begin = lexer_location(lexer);
 
             lexer_advance(lexer);
 
@@ -231,10 +353,10 @@ bool lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
             continue;
         }
 
-        SourceLocation begin = lexer_location(lexer);
+        const SourceLocation begin = lexer_location(lexer);
 
-        bool leading_space = lexer->pending_space;
-        bool start_of_line = lexer->start_of_line;
+        const bool leading_space = lexer->pending_space;
+        const bool start_of_line = lexer->start_of_line;
 
         if (is_identifier_start(current)) {
             *token = lex_identifier(
@@ -245,6 +367,23 @@ bool lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
             );
 
             return true;
+        }
+
+        if (current == '/' && lexer_peek(lexer, 1) == '/') {
+            while (!lexer_at_end(lexer) && lexer_peek(lexer, 0) != '\0') {
+                lexer_advance(lexer);
+            }
+
+            lexer->pending_space = true;
+
+            continue;
+        }
+
+        if (current == '/' && lexer_peek(lexer, 1) == '*') {
+            lexer_advance(lexer);
+            lexer->inside_block_comment = true;
+            lexer->block_comment_start = lexer_location(lexer);
+            continue;
         }
 
         if (
@@ -263,92 +402,18 @@ bool lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
 
         lexer_advance(lexer);
 
-        switch (current) {
-            case '(':
-                *token = make_token(
-                    lexer,
-                    PP_TOKEN_LEFT_PAREN,
-                    &begin,
-                    leading_space,
-                    start_of_line
-                );
-                return true;
-
-            case ')':
-                *token = make_token(
-                    lexer,
-                    PP_TOKEN_RIGHT_PAREN,
-                    &begin,
-                    leading_space,
-                    start_of_line
-                );
-                return true;
-
-            case '{':
-                *token = make_token(
-                    lexer,
-                    PP_TOKEN_LEFT_BRACE,
-                    &begin,
-                    leading_space,
-                    start_of_line
-                );
-                return true;
-
-            case '}':
-                *token = make_token(
-                    lexer,
-                    PP_TOKEN_RIGHT_BRACE,
-                    &begin,
-                    leading_space,
-                    start_of_line
-                );
-                return true;
-
-            case ';':
-                *token = make_token(
-                    lexer,
-                    PP_TOKEN_SEMICOLON,
-                    &begin,
-                    leading_space,
-                    start_of_line
-                );
-                return true;
-
-            case ',':
-                *token = make_token(
-                    lexer,
-                    PP_TOKEN_COMMA,
-                    &begin,
-                    leading_space,
-                    start_of_line
-                );
-                return true;
-
-            case '/':
-                if (lexer_peek(lexer, 0) == '/') {
-                    while (current != '\n' && current != '\0') {
-                        lexer_advance(lexer);
-                        current = lexer_peek(lexer, 0);
-                    }
-
-                    lexer->pending_space = true;
-                } else if (lexer_peek(lexer, 0) == '*') {
-                    lexer_advance(lexer);
-                    lexer->inside_block_comment = true;
-                }
-
-                continue;
-
-            default:
-                if (error != NULL) {
-                    error->span.begin = begin;
-                    error->span.end =
-                        lexer_location(lexer);
-                    error->message =
-                        "invalid character in source file";
-                }
-
-                return false;
+        if (lex_punctuator(lexer, token, lexer_location(lexer), leading_space, start_of_line)) {
+            return true;
         }
+
+        make_token(
+            lexer,
+            PP_TOKEN_OTHER_CHARACTER,
+            &begin,
+            leading_space,
+            start_of_line
+        );
+
+        return true;
     }
 }

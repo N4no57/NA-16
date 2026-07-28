@@ -17,6 +17,7 @@ typedef struct Lexer {
     bool pending_space;
 
     bool inside_block_comment;
+    SourceLocation block_comment_start;
 } Lexer;
 
 typedef struct LexerError {

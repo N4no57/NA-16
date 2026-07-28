@@ -1,16 +1,13 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <wchar.h>
 
 #include "target/target.h"
-#include "type.h"
 #include "backend/na16_codegen.h"
 #include "ir/ir.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
 #include "parser/token_stream.h"
-#include "preprocessor/c_token.h"
 #include "preprocessor/preprocessor.h"
 #include "semantic_analyser/analyser.h"
 
