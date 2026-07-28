@@ -19,4 +19,5 @@ add_executable(Compiler src/main.c
         src/semantic_analyser/analyser.c src/semantic_analyser/analyser.h
         src/ir/ir.c src/ir/ir.h
         src/backend/na16_codegen.c src/backend/na16_codegen.h
+        src/preprocessor/macro.c src/preprocessor/macro.h
 )
