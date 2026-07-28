@@ -4,20 +4,94 @@
 #include <stdlib.h>
 #include <string.h>
 
+char trigraph_replacement[] = {
+    ['='] = '#',
+    ['/'] = '\\',
+    ['\''] = '^',
+    ['('] = '[',
+    [')'] = ']',
+    ['!'] = '|',
+    ['<'] = '{',
+    ['>'] = '}',
+    ['-'] = '~'
+};
+
+void phase_1_normalise(SourceFile *source) {
+    char *text = source->contents;
+    size_t i = 0;
+
+    while (i < source->length) {
+        if (text[i] == '\r') {
+            if (text[i+1] == '\n') {
+                memmove(text+i, text+i+1, source->length-i);
+                source->length--;
+            } else {
+                text[i] = '\n';
+            }
+        }
+
+        if (text[i] == '?' && text[i+1] == '?') {
+            const size_t start = i;
+            i += 2;
+
+            switch (text[i]) {
+                case '=':
+                case '/':
+                case '\'':
+                case '(':
+                case ')':
+                case '!':
+                case '<':
+                case '>':
+                case '-':
+                    text[start] = trigraph_replacement[text[i]];
+                    memmove(text+start+1, text+i+1, source->length-i);
+                    source->length -= 2;
+                    i = start;
+                default:
+                    break;
+            }
+        }
+
+        i++;
+    }
+}
+
+void phase_2_splice(SourceFile *source) {
+    char *text = source->contents;
+    size_t i = 0;
+
+    while (i < source->length) {
+        if (text[i] == '\\' && text[i+1] == '\n') {
+            memmove(text+i, text+i+2, source->length-i-1);
+            source->length -= 2;
+        }
+
+        i++;
+    }
+}
+
 bool source_file_load(SourceFile *source, const char *path) {
-    FILE *f = fopen(path, "r");
+    FILE *f = fopen(path, "rb");
 
     if (!f) return false;
 
     fseek(f, 0, SEEK_END);
     source->length = (size_t)ftell(f);
     source->contents = malloc(source->length+1);
-    fseek(f, 0, SEEK_SET);
+    if (source->contents == nullptr) {
+        return false;
+    }
+
+    rewind(f);
     fread(source->contents, 1, source->length, f);
     fclose(f);
 
     source->contents[source->length] = '\0';
     source->path = strdup(path);
+
+    void phase_1_normalise(SourceFile *source);
+    void phase_2_splice(SourceFile *source);
 
     return true;
 }

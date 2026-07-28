@@ -30,7 +30,9 @@ int main(void) {
 
     translation_unit_init(&unit);
 
-    parser_parse_translation_unit(&parser, &unit);
+    if (!parser_parse_translation_unit(&parser, &unit)) {
+        return 1;
+    }
 
     SemanticContext semantic_context = {
         .target = target_na16(),
