@@ -1,5 +1,8 @@
 #include "lexer.h"
 
+#include <stdio.h>
+#include <string.h>
+
 typedef struct PunctuatorEntry {
     const char *spelling;
     size_t length;
@@ -227,6 +230,157 @@ bool lex_punctuator(Lexer *lexer, PPToken *result, SourceLocation begin, bool le
     return false;
 }
 
+static bool lex_quoted_token(
+    Lexer *lexer,
+    PPToken *result,
+    LexerError *error,
+    SourceLocation begin,
+    const bool leading_space,
+    const bool start_of_line,
+    bool wide,
+    char quote
+) {
+    if (wide) {
+        lexer_advance(lexer); // L
+    }
+
+    lexer_advance(lexer); // opening quote
+
+    bool has_character = false;
+
+    while (!lexer_at_end(lexer)) {
+        const char current = lexer_peek(lexer, 0);
+
+        if (current == '\n') {
+            if (error != nullptr) {
+                char literal_kind[256] = "character literal\0";
+                if (quote == '"') {
+                    sprintf(literal_kind, "string literal");
+                }
+
+                *error = (LexerError){
+                    .span = {
+                        .begin = begin,
+                        .end = lexer_location(lexer)
+                    }
+                };
+
+                snprintf(
+                    error->message,
+                    sizeof(error->message),
+                    "Could not find %c to end %s",
+                    quote,
+                    literal_kind
+                );
+            }
+
+            return false;
+        }
+
+        if (current == quote) {
+            lexer_advance(lexer);
+
+            /*
+             * Character constants require at least one c-char.
+             * Empty strings are valid.
+             */
+            if (quote == '\'' && !has_character) {
+                if (error != nullptr) {
+                    *error = (LexerError){
+                        .span = {
+                            .begin = begin,
+                            .end = lexer_location(lexer)
+                        },
+                        .message = "character literal needs a character in the quotation marks"
+                    };
+                }
+
+                return false;
+            }
+
+            *result = make_token(
+                lexer,
+                quote == '\''
+                    ? PP_TOKEN_CHARACTER_CONSTANT
+                    : PP_TOKEN_STRING_LITERAL,
+                &begin,
+                leading_space,
+                start_of_line
+            );
+
+            result->wide = wide;
+            return true;
+        }
+
+
+        if (current == '\\') {
+            lexer_advance(lexer); // backslash
+
+            if (lexer_at_end(lexer)) {
+                if (error != nullptr) {
+                    *error = (LexerError){
+                        .span = {
+                            .begin = begin,
+                            .end = lexer_location(lexer)
+                        },
+                        .message = "escape character incomplete while at end of file"
+                    };
+                }
+
+                return false;
+            }
+
+            /*
+             * Translation-phase line splicing should already have removed
+             * backslash-newline pairs. Seeing one here is therefore invalid.
+             */
+            if (lexer_peek(lexer, 0) == '\n') {
+                if (error != nullptr) {
+                    *error = (LexerError){
+                        .span = {
+                            .begin = begin,
+                            .end = lexer_location(lexer)
+                        },
+                        .message = "escape character incomplete while at newline"
+                    };
+                }
+
+                return false;
+            }
+
+            lexer_advance(lexer); // first character of escape sequence
+            has_character = true;
+            continue;
+        }
+
+        lexer_advance(lexer);
+        has_character = true;
+    }
+
+    if (error != nullptr) {
+        char literal_kind[256] = "character literal\0";
+        if (quote == '"') {
+            sprintf(literal_kind, "string literal");
+        }
+
+        *error = (LexerError){
+            .span = {
+                .begin = begin,
+                .end = lexer_location(lexer)
+            }
+        };
+
+        snprintf(
+            error->message,
+            sizeof(error->message),
+            "incomplete %s",
+            literal_kind
+        );
+    }
+
+    return false;
+}
+
 static PPToken lex_pp_number(
     Lexer *lexer,
     const SourceLocation *begin,
@@ -346,6 +500,7 @@ bool lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
             if (current == '*') {
                 if (lexer_peek(lexer, 0) == '/') {
                     lexer->inside_block_comment = false;
+                    lexer->pending_space = true;
                     lexer_advance(lexer);
                 }
             }
@@ -358,6 +513,56 @@ bool lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
         const bool leading_space = lexer->pending_space;
         const bool start_of_line = lexer->start_of_line;
 
+        if (current == '/' && lexer_peek(lexer, 1) == '/') {
+            lexer_advance(lexer); // "/"
+            lexer_advance(lexer); // "/"
+
+            while (!lexer_at_end(lexer) && lexer_peek(lexer, 0) != '\n') {
+                lexer_advance(lexer);
+            }
+
+            lexer->pending_space = true;
+            continue;
+        }
+
+        if (current == '/' && lexer_peek(lexer, 1) == '*') {
+            lexer_advance(lexer); // "/"
+            lexer_advance(lexer); // "*"
+
+            lexer->inside_block_comment = true;
+            lexer->block_comment_start = lexer_location(lexer);
+            continue;
+        }
+
+        if (
+            current == '"' ||
+            current == '\'' ||
+            (
+                current == 'L' &&
+                (
+                    lexer_peek(lexer, 1) == '"' ||
+                    lexer_peek(lexer, 1) == '\''
+                )
+            )
+        ) {
+            const bool wide = current == 'L' ? true : false;
+            char quote = current;
+            if (wide) quote = lexer_peek(lexer, 1);
+
+            if (!lex_quoted_token(
+                lexer,
+                token,
+                error,
+                lexer_location(lexer),
+                leading_space,
+                start_of_line,
+                wide,
+                quote
+            )) return false;
+
+            return true;
+        }
+
         if (is_identifier_start(current)) {
             *token = lex_identifier(
                 lexer,
@@ -367,23 +572,6 @@ bool lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
             );
 
             return true;
-        }
-
-        if (current == '/' && lexer_peek(lexer, 1) == '/') {
-            while (!lexer_at_end(lexer) && lexer_peek(lexer, 0) != '\0') {
-                lexer_advance(lexer);
-            }
-
-            lexer->pending_space = true;
-
-            continue;
-        }
-
-        if (current == '/' && lexer_peek(lexer, 1) == '*') {
-            lexer_advance(lexer);
-            lexer->inside_block_comment = true;
-            lexer->block_comment_start = lexer_location(lexer);
-            continue;
         }
 
         if (
@@ -400,13 +588,13 @@ bool lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
             return true;
         }
 
-        lexer_advance(lexer);
-
         if (lex_punctuator(lexer, token, lexer_location(lexer), leading_space, start_of_line)) {
             return true;
         }
 
-        make_token(
+        lexer_advance(lexer);
+
+        *token = make_token(
             lexer,
             PP_TOKEN_OTHER_CHARACTER,
             &begin,
@@ -416,4 +604,8 @@ bool lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
 
         return true;
     }
+}
+
+bool lexer_next_header_name(Lexer *lexer, PPToken *token, LexerError *error) {
+
 }

@@ -22,7 +22,7 @@ typedef struct Lexer {
 
 typedef struct LexerError {
     SourceSpan span;
-    const char *message;
+    char message[256];
 } LexerError;
 
 void lexer_init(Lexer *lexer, const SourceFile *source);
@@ -33,5 +33,6 @@ void lexer_init(Lexer *lexer, const SourceFile *source);
  * Lexical errors return false and populate error.
  */
 bool lexer_next(Lexer *lexer, PPToken *token, LexerError *error);
+bool lexer_next_header_name(Lexer *lexer, PPToken *token, LexerError *error);
 
 #endif //NA_16_LEXER_H

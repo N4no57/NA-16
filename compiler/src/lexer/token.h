@@ -110,6 +110,11 @@ typedef struct PPToken {
      * from an ordinary # token in another context.
      */
     bool start_of_line;
+
+    /*
+     * Used when token is a string or character literal
+     */
+    bool wide;
 } PPToken;
 
 const char *pp_token_kind_name(PPTokenKind kind);
