@@ -5,7 +5,8 @@
 
 bool ir_instruction_append(IRBasicBlock *block, const IRInstruction *instruction) {
     if (block->instruction_count >= block->instruction_capacity) {
-        block->instruction_capacity *= 2;
+        if (block->instruction_capacity == 0) block->instruction_capacity = 8;
+        else block->instruction_capacity *= 2;
         IRInstruction *tmp = realloc(block->instructions, sizeof(IRInstruction) * block->instruction_capacity);
         if (tmp == nullptr) {
             return false;
