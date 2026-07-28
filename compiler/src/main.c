@@ -5,6 +5,7 @@
 
 #include "target/target.h"
 #include "type.h"
+#include "backend/na16_codegen.h"
 #include "ir/ir.h"
 #include "lexer/lexer.h"
 #include "parser/parser.h"
@@ -49,6 +50,12 @@ int main(void) {
     module.functions = malloc(sizeof(IRFunction) * module.function_capacity);
 
     lower_ast(&unit, &module);
+
+    {
+        FILE *output = fopen("a.asm", "w");
+        na16_emit_module(output, &module, target_na16());
+        fclose(output);
+    }
 
     translation_unit_destroy(&unit);
     source_file_destroy(&file);
