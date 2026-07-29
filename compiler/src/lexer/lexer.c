@@ -1,6 +1,7 @@
 #include "lexer.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 
 typedef struct PunctuatorEntry {
     const char *spelling;
@@ -253,8 +254,6 @@ typedef struct CodePointRange {
     uint32_t first;
     uint32_t last;
 } CodePointRange;
-
-#define countof(x) (sizeof(x)/sizeof((x)[0]))
 
 #define RANGE(first, last) { first, last }
 #define SINGLE(value)      { value, value }
@@ -542,7 +541,7 @@ static bool is_valid_c99_identifier_ucn(const uint32_t code_point, const bool is
     if (!code_point_in_ranges(
             code_point,
             c99_identifier_ucn_ranges,
-            countof(c99_identifier_ucn_ranges)
+            _countof(c99_identifier_ucn_ranges)
         )) {
         return false;
     }
@@ -552,7 +551,7 @@ static bool is_valid_c99_identifier_ucn(const uint32_t code_point, const bool is
         code_point_in_ranges(
             code_point,
             c99_identifier_digit_ranges,
-            countof(c99_identifier_digit_ranges)
+            _countof(c99_identifier_digit_ranges)
         )
     ) {
             return false;
