@@ -41,6 +41,13 @@ bool macro_table_define(MacroTable *table, const Macro macro) {
 void macro_table_undef(const MacroTable *table, const char *name) {
     Macro *macro = macro_table_find(table, name);
 
-    free(macro->name );
+    for (size_t i = 0; i < macro->parameter_count; i++) {
+        free(macro->parameters[i]);
+    }
+
+    free(macro->parameters);
+    free(macro->name);
     macro->name = nullptr;
+    macro->replacement = nullptr;
+    macro->parameters = nullptr;
 }

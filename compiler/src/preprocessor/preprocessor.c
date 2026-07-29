@@ -118,6 +118,70 @@ static bool get_next_token(Preprocessor *preprocessor, PPToken *token, LexerErro
     return false;
 }
 
+static bool get_parameters(Preprocessor *preprocessor, PPToken *token, LexerError *error, Macro *macro) {
+    macro->kind = MACRO_FUNCTION_LIKE;
+    if (!get_next_token(preprocessor, token, error)) return false;
+
+    char **parameter_list = malloc(sizeof(char *) * 8);
+    size_t capacity = 8;
+    size_t count = 0;
+
+
+    while (token->kind != PP_TOKEN_EOF &&
+        token->kind != PP_TOKEN_RIGHT_PAREN
+    ) {
+        if (count >= capacity) {
+            capacity *= 2;
+            char **tmp = realloc(parameter_list, sizeof(char *) * capacity);
+            if (!tmp) {
+                return false;
+            }
+            parameter_list = tmp;
+        }
+
+        if (token->kind != PP_TOKEN_IDENTIFIER) return false;
+
+        parameter_list[count++] = copy_string(&token->span);
+
+        if (!get_next_token(preprocessor, token, error)) return false;
+        if (token->kind != PP_TOKEN_COMMA) break;
+        if (!get_next_token(preprocessor, token, error)) return false;
+    }
+
+    if (token->kind != PP_TOKEN_RIGHT_PAREN) return false;
+    if (!get_next_token(preprocessor, token, error)) return false;
+
+    macro->parameter_count = count;
+    macro->parameters = parameter_list;
+
+    return true;
+}
+
+static PPToken *get_replacement_list(Preprocessor *preprocessor, PPToken *token, LexerError *error, size_t *count) {
+    PPToken *token_list = malloc(sizeof(PPToken) * 8);
+    size_t capacity = 8;
+    *count = 0;
+
+    while (token->kind != PP_TOKEN_EOF &&
+        token->kind != PP_TOKEN_NEWLINE
+    ) {
+        if (*count >= capacity) {
+            capacity *= 2;
+            PPToken *tmp = realloc(token_list, capacity * sizeof(PPToken));
+            if (!tmp) {
+                free(token_list);
+                return nullptr;
+            }
+            token_list = tmp;
+        }
+
+        token_list[(*count)++] = *token;
+        if (!get_next_token(preprocessor, token, error)) return nullptr;
+    }
+
+    return token_list;
+}
+
 static bool parse_directive(Preprocessor *preprocessor, PPToken *token, LexerError *error) {
     char *directive = copy_string(&token->span);
     const SourceLocation start = token->span.begin;
@@ -139,72 +203,13 @@ static bool parse_directive(Preprocessor *preprocessor, PPToken *token, LexerErr
 
         if (!get_next_token(preprocessor, token, error)) return false;
 
-        PPToken *token_list = malloc(sizeof(PPToken) * 8);
-        size_t capacity = 8;
-        size_t count = 0;
-
         if (token->kind == PP_TOKEN_LEFT_PAREN && !token->leading_space) {
             // it is a function like macro and should consume argument list
-            macro.kind = MACRO_FUNCTION_LIKE;
-            if (!get_next_token(preprocessor, token, error)) return false;
-
-            while (token->kind != PP_TOKEN_EOF &&
-                token->kind != PP_TOKEN_RIGHT_PAREN
-            ) {
-                if (count >= capacity) {
-                    capacity *= 2;
-                    PPToken *tmp = realloc(token_list, capacity * sizeof(PPToken));
-                    if (!tmp) {
-                        return false;
-                    }
-                    token_list = tmp;
-                }
-
-                if (token->kind != PP_TOKEN_IDENTIFIER) return false;
-
-                token_list[count++] = *token;
-
-                if (!get_next_token(preprocessor, token, error)) return false;
-                if (token->kind != PP_TOKEN_COMMA) break;
-                if (!get_next_token(preprocessor, token, error)) return false;
-            }
-
-            if (token->kind != PP_TOKEN_RIGHT_PAREN) return false;
-            if (!get_next_token(preprocessor, token, error)) return false;
-
-            macro.parameter_count = count;
-            macro.parameters = malloc(sizeof(char *) * macro.parameter_count);
-
-            for (size_t i = 0; i < macro.parameter_count; i++) {
-                macro.parameters[i] = copy_string(&token_list[i].span);
-            }
-
-            count = 0;
+            get_parameters(preprocessor, token, error, &macro);
         }
 
-        while (token->kind != PP_TOKEN_EOF &&
-            token->kind != PP_TOKEN_NEWLINE
-        ) {
-            if (count >= capacity) {
-                capacity *= 2;
-                PPToken *tmp = realloc(token_list, capacity * sizeof(PPToken));
-                if (!tmp) {
-                    free(directive);
-                    free(token_list);
-                    return false;
-                }
-                token_list = tmp;
-            }
-
-            token_list[count++] = *token;
-            get_next_token(preprocessor, token, nullptr);
-        }
-
-        macro.replacement_count = count;
-        macro.replacement = malloc(sizeof(PPToken) * macro.replacement_count);
-        memcpy(macro.replacement, token_list, sizeof(PPToken) * macro.replacement_count);
+        macro.replacement = get_replacement_list(preprocessor, token, error, &macro.replacement_count);
         macro.definition_span.end = macro.replacement[macro.replacement_count-1].span.end;
-        free(token_list);
 
         macro_table_define(&preprocessor->macro_table, macro);
     } else if (strcmp("undef", directive) == 0) {
@@ -262,7 +267,7 @@ static bool collect_macro_arguments(
 
         if (*token_count >= token_capacity) {
             token_capacity *= 2;
-            PPToken *tmp = realloc(token_list, token_capacity * sizeof(PPToken));
+            PPToken *tmp = realloc(*token_list, token_capacity * sizeof(PPToken));
             if (!tmp) {
                 free(args);
                 free(token_list);
@@ -297,7 +302,7 @@ static bool match_parameter(const Macro *macro, const char *string, size_t *idx)
     return false;
 }
 
-static PPToken *generate_expansion(Macro *macro, Argument *args, PPToken *arg_list) {
+static PPToken *generate_expansion(const Macro *macro, Argument *args, PPToken *arg_list) {
     size_t replacement_size = macro->replacement_count * 2;
     size_t count = 0;
     PPToken *token_list = malloc(sizeof(PPToken) * replacement_size);
