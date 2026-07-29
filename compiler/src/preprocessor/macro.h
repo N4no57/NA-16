@@ -3,8 +3,14 @@
 
 #include "../lexer/lexer.h"
 
+typedef enum MacroKind {
+    MACRO_OBJECT_LIKE,
+    MACRO_FUNCTION_LIKE
+} MacroKind;
+
 typedef struct Macro {
     char *name;
+    MacroKind kind;
 
     char **parameters;
     size_t parameter_count;
