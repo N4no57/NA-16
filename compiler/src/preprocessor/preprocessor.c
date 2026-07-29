@@ -83,9 +83,19 @@ void preprocessor_init(Preprocessor *preprocessor, Lexer *lexer) {
     preprocessor->stack = malloc(sizeof(PPToken) * preprocessor->stack_size);
 }
 
-static bool parse_directive(Preprocessor *preprocessor, PPToken *token) {
+static bool get_next_token(Preprocessor *preprocessor, PPToken *token, LexerError *error) {
+    if (preprocessor->stack_top > 0) {
+        *token = pop_stack(preprocessor);
+        return true;
+    }
+
+    return lexer_next(preprocessor->lexer, token, error);
+}
+
+static bool parse_directive(Preprocessor *preprocessor, PPToken *token, LexerError *error) {
     char *directive = copy_string(&token->span);
-    lexer_next(preprocessor->lexer, token, nullptr);
+    const SourceLocation start = token->span.begin;
+    if (!get_next_token(preprocessor, token, error)) return false;
 
     if (strcmp("define", directive) == 0) {
         if (token->kind != PP_TOKEN_IDENTIFIER) {
@@ -93,36 +103,82 @@ static bool parse_directive(Preprocessor *preprocessor, PPToken *token) {
             return false;
         }
 
-        Macro macro = (Macro){
+        Macro macro = {
             .name = copy_string(&token->span),
+            .kind = MACRO_OBJECT_LIKE,
+            .definition_span = {
+                .begin = start
+            }
         };
 
-        PPToken *replacement_list = malloc(sizeof(PPToken) * 8);
+        if (!get_next_token(preprocessor, token, error)) return false;
+
+        PPToken *token_list = malloc(sizeof(PPToken) * 8);
         size_t capacity = 8;
         size_t count = 0;
 
-        lexer_next(preprocessor->lexer, token, nullptr);
+        if (token->kind == PP_TOKEN_LEFT_PAREN && !token->leading_space) {
+            // it is a function like macro and should consume argument list
+            macro.kind = MACRO_FUNCTION_LIKE;
+            if (!get_next_token(preprocessor, token, error)) return false;
+
+            while (token->kind != PP_TOKEN_EOF &&
+                token->kind != PP_TOKEN_RIGHT_PAREN
+            ) {
+                if (count >= capacity) {
+                    capacity *= 2;
+                    PPToken *tmp = realloc(preprocessor->stack, capacity * sizeof(PPToken));
+                    if (!tmp) {
+                        return false;
+                    }
+                    token_list = tmp;
+                }
+
+                if (token->kind != PP_TOKEN_IDENTIFIER) return false;
+
+                token_list[count++] = *token;
+
+                if (!get_next_token(preprocessor, token, error)) return false;
+                if (token->kind != PP_TOKEN_COMMA) break;
+                if (!get_next_token(preprocessor, token, error)) return false;
+            }
+
+            if (token->kind != PP_TOKEN_RIGHT_PAREN) return false;
+            if (!get_next_token(preprocessor, token, error)) return false;
+
+            macro.parameter_count = count;
+            macro.parameters = malloc(sizeof(char *) * macro.parameter_count);
+
+            for (size_t i = 0; i < macro.parameter_count; i++) {
+                macro.parameters[i] = copy_string(&token->span);
+            }
+
+            count = 0;
+        }
 
         while (token->kind != PP_TOKEN_EOF &&
             token->kind != PP_TOKEN_NEWLINE
         ) {
             if (count >= capacity) {
                 capacity *= 2;
-                PPToken *tmp = realloc(replacement_list, capacity * sizeof(PPToken));
+                PPToken *tmp = realloc(token_list, capacity * sizeof(PPToken));
                 if (!tmp) {
                     free(directive);
-                    free(replacement_list);
+                    free(token_list);
                     return false;
                 }
-                replacement_list = tmp;
+                token_list = tmp;
             }
 
-            replacement_list[count++] = *token;
-            lexer_next(preprocessor->lexer, token, nullptr);
+            token_list[count++] = *token;
+            get_next_token(preprocessor, token, nullptr);
         }
 
         macro.replacement_count = count;
-        macro.replacement = replacement_list;
+        macro.replacement = malloc(sizeof(PPToken) * macro.replacement_count);
+        memcpy(macro.replacement, token_list, sizeof(PPToken) * macro.replacement_count);
+        macro.definition_span.end = macro.replacement[macro.replacement_count-1].span.end;
+        free(token_list);
 
         macro_table_define(&preprocessor->macro_table, macro);
     } else if (strcmp("undef", directive) == 0) {
@@ -146,20 +202,15 @@ bool preprocessor_next(Preprocessor *preprocessor, PPToken *token, LexerError *e
     }
 
     for (;;) {
-        if (preprocessor->stack_top > 0) {
-            *token = pop_stack(preprocessor);
-            return true;
-        }
-
-        if (!lexer_next(preprocessor->lexer, token, error)) {
+        if (!get_next_token(preprocessor, token, error)) {
             return false;
         }
 
         if (token->kind == PP_TOKEN_HASH) {
-            lexer_next(preprocessor->lexer, token, error);
+            get_next_token(preprocessor, token, error);
             if (!is_directive(token)) continue;
 
-            parse_directive(preprocessor, token);
+            parse_directive(preprocessor, token, error);
 
             continue;
         }
