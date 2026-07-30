@@ -26,4 +26,6 @@ bool source_file_load(SourceFile *source, const char *path);
 
 void source_file_destroy(SourceFile *source);
 
+char *copy_string(const SourceSpan *span);
+
 #endif //NA_16_SOURCE_H

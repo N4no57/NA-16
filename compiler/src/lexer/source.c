@@ -103,3 +103,18 @@ void source_file_destroy(SourceFile *source) {
     source->path = nullptr;
     source->length = 0;
 }
+
+char *copy_string(const SourceSpan *span) {
+    const size_t size = span->end.column - span->begin.column;
+    char *str = malloc(size+1);
+
+    if (!str) {
+        return nullptr;
+    }
+
+    const char *start = &span->begin.file->contents[span->begin.offset];
+    memcpy(str, start, size);
+    str[size] = '\0';
+
+    return str;
+}
