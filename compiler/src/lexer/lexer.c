@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 typedef struct PunctuatorEntry {
     const char *spelling;
@@ -664,7 +665,7 @@ static PPToken make_token(
     const bool leading_space,
     const bool start_of_line
 ) {
-    const PPToken token = {
+    PPToken token = {
         .kind = kind,
         .span = {
             .begin = *begin,
@@ -673,6 +674,8 @@ static PPToken make_token(
         .leading_space = leading_space,
         .start_of_line = start_of_line
     };
+
+    memset(&token.data, 0, sizeof(token.data));
 
     if (kind == PP_TOKEN_NEWLINE) {
         lexer->start_of_line = true;
@@ -788,6 +791,8 @@ static bool lex_quoted_token(
                 leading_space,
                 start_of_line
             );
+
+            result->data.string = copy_string(&result->span);
 
             result->wide = wide;
             return true;
@@ -975,6 +980,8 @@ static bool lex_identifier(
         leading_space,
         start_of_line
     );
+
+    result->data.string = copy_string(&result->span);
 
     return true;
 }
