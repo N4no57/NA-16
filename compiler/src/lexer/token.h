@@ -115,6 +115,11 @@ typedef struct PPToken {
      * Used when token is a string or character literal
      */
     bool wide;
+
+    // token specific data
+    union {
+        char *string;
+    } data;
 } PPToken;
 
 const char *pp_token_kind_name(PPTokenKind kind);

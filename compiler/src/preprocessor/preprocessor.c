@@ -3,6 +3,7 @@
 
 #include "preprocessor.h"
 
+#include <stdio.h>
 #include <wchar.h>
 
 static char *(directives[]) = {
@@ -20,36 +21,19 @@ static char *(directives[]) = {
     "pragma"
 };
 
-static char *copy_string(const SourceSpan *span) {
-    const size_t size = span->end.column - span->begin.column;
-    char *str = malloc(size+1);
-
-    if (!str) {
-        return nullptr;
-    }
-
-    const char *start = &span->begin.file->contents[span->begin.offset];
-    memcpy(str, start, size);
-    str[size] = '\0';
-
-    return str;
-}
-
 static bool is_directive(const PPToken *token) {
     if (token->kind != PP_TOKEN_IDENTIFIER) {
         return false;
     }
 
-    char *identifier = copy_string(&token->span);
+    const char *identifier = token->data.string;
 
     for (size_t i = 0; i < _countof(directives); i++) {
         if (strcmp(directives[i], identifier) == 0) {
-            free(identifier);
             return true;
         }
     }
 
-    free(identifier);
     return false;
 }
 
@@ -144,7 +128,7 @@ static bool get_parameters(Preprocessor *preprocessor, PPToken *token, LexerErro
         if (token->kind == PP_TOKEN_ELLIPSIS) macro->variadic = true;
         else if (token->kind != PP_TOKEN_IDENTIFIER) return false;
 
-        if (!macro->variadic) parameter_list[count++] = copy_string(&token->span);
+        if (!macro->variadic) parameter_list[count++] = token->data.string;
 
         if (!get_next_token(preprocessor, token, error)) return false;
         if (token->kind != PP_TOKEN_COMMA) break;
@@ -186,13 +170,12 @@ static PPToken *get_replacement_list(Preprocessor *preprocessor, PPToken *token,
 }
 
 static bool parse_directive(Preprocessor *preprocessor, PPToken *token, LexerError *error) {
-    char *directive = copy_string(&token->span);
+    char *directive = token->data.string;
     const SourceLocation start = token->span.begin;
     if (!get_next_token(preprocessor, token, error)) return false;
 
     if (strcmp("define", directive) == 0) {
         if (token->kind != PP_TOKEN_IDENTIFIER) {
-            free(directive);
             return false;
         }
 
@@ -220,13 +203,11 @@ static bool parse_directive(Preprocessor *preprocessor, PPToken *token, LexerErr
             free(directive);
             return false;
         }
-        char *name = copy_string(&token->span);
+        const char *name = token->data.string;
 
         macro_table_undef(&preprocessor->macro_table, name);
-        free(name);
     }
 
-    free(directive);
     return true;
 }
 
@@ -344,7 +325,7 @@ static bool collect_macro_arguments(
 static bool match_parameter(const Macro *macro, const char *string, size_t *idx) {
     for (size_t i = 0; i < macro->parameter_count; i++) {
         if (strcmp(macro->parameters[i], string) == 0) {
-            *idx = i;
+            if (idx != nullptr) *idx = i;
             return true;
         }
     }
@@ -367,8 +348,68 @@ static PPToken *generate_expansion(const Macro *macro, const ArgList *args, cons
     for (size_t i = 0; i < macro->replacement_count; i++) {
         const PPToken *token = &macro->replacement[i];
 
+        if (token->kind == PP_TOKEN_HASH) {
+            // stringify
+            if (i++ >= macro->replacement_count) return nullptr;
+            const PPToken *next = &macro->replacement[i];
+            if (next->kind != PP_TOKEN_IDENTIFIER) return nullptr;
+
+            const char *identifier = next->data.string;
+
+            size_t idx;
+
+            if (match_parameter(macro, identifier, &idx)) {
+                size_t size = 0;
+                char *stringification_str = nullptr;
+                for (size_t j = args->arguments[idx].begin; j < args->arguments[idx].end; j++) {
+                    char *str = copy_string(&arg_list->tokens[j].span);
+                    size_t str_size = strlen(str);
+                    if (arg_list->tokens[j].leading_space) str_size++;
+
+                    char *tmp = realloc(stringification_str, size + str_size + 1);
+                    if (!tmp) {
+                        free(stringification_str);
+                        free(str);
+                        return nullptr;
+                    }
+                    stringification_str = tmp;
+
+                    if (arg_list->tokens[j].leading_space) {
+                        stringification_str[size] = ' ';
+                        size++;
+                        str_size--;
+                    }
+
+                    memcpy(&stringification_str[size], str, str_size);
+                    size += str_size;
+
+                    free(str);
+                }
+
+                stringification_str[size] = '\0';
+
+                PPToken token_to_push = {
+                    .kind = PP_TOKEN_STRING_LITERAL,
+                    .leading_space = false,
+                    .start_of_line = false,
+                    .span = {
+                        .begin = token->span.begin,
+                        .end = arg_list->tokens[args->arguments[idx].end].span.end
+                    }
+                };
+
+                push_token(&token_list, &token_to_push);
+
+                free(stringification_str);
+            }
+        }
+
+        if (token->kind == PP_TOKEN_HASH_HASH) {
+            // combinify
+        }
+
         if (token->kind == PP_TOKEN_IDENTIFIER) {
-            const char *identifier = copy_string(&token->span);
+            const char *identifier = token->data.string;
             if (identifier == nullptr) return nullptr;
 
             size_t idx;
@@ -412,11 +453,10 @@ typedef enum {
 } IdentifierResult;
 
 static IdentifierResult process_identifier(Preprocessor *preprocessor, PPToken *token, LexerError *error) {
-    char *identifier = copy_string(&token->span);
+    const char *identifier = token->data.string;
     if (identifier == nullptr) return IDENTIFIER_RESULT_ERROR;
 
     Macro *macro = macro_table_find(&preprocessor->macro_table, identifier);
-    free(identifier);
 
     if (macro != nullptr) {
         if (!get_next_token(preprocessor, token, error)) return IDENTIFIER_RESULT_ERROR;
