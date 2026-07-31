@@ -87,7 +87,8 @@ typedef enum PPTokenKind {
 
 typedef struct PPToken {
     PPTokenKind kind;
-    SourceSpan span;
+    SourceSpan actual_span;
+    SourceSpan presumed_span;
 
     /*
      * True when whitespace or a comment appeared immediately before
