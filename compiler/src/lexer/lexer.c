@@ -561,7 +561,7 @@ static bool is_valid_c99_identifier_ucn(const uint32_t code_point, const bool is
     return true;
 }
 
-static bool lexer_consume_ucn(Lexer *lexer, uint32_t *result, LexerError *error) {
+static ErrorCode lexer_consume_ucn(Lexer *lexer, uint32_t *result, LexerError *error) {
     if (!lexer_starts_ucn(lexer)) {
         if (error != nullptr) {
             *error = (LexerError){
@@ -569,11 +569,11 @@ static bool lexer_consume_ucn(Lexer *lexer, uint32_t *result, LexerError *error)
                     .begin = lexer_location(lexer),
                     .end = lexer_location(lexer)
                 },
-                .message = "not a ucn"
+                .message = strdup("Not a UCN")
             };
         }
 
-        return false;
+        return ERR_OK;
     }
 
     const SourceLocation begin = lexer_location(lexer);
@@ -598,14 +598,18 @@ static bool lexer_consume_ucn(Lexer *lexer, uint32_t *result, LexerError *error)
                     },
                 };
 
+                char message[256];
+
                 if (c == 'u') {
-                    snprintf(error->message, sizeof(error->message), "\\u must be followed by exactly 4 hexadecimal digits");
+                    snprintf(message, sizeof(message), "\\u must be followed by exactly 4 hexadecimal digits");
                 } else {
-                    snprintf(error->message, sizeof(error->message), "\\U must be followed by exactly 8 hexadecimal digits");
+                    snprintf(message, sizeof(message), "\\U must be followed by exactly 8 hexadecimal digits");
                 }
+
+                error->message = strdup(message);
             }
 
-            return false;
+            return ERR_INTERNAL;
         }
 
         code_point =
@@ -622,18 +626,18 @@ static bool lexer_consume_ucn(Lexer *lexer, uint32_t *result, LexerError *error)
                     .begin = begin,
                     .end = lexer_location(lexer)
                 },
-                .message = "universal character name designates a forbidden character"
+                .message = strdup("universal character name designates a forbidden character")
             };
         }
 
-        return false;
+        return ERR_INTERNAL;
     }
 
     if (result != nullptr) {
         *result = code_point;
     }
 
-    return true;
+    return ERR_OK;
 }
 
 void lexer_init(Lexer *lexer, const SourceFile *source) {
@@ -667,7 +671,11 @@ static PPToken make_token(
 ) {
     PPToken token = {
         .kind = kind,
-        .span = {
+        .actual_span = {
+            .begin = *begin,
+            .end = lexer_location(lexer)
+        },
+        .presumed_span = {
             .begin = *begin,
             .end = lexer_location(lexer)
         },
@@ -688,7 +696,13 @@ static PPToken make_token(
     return token;
 }
 
-bool lex_punctuator(Lexer *lexer, PPToken *result, SourceLocation begin, bool leading_space, bool start_of_line) {
+ErrorCode lex_punctuator(
+    Lexer *lexer,
+    PPToken *result,
+    const SourceLocation begin,
+    const bool leading_space,
+    const bool start_of_line
+) {
     for (size_t i = 0; i < punctuator_list_size; i++) {
         const PunctuatorEntry *entry = &punctuators[i];
 
@@ -708,21 +722,21 @@ bool lex_punctuator(Lexer *lexer, PPToken *result, SourceLocation begin, bool le
             start_of_line
         );
 
-        return true;
+        return ERR_OK;
     }
 
-    return false;
+    return ERR_INTERNAL;
 }
 
-static bool lex_quoted_token(
+static ErrorCode lex_quoted_token(
     Lexer *lexer,
     PPToken *result,
     LexerError *error,
-    SourceLocation begin,
+    const SourceLocation begin,
     const bool leading_space,
     const bool start_of_line,
-    bool wide,
-    char quote
+    const bool wide,
+    const char quote
 ) {
     if (wide) {
         lexer_advance(lexer); // L
@@ -738,6 +752,7 @@ static bool lex_quoted_token(
         if (current == '\n') {
             if (error != nullptr) {
                 char literal_kind[256] = "character literal\0";
+                char message[256];
                 if (quote == '"') {
                     sprintf(literal_kind, "string literal");
                 }
@@ -750,15 +765,17 @@ static bool lex_quoted_token(
                 };
 
                 snprintf(
-                    error->message,
-                    sizeof(error->message),
+                    message,
+                    sizeof(message),
                     "Could not find %c to end %s",
                     quote,
                     literal_kind
                 );
+
+                error->message = strdup(message);
             }
 
-            return false;
+            return ERR_INTERNAL;
         }
 
         if (current == quote) {
@@ -775,11 +792,11 @@ static bool lex_quoted_token(
                             .begin = begin,
                             .end = lexer_location(lexer)
                         },
-                        .message = "character literal needs a character in the quotation marks"
+                        .message = strdup("character literal needs a character in the quotation marks")
                     };
                 }
 
-                return false;
+                return ERR_INTERNAL;
             }
 
             *result = make_token(
@@ -792,10 +809,10 @@ static bool lex_quoted_token(
                 start_of_line
             );
 
-            result->data.string = copy_string(&result->span);
+            result->data.string = copy_string(&result->actual_span);
 
             result->wide = wide;
-            return true;
+            return ERR_OK;
         }
 
 
@@ -809,11 +826,11 @@ static bool lex_quoted_token(
                             .begin = begin,
                             .end = lexer_location(lexer)
                         },
-                        .message = "escape character incomplete while at end of file"
+                        .message = strdup("escape character incomplete while at end of file")
                     };
                 }
 
-                return false;
+                return ERR_INTERNAL;
             }
 
             /*
@@ -827,11 +844,11 @@ static bool lex_quoted_token(
                             .begin = begin,
                             .end = lexer_location(lexer)
                         },
-                        .message = "escape character incomplete while at newline"
+                        .message = strdup("escape character incomplete while at newline")
                     };
                 }
 
-                return false;
+                return ERR_INTERNAL;
             }
 
             lexer_advance(lexer); // first character of escape sequence
@@ -845,6 +862,7 @@ static bool lex_quoted_token(
 
     if (error != nullptr) {
         char literal_kind[256] = "character literal\0";
+        char message[256];
         if (quote == '"') {
             sprintf(literal_kind, "string literal");
         }
@@ -857,17 +875,19 @@ static bool lex_quoted_token(
         };
 
         snprintf(
-            error->message,
-            sizeof(error->message),
+            message,
+            sizeof(message),
             "incomplete %s",
             literal_kind
         );
+
+        error->message = strdup(message);
     }
 
-    return false;
+    return ERR_INTERNAL;
 }
 
-static bool lex_pp_number(
+static ErrorCode lex_pp_number(
     Lexer *lexer,
     PPToken *result,
     LexerError *error,
@@ -881,13 +901,9 @@ static bool lex_pp_number(
         if (lexer_starts_ucn(lexer)) {
             uint32_t code_point;
 
-            if (!lexer_consume_ucn(
-                    lexer,
-                    &code_point,
-                    error
-                )) {
-                return false;
-                }
+            const ErrorCode code = lexer_consume_ucn(lexer, &code_point, error);
+
+            if (code != ERR_OK) return code;
 
             /*
              * The UCN interrupted any literal e/E/p/P + sign sequence.
@@ -927,10 +943,10 @@ static bool lex_pp_number(
         start_of_line
     );
 
-    return true;
+    return ERR_OK;
 }
 
-static bool lex_identifier(
+static ErrorCode lex_identifier(
     Lexer *lexer,
     PPToken *result,
     LexerError *error,
@@ -943,16 +959,27 @@ static bool lex_identifier(
     while (!lexer_at_end(lexer)) {
         if (lexer_starts_ucn(lexer)) {
             uint32_t code_point;
+            const SourceLocation ucn_start = lexer_location(lexer);
 
-            if (!lexer_consume_ucn(
-                    lexer,
-                    &code_point,
-                    error
-                )) {
-                return false;
+            const ErrorCode code = lexer_consume_ucn(lexer, &code_point, error);
+
+            if (code != ERR_OK) {
+                return code;
             }
 
-            is_valid_c99_identifier_ucn(code_point, first);
+            if (!is_valid_c99_identifier_ucn(code_point, first)) {
+                if (error != nullptr) {
+                    *error = (LexerError){
+                        .span = {
+                            .begin = ucn_start,
+                            .end = lexer_location(lexer)
+                        },
+                        .message = strdup("invalid UCN")
+                    };
+                }
+
+                return ERR_INTERNAL;
+            }
 
             first = false;
             continue;
@@ -981,24 +1008,26 @@ static bool lex_identifier(
         start_of_line
     );
 
-    result->data.string = copy_string(&result->span);
+    result->data.string = copy_string(&result->actual_span);
 
-    return true;
+    return ERR_OK;
 }
 
-bool lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
+ErrorCode lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
     for (;;) {
         if (lexer_at_end(lexer)) {
             const SourceLocation location = lexer_location(lexer);
 
             if (lexer->inside_block_comment) {
-                *error = (LexerError){
-                    .span = {
-                        .begin = lexer->block_comment_start,
-                        .end = location
-                    },
-                    .message = "unterminated block comment"
-                };
+                if (error != nullptr) {
+                    *error = (LexerError){
+                        .span = {
+                            .begin = lexer->block_comment_start,
+                            .end = location
+                        },
+                        .message = strdup("unterminated block comment")
+                    };
+                }
 
                 return false;
             }
@@ -1011,7 +1040,7 @@ bool lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
                 lexer->start_of_line
             );
 
-            return true;
+            return ERR_OK;
         }
 
         const char current = lexer_peek(lexer, 0);
@@ -1035,7 +1064,7 @@ bool lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
                 lexer->start_of_line
             );
 
-            return true;
+            return ERR_OK;
         }
 
         if (lexer->inside_block_comment) {
@@ -1092,7 +1121,7 @@ bool lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
             char quote = current;
             if (wide) quote = lexer_peek(lexer, 1);
 
-            if (!lex_quoted_token(
+            return lex_quoted_token(
                 lexer,
                 token,
                 error,
@@ -1101,9 +1130,7 @@ bool lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
                 start_of_line,
                 wide,
                 quote
-            )) return false;
-
-            return true;
+            );
         }
 
         if (lexer_starts_identifier(lexer)) {
@@ -1131,8 +1158,8 @@ bool lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
             );
         }
 
-        if (lex_punctuator(lexer, token, lexer_location(lexer), leading_space, start_of_line)) {
-            return true;
+        if (lex_punctuator(lexer, token, lexer_location(lexer), leading_space, start_of_line) == ERR_OK) {
+            return ERR_OK;
         }
 
         lexer_advance(lexer);
@@ -1145,11 +1172,11 @@ bool lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
             start_of_line
         );
 
-        return true;
+        return ERR_OK;
     }
 }
 
-bool lexer_next_header_name(Lexer *lexer, PPToken *token, LexerError *error, const bool h_char) {
+ErrorCode lexer_next_header_name(Lexer *lexer, PPToken *token, LexerError *error, const bool h_char) {
     bool has_char = false;
     const SourceLocation begin = lexer_location(lexer);
 
@@ -1159,14 +1186,16 @@ bool lexer_next_header_name(Lexer *lexer, PPToken *token, LexerError *error, con
     if (h_char) {
         while (lexer_peek(lexer, 0) != '\n' ||
             lexer_peek(lexer, 0) != '>' ||
-            is_source_character(lexer_peek(lexer, 0))) {
+            is_source_character(lexer_peek(lexer, 0))
+        ) {
             has_char = true;
             lexer_advance(lexer);
         }
     } else {
         while (lexer_peek(lexer, 0) != '\n' ||
             lexer_peek(lexer, 0) != '"' ||
-            is_source_character(lexer_peek(lexer, 0))) {
+            is_source_character(lexer_peek(lexer, 0))
+        ) {
             has_char = true;
             lexer_advance(lexer);
         }
@@ -1179,11 +1208,11 @@ bool lexer_next_header_name(Lexer *lexer, PPToken *token, LexerError *error, con
                     .begin = begin,
                     .end = lexer_location(lexer),
                 },
-                .message = "header path is empty"
+                .message = strdup("header path is empty")
             };
         }
 
-        return false;
+        return ERR_INTERNAL;
     }
 
     *token = make_token(
@@ -1194,5 +1223,5 @@ bool lexer_next_header_name(Lexer *lexer, PPToken *token, LexerError *error, con
         start_of_line
     );
 
-    return true;
+    return ERR_OK;
 }
