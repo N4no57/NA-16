@@ -13,15 +13,3 @@ add_executable(linker
         src/lib/section_map.c src/lib/section_map.h
         src/linker.c src/linker.h
 )
-
-target_include_directories(linker PRIVATE
-        dependencies/include
-)
-
-target_link_directories(linker PRIVATE
-    dependencies/libs
-)
-
-target_link_libraries(linker
-    collectc
-)

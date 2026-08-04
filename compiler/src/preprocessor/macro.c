@@ -15,9 +15,9 @@ Macro *macro_table_find(const MacroTable *table, const char *name) {
     return nullptr;
 }
 
-bool macro_table_define(MacroTable *table, const Macro macro) {
+Error macro_table_define(MacroTable *table, const Macro macro) {
     if (macro_table_find(table, macro.name) != nullptr) {
-        return false;
+        return ERROR_ALREADY_EXISTS;
     }
 
     if (table->count >= table->capacity) {
@@ -26,7 +26,7 @@ bool macro_table_define(MacroTable *table, const Macro macro) {
 
         Macro *tmp = realloc(table->entries, sizeof(Macro) * table->capacity);
         if (tmp == nullptr) {
-            return false;
+            return ERROR_ALLOCATION_FAILED;
         }
 
         table->entries = tmp;
@@ -35,7 +35,7 @@ bool macro_table_define(MacroTable *table, const Macro macro) {
     table->entries[table->count] = macro;
     table->count++;
 
-    return true;
+    return ERROR_OK;
 }
 
 void macro_table_undef(const MacroTable *table, const char *name) {

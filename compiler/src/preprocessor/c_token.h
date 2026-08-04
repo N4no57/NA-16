@@ -51,6 +51,6 @@ typedef struct CToken {
     } data;
 } CToken;
 
-bool convert_ppt_to_ct(const PPToken *ppt, CToken *ct);
+Error convert_ppt_to_ct(const PPToken *ppt, CToken *ct);
 
 #endif //NA_16_C_TOKEN_H

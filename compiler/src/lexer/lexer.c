@@ -561,7 +561,7 @@ static bool is_valid_c99_identifier_ucn(const uint32_t code_point, const bool is
     return true;
 }
 
-static ErrorCode lexer_consume_ucn(Lexer *lexer, uint32_t *result, LexerError *error) {
+static Error lexer_consume_ucn(Lexer *lexer, uint32_t *result, LexerError *error) {
     if (!lexer_starts_ucn(lexer)) {
         if (error != nullptr) {
             *error = (LexerError){
@@ -573,7 +573,7 @@ static ErrorCode lexer_consume_ucn(Lexer *lexer, uint32_t *result, LexerError *e
             };
         }
 
-        return ERR_OK;
+        return ERROR_OK;
     }
 
     const SourceLocation begin = lexer_location(lexer);
@@ -609,7 +609,7 @@ static ErrorCode lexer_consume_ucn(Lexer *lexer, uint32_t *result, LexerError *e
                 error->message = strdup(message);
             }
 
-            return ERR_INTERNAL;
+            return ERROR_INTERNAL;
         }
 
         code_point =
@@ -630,14 +630,14 @@ static ErrorCode lexer_consume_ucn(Lexer *lexer, uint32_t *result, LexerError *e
             };
         }
 
-        return ERR_INTERNAL;
+        return ERROR_INTERNAL;
     }
 
     if (result != nullptr) {
         *result = code_point;
     }
 
-    return ERR_OK;
+    return ERROR_OK;
 }
 
 void lexer_init(Lexer *lexer, const SourceFile *source) {
@@ -696,7 +696,7 @@ static PPToken make_token(
     return token;
 }
 
-ErrorCode lex_punctuator(
+Error lex_punctuator(
     Lexer *lexer,
     PPToken *result,
     const SourceLocation begin,
@@ -722,13 +722,13 @@ ErrorCode lex_punctuator(
             start_of_line
         );
 
-        return ERR_OK;
+        return ERROR_OK;
     }
 
-    return ERR_INTERNAL;
+    return ERROR_INTERNAL;
 }
 
-static ErrorCode lex_quoted_token(
+static Error lex_quoted_token(
     Lexer *lexer,
     PPToken *result,
     LexerError *error,
@@ -775,7 +775,7 @@ static ErrorCode lex_quoted_token(
                 error->message = strdup(message);
             }
 
-            return ERR_INTERNAL;
+            return ERROR_INTERNAL;
         }
 
         if (current == quote) {
@@ -796,7 +796,7 @@ static ErrorCode lex_quoted_token(
                     };
                 }
 
-                return ERR_INTERNAL;
+                return ERROR_INTERNAL;
             }
 
             *result = make_token(
@@ -812,7 +812,7 @@ static ErrorCode lex_quoted_token(
             result->data.string = copy_string(&result->actual_span);
 
             result->wide = wide;
-            return ERR_OK;
+            return ERROR_OK;
         }
 
 
@@ -830,7 +830,7 @@ static ErrorCode lex_quoted_token(
                     };
                 }
 
-                return ERR_INTERNAL;
+                return ERROR_INTERNAL;
             }
 
             /*
@@ -848,7 +848,7 @@ static ErrorCode lex_quoted_token(
                     };
                 }
 
-                return ERR_INTERNAL;
+                return ERROR_INTERNAL;
             }
 
             lexer_advance(lexer); // first character of escape sequence
@@ -884,10 +884,10 @@ static ErrorCode lex_quoted_token(
         error->message = strdup(message);
     }
 
-    return ERR_INTERNAL;
+    return ERROR_INTERNAL;
 }
 
-static ErrorCode lex_pp_number(
+static Error lex_pp_number(
     Lexer *lexer,
     PPToken *result,
     LexerError *error,
@@ -901,9 +901,9 @@ static ErrorCode lex_pp_number(
         if (lexer_starts_ucn(lexer)) {
             uint32_t code_point;
 
-            const ErrorCode code = lexer_consume_ucn(lexer, &code_point, error);
+            const Error code = lexer_consume_ucn(lexer, &code_point, error);
 
-            if (code != ERR_OK) return code;
+            if (code != ERROR_OK) return code;
 
             /*
              * The UCN interrupted any literal e/E/p/P + sign sequence.
@@ -943,10 +943,12 @@ static ErrorCode lex_pp_number(
         start_of_line
     );
 
-    return ERR_OK;
+    result->data.string = copy_string(&result->actual_span);
+
+    return ERROR_OK;
 }
 
-static ErrorCode lex_identifier(
+static Error lex_identifier(
     Lexer *lexer,
     PPToken *result,
     LexerError *error,
@@ -961,9 +963,9 @@ static ErrorCode lex_identifier(
             uint32_t code_point;
             const SourceLocation ucn_start = lexer_location(lexer);
 
-            const ErrorCode code = lexer_consume_ucn(lexer, &code_point, error);
+            const Error code = lexer_consume_ucn(lexer, &code_point, error);
 
-            if (code != ERR_OK) {
+            if (code != ERROR_OK) {
                 return code;
             }
 
@@ -978,7 +980,7 @@ static ErrorCode lex_identifier(
                     };
                 }
 
-                return ERR_INTERNAL;
+                return ERROR_INTERNAL;
             }
 
             first = false;
@@ -1010,10 +1012,10 @@ static ErrorCode lex_identifier(
 
     result->data.string = copy_string(&result->actual_span);
 
-    return ERR_OK;
+    return ERROR_OK;
 }
 
-ErrorCode lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
+Error lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
     for (;;) {
         if (lexer_at_end(lexer)) {
             const SourceLocation location = lexer_location(lexer);
@@ -1040,7 +1042,7 @@ ErrorCode lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
                 lexer->start_of_line
             );
 
-            return ERR_OK;
+            return ERROR_OK;
         }
 
         const char current = lexer_peek(lexer, 0);
@@ -1064,7 +1066,7 @@ ErrorCode lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
                 lexer->start_of_line
             );
 
-            return ERR_OK;
+            return ERROR_OK;
         }
 
         if (lexer->inside_block_comment) {
@@ -1158,8 +1160,8 @@ ErrorCode lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
             );
         }
 
-        if (lex_punctuator(lexer, token, lexer_location(lexer), leading_space, start_of_line) == ERR_OK) {
-            return ERR_OK;
+        if (lex_punctuator(lexer, token, lexer_location(lexer), leading_space, start_of_line) == ERROR_OK) {
+            return ERROR_OK;
         }
 
         lexer_advance(lexer);
@@ -1172,11 +1174,11 @@ ErrorCode lexer_next(Lexer *lexer, PPToken *token, LexerError *error) {
             start_of_line
         );
 
-        return ERR_OK;
+        return ERROR_OK;
     }
 }
 
-ErrorCode lexer_next_header_name(Lexer *lexer, PPToken *token, LexerError *error, const bool h_char) {
+Error lexer_next_header_name(Lexer *lexer, PPToken *token, LexerError *error, const bool h_char) {
     bool has_char = false;
     const SourceLocation begin = lexer_location(lexer);
 
@@ -1212,7 +1214,7 @@ ErrorCode lexer_next_header_name(Lexer *lexer, PPToken *token, LexerError *error
             };
         }
 
-        return ERR_INTERNAL;
+        return ERROR_INTERNAL;
     }
 
     *token = make_token(
@@ -1223,5 +1225,5 @@ ErrorCode lexer_next_header_name(Lexer *lexer, PPToken *token, LexerError *error
         start_of_line
     );
 
-    return ERR_OK;
+    return ERROR_OK;
 }

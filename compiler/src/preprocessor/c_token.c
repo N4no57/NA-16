@@ -12,37 +12,22 @@ char *(keywords[]) = {
 
 constexpr size_t keyword_list_size = sizeof(keywords)/sizeof(keywords[0]);
 
-static char *pull_string(const PPToken *ppt) {
-    const char *str_loc = &ppt->span.begin.file->contents[ppt->span.begin.offset];
-
-    const size_t size = ppt->span.end.offset - ppt->span.begin.offset;
-    char *str = malloc(size+1);
-
-    memcpy(str, str_loc, size);
-    str[size] = '\0';
-
-    return str;
-}
-
-static void handle_identifier(const PPToken *ppt, CToken *ct) {
-    char *identifier = pull_string(ppt);
+static Error handle_identifier(const PPToken *ppt, CToken *ct) {
+    const char *identifier = ppt->data.string;
 
     for (size_t i = 0; i < keyword_list_size; ++i) {
         if (strcmp(keywords[i], identifier) == 0) {
             ct->kind = C_TOKEN_KW_INT + (CTokenKind)i;
-
-            free(identifier);
-            return;
+            return ERROR_ALREADY_EXISTS;
         }
     }
 
     ct->kind = C_TOKEN_IDENTIFIER;
-
-    free(identifier);
+    return ERROR_OK;
 }
 
-static bool get_suffix(const char *text, IntegerSuffix *suffix) {
-    if (!text) return false;
+static Error get_suffix(const char *text, IntegerSuffix *suffix) {
+    if (!text) return ERROR_NULL_POINTER;
 
     IntegerSuffix result = {
         .is_unsigned = false,
@@ -66,7 +51,7 @@ static bool get_suffix(const char *text, IntegerSuffix *suffix) {
             result.length = INTEGER_SUFFIX_LENGTH_LONG_LONG;
             i++;
         } else if (text[i] == 'l' || text[i] == 'L') {
-            return false;
+            return ERROR_INVALID_ARGUMENT;
         }
     }
 
@@ -77,47 +62,47 @@ static bool get_suffix(const char *text, IntegerSuffix *suffix) {
     }
 
     if (text[i] != '\0') {
-        return false;
+        return ERROR_INTERNAL;
     }
 
     *suffix = result;
-    return true;
+    return ERROR_OK;
 }
 
-static bool try_convert_int(const char *text, CToken *ct) { // TODO make this properly C99 compliant
+static Error try_convert_int(const char *text, CToken *ct) { // TODO make this properly C99 compliant
     char *endptr = nullptr;
     errno = 0;
     const unsigned long long value = strtoull(text, &endptr, 0);
 
     if (endptr == text) {
-        return false;
+        return ERROR_OK; // not an int so try again
     }
 
     if (errno == ERANGE) {
-        return false;
+        return ERROR_OUT_OF_RANGE;
     }
 
     IntegerSuffix suffix;
 
-    if (!get_suffix(endptr, &suffix)) {
-        return false;
+    const Error code = get_suffix(text, &suffix);
+    if (code != ERROR_OK) {
+        return code;
     }
 
     ct->kind = C_TOKEN_INTEGER_CONSTANT;
     ct->data.integer.suffix = suffix;
     ct->data.integer.unsigned_int = value;
 
-    return true;
+    return ERROR_OK;
 }
 
-static bool convert_pp_number(const PPToken *ppt, CToken *ct) {
+static Error convert_pp_number(const PPToken *ppt, CToken *ct) {
     // Pull the number string
-    char *number = pull_string(ppt);
+    const char *number = ppt->data.string;
 
     // Try to match the entire spelling as C99 integer constant
-    if (try_convert_int(number, ct)) {
-        free(number);
-        return true;
+    if (try_convert_int(number, ct) != ERROR_OK) {
+        return ERROR_OK;
     }
 
     // Otherwise, try to match the entire spelling to a C99 floating constant
@@ -128,52 +113,50 @@ static bool convert_pp_number(const PPToken *ppt, CToken *ct) {
 
     // Consume and issue diagnostic
 
-    free(number);
-    return false;
+    return ERROR_NOT_IMPLEMENTED;
 }
 
-bool convert_ppt_to_ct(const PPToken *ppt, CToken *ct) {
+Error convert_ppt_to_ct(const PPToken *ppt, CToken *ct) {
     if (!ppt || !ct) return false;
-    ct->span = ppt->span;
+    ct->span = ppt->presumed_span;
 
     switch (ppt->kind) {
         case PP_TOKEN_EOF:
             ct->kind = C_TOKEN_EOF;
-            return true;
+            return ERROR_OK;
 
         case PP_TOKEN_LEFT_BRACE:
             ct->kind = C_TOKEN_LEFT_BRACE;
-            return true;
+            return ERROR_OK;
 
         case PP_TOKEN_RIGHT_BRACE:
             ct->kind = C_TOKEN_RIGHT_BRACE;
-            return true;
+            return ERROR_OK;
 
         case PP_TOKEN_LEFT_PAREN:
             ct->kind = C_TOKEN_LEFT_PAREN;
-            return true;
+            return ERROR_OK;
 
         case PP_TOKEN_RIGHT_PAREN:
             ct->kind = C_TOKEN_RIGHT_PAREN;
-            return true;
+            return ERROR_OK;
 
         case PP_TOKEN_SEMICOLON:
             ct->kind = C_TOKEN_SEMICOLON;
-            return true;
+            return ERROR_OK;
 
         case PP_TOKEN_COMMA:
             ct->kind = C_TOKEN_COMMA;
-            return true;
+            return ERROR_OK;
 
         case PP_TOKEN_IDENTIFIER:
-            handle_identifier(ppt, ct);
-            return true;
+            return handle_identifier(ppt, ct);
 
         case PP_TOKEN_NUMBER:
             return convert_pp_number(ppt, ct);
 
         default:
             // there was an error but not gonna handle that as of yet
-            return false;
+            return ERROR_INTERNAL;
     }
 }

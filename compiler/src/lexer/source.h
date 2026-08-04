@@ -2,6 +2,7 @@
 #define NA_16_SOURCE_H
 
 #include <stdint.h>
+#include <error.h>
 
 typedef struct SourceFile {
     char *path;
@@ -22,7 +23,7 @@ typedef struct SourceSpan {
     SourceLocation end;
 } SourceSpan;
 
-bool source_file_load(SourceFile *source, const char *path);
+Error source_file_load(SourceFile *source, const char *path);
 
 void source_file_destroy(SourceFile *source);
 

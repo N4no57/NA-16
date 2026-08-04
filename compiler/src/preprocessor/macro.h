@@ -1,6 +1,8 @@
 #ifndef NA_16_MACRO_H
 #define NA_16_MACRO_H
 
+#include <error.h>
+
 #include "../lexer/lexer.h"
 
 typedef enum MacroKind {
@@ -30,7 +32,7 @@ typedef struct MacroTable {
 
 Macro *macro_table_find(const MacroTable *table, const char *name);
 
-bool macro_table_define(MacroTable *table, Macro macro);
+Error macro_table_define(MacroTable *table, Macro macro);
 
 void macro_table_undef(const MacroTable *table, const char *name);
 

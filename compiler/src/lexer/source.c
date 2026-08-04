@@ -71,20 +71,43 @@ static void phase_2_splice(SourceFile *source) {
     }
 }
 
-bool source_file_load(SourceFile *source, const char *path) {
+Error source_file_load(SourceFile *source, const char *path) {
     FILE *f = fopen(path, "rb");
 
-    if (!f) return false;
+    if (!f) return ERROR_FILE_OPEN_FAILED;
 
-    fseek(f, 0, SEEK_END);
-    source->length = (size_t)ftell(f);
-    source->contents = malloc(source->length+1);
-    if (source->contents == nullptr) {
-        return false;
+    if (fseek(f, 0, SEEK_END) != 0) {
+        fclose(f);
+        return ERROR_FILE_SEEK_FAILED;
     }
 
-    rewind(f);
-    fread(source->contents, 1, source->length, f);
+    source->length = (size_t)ftell(f);
+    source->contents = malloc(source->length+1);
+
+    if (source->contents == nullptr) {
+        fclose(f);
+        return ERROR_ALLOCATION_FAILED;
+    }
+
+    if (fseek(f, 0, SEEK_SET) != 0) {
+        fclose(f);
+        return ERROR_FILE_SEEK_FAILED;
+    }
+
+    const size_t count = fread(source->contents, 1, source->length, f);
+
+    if (count < source->length) {
+        if (ferror(f)) {
+            fclose(f);
+            return ERROR_FILE_READ_FAILED;
+        }
+
+        if (feof(f)) {
+            fclose(f);
+            return ERROR_END_OF_FILE;
+        }
+    }
+
     fclose(f);
 
     source->contents[source->length] = '\0';
@@ -93,7 +116,7 @@ bool source_file_load(SourceFile *source, const char *path) {
     phase_1_normalise(source);
     phase_2_splice(source);
 
-    return true;
+    return ERROR_OK;
 }
 
 void source_file_destroy(SourceFile *source) {
