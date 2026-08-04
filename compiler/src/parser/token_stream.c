@@ -15,7 +15,7 @@ const CToken *token_stream_peek(TokenStream *stream) {
 }
 
 bool token_stream_consume(TokenStream *stream) {
-    LexerError error;
+    PreprocessorError error;
     PPToken pp_token;
 
     if (!preprocessor_next(&stream->preprocessor, &pp_token, &error)) {

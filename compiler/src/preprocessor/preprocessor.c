@@ -6,23 +6,27 @@
 Error preprocessor_init(Preprocessor *preprocessor, const Lexer *lexer) {
     if (!lexer || !preprocessor) return ERROR_NULL_POINTER;
 
-    preprocessor->files.stack_top = 1;
-    preprocessor->files.stack_size = 8;
-    preprocessor->files.sources = malloc(sizeof(Lexer) * 8);
-    if (!preprocessor->files.sources) {
-        return ERROR_ALLOCATION_FAILED;
+    Error code = vector_init(&preprocessor->files, sizeof(Lexer));
+    if (code != ERROR_OK) {
+        return code;
     }
 
-    preprocessor->files.sources[0] = *lexer;
+    code = vector_init(&preprocessor->expansions, sizeof(PPExpansionFrame));
 
-    preprocessor->macro_table.count = 0;
-    preprocessor->macro_table.capacity = 8;
-    preprocessor->macro_table.entries = malloc(sizeof(Macro) * preprocessor->macro_table.capacity);
-    if (!preprocessor->macro_table.entries) {
-        free(preprocessor->files.sources);
-        preprocessor->files.sources = nullptr;
-        return ERROR_ALLOCATION_FAILED;
+    if (code != ERROR_OK) {
+        vector_destroy(&preprocessor->files);
+        return code;
     }
+
+    code = vector_init(&preprocessor->macro_table, sizeof(Macro));
+
+    if (code != ERROR_OK) {
+        vector_destroy(&preprocessor->files);
+        vector_destroy(&preprocessor->expansions);
+        return code;
+    }
+
+    vector_push(&preprocessor->files, lexer);
 
     return ERROR_OK;
 }

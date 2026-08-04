@@ -2,6 +2,7 @@
 #define NA_16_MACRO_H
 
 #include <error.h>
+#include <vector.h>
 
 #include "../lexer/lexer.h"
 
@@ -24,16 +25,10 @@ typedef struct Macro {
     SourceSpan definition_span;
 } Macro;
 
-typedef struct MacroTable {
-    Macro *entries;
-    size_t count;
-    size_t capacity;
-} MacroTable;
+Macro *macro_table_find(Vector *table, char *name);
 
-Macro *macro_table_find(const MacroTable *table, const char *name);
+Error macro_table_define(Vector *table, Macro macro);
 
-Error macro_table_define(MacroTable *table, Macro macro);
-
-void macro_table_undef(const MacroTable *table, const char *name);
+void macro_table_undef(Vector *table, char *name);
 
 #endif //NA_16_MACRO_H
