@@ -3,8 +3,11 @@
 
 #include "macro.h"
 
-int macro_compare(Macro *a, Macro *b) {
-    return strcmp(a->name, b->name);
+int macro_compare(void *a, void *b) {
+    const Macro *macro_a = (Macro *)a;
+    const Macro *macro_b = (Macro *)b;
+
+    return strcmp(macro_a->name, macro_b->name);
 }
 
 Macro *macro_table_find(Vector *table, char *name) {

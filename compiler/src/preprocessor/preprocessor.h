@@ -18,25 +18,32 @@ typedef struct PPExpansionFrame {
     bool owns_tokens;
 } PPExpansionFrame;
 
-typedef struct PPExpansionStack {
-    PPExpansionFrame *sources;
-    size_t stack_size;
-    size_t stack_top;
-} PPExpansionStack;
+typedef enum PPSourceKind {
+    PP_FILE_SOURCE,
+    PP_MACRO_SOURCE
+} PPSourceKind;
+
+typedef struct PPSourceFrame {
+    PPSourceKind kind;
+
+    union {
+        Lexer file;
+        PPExpansionFrame macro;
+    };
+} PPSourceFrame;
 
 typedef LexerError PreprocessorError;
 
 typedef struct Preprocessor {
-    Vector files;
-    Vector expansions;
+    Vector sources;
 
     Vector macro_table;
 } Preprocessor;
 
 Error preprocessor_init(Preprocessor *preprocessor, const Lexer *lexer);
 
-Error preprocessor_next(Preprocessor *preprocessor, PPToken *token, PreprocessorError *error);
+Error preprocessor_next(Preprocessor *preprocessor, PPToken *result, PreprocessorError *error);
 
-void preprocessor_destroy(const Preprocessor *preprocessor);
+void preprocessor_destroy(Preprocessor *preprocessor);
 
 #endif //NA_16_PREPROCESSOR_H

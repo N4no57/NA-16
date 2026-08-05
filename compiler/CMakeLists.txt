@@ -21,3 +21,7 @@ add_executable(Compiler src/main.c
         src/backend/na16_codegen.c src/backend/na16_codegen.h
         src/preprocessor/macro.c src/preprocessor/macro.h
 )
+
+target_link_libraries(Compiler
+        vector
+)
