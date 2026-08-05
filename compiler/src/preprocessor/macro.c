@@ -11,9 +11,13 @@ int macro_compare(void *a, void *b) {
 }
 
 Macro *macro_table_find(Vector *table, char *name) {
-    Macro macro = {0};
-    macro.name = name;
-    return vector_find(table, &macro, macro_compare);
+    for (size_t i = 0; i < table->length; i++) {
+        Macro *macro = &((Macro *)table->data)[i];
+        if (strcmp(name, macro->name) == 0) {
+            return macro;
+        }
+    }
+    return nullptr;
 }
 
 Error macro_table_define(Vector *table, const Macro macro) {
@@ -28,6 +32,9 @@ Error macro_table_define(Vector *table, const Macro macro) {
 
 void macro_table_undef(Vector *table, char *name) {
     Macro *macro = macro_table_find(table, name);
+
+    if (macro == nullptr) return;
+
     const size_t idx = (size_t)(macro - (Macro *)table->data);
 
     vector_swap_remove(table, idx, nullptr);
@@ -36,7 +43,8 @@ void macro_table_undef(Vector *table, char *name) {
         free(macro->parameters[i]);
     }
 
-    free(macro->parameters);
+    if (macro->parameters != nullptr) free(macro->parameters);
+    if (macro->replacement != nullptr) free(macro->replacement);
     free(macro->name);
     macro->name = nullptr;
     macro->replacement = nullptr;

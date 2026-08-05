@@ -18,6 +18,6 @@ typedef struct Parser {
 
 void parser_init(Parser *parser, TokenStream *tokens);
 
-bool parser_parse_translation_unit(Parser *parser, TranslationUnit *unit);
+Error parser_parse_translation_unit(Parser *parser, TranslationUnit *unit);
 
 #endif //NA_16_PARSER_H

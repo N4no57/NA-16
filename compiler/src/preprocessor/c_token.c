@@ -18,7 +18,7 @@ static Error handle_identifier(const PPToken *ppt, CToken *ct) {
     for (size_t i = 0; i < keyword_list_size; ++i) {
         if (strcmp(keywords[i], identifier) == 0) {
             ct->kind = C_TOKEN_KW_INT + (CTokenKind)i;
-            return ERROR_ALREADY_EXISTS;
+            return ERROR_OK;
         }
     }
 
@@ -61,7 +61,7 @@ static Error get_suffix(const char *text, IntegerSuffix *suffix) {
         i++;
     }
 
-    if (text[i] != '\0') {
+    if (text[i] == '\0') {
         return ERROR_INTERNAL;
     }
 
@@ -101,7 +101,7 @@ static Error convert_pp_number(const PPToken *ppt, CToken *ct) {
     const char *number = ppt->data.string;
 
     // Try to match the entire spelling as C99 integer constant
-    if (try_convert_int(number, ct) != ERROR_OK) {
+    if (try_convert_int(number, ct) == ERROR_OK) {
         return ERROR_OK;
     }
 
