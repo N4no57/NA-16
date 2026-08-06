@@ -32,10 +32,18 @@ typedef struct PPSourceFrame {
     };
 } PPSourceFrame;
 
+typedef struct PPConditionalFrame {
+    bool parent_active;
+    bool branch_active;
+    bool branch_taken;
+    bool saw_else;
+} PPConditionalFrame;
+
 typedef LexerError PreprocessorError;
 
 typedef struct Preprocessor {
     Vector sources;
+    Vector conditionals;
 
     Vector macro_table;
 } Preprocessor;
