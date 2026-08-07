@@ -176,15 +176,36 @@ typedef struct PPInteger {
     bool is_unsigned;
 } PPInteger;
 
+static bool pp_integer_truthy(PPInteger num) {
+    if (num.value == 0) return false;
+
+    return true;
+}
+
 static Error pp_process_primary_expression(const Vector *tokens, size_t *idx, const bool evaluate, PPInteger *result, PreprocessorError *error) {
     PPToken token;
 
     const Error code = vector_get(tokens, *idx, &token);
-
     if (code != ERROR_OK) return code;
 
-    if (token.kind != PP_TOKEN_NUMBER && token.kind != PP_TOKEN_CHARACTER_CONSTANT) { // TODO error
+    if (token.kind != PP_TOKEN_NUMBER && token.kind != PP_TOKEN_CHARACTER_CONSTANT) {
+        if (error) {
+            error->message = "Expected a number or character constant";
+            error->span = token.presumed_span;
+        }
         return ERROR_INTERNAL;
+    }
+
+    (*idx)++;
+    if (*idx > tokens->length) return ERROR_OUT_OF_RANGE;
+
+    if (!evaluate) {
+        *result = (PPInteger){
+            .value = (uintmax_t)0,
+            .is_unsigned = false
+        };
+
+        return ERROR_OK;
     }
 
     if (token.kind == PP_TOKEN_CHARACTER_CONSTANT) {
@@ -200,7 +221,607 @@ static Error pp_process_primary_expression(const Vector *tokens, size_t *idx, co
         result->is_unsigned = ct.data.integer.suffix.is_unsigned;
     }
 
+    return ERROR_OK;
+}
+
+static Error pp_process_unary_expression(const Vector *tokens, size_t *idx, const bool evaluate, PPInteger *result, PreprocessorError *error) {
+    PPToken token;
+
+    Error code = vector_get(tokens, *idx, &token);
+    if (code != ERROR_OK) return code;
+
+    // to primary expression evaluation
+
+    if (token.kind == PP_TOKEN_PLUS) {
+        (*idx)++;
+        if (*idx > tokens->length) return ERROR_OUT_OF_RANGE;
+
+        code = vector_get(tokens, *idx, &token);
+        if (code != ERROR_OK) return code;
+
+        code = pp_process_primary_expression(tokens, idx, evaluate, result, error);
+        if (code != ERROR_OK) return code;
+
+        return ERROR_OK;
+    }
+
+    if (token.kind == PP_TOKEN_MINUS) {
+        (*idx)++;
+        if (*idx > tokens->length) return ERROR_OUT_OF_RANGE;
+
+        code = vector_get(tokens, *idx, &token);
+        if (code != ERROR_OK) return code;
+
+        code = pp_process_primary_expression(tokens, idx, evaluate, result, error);
+        if (code != ERROR_OK) return code;
+
+        result->is_unsigned = true;
+
+        return ERROR_OK;
+    }
+
+    if (token.kind == PP_TOKEN_TILDE) {
+        (*idx)++;
+        if (*idx > tokens->length) return ERROR_OUT_OF_RANGE;
+
+        code = vector_get(tokens, *idx, &token);
+        if (code != ERROR_OK) return code;
+
+        code = pp_process_primary_expression(tokens, idx, evaluate, result, error);
+        if (code != ERROR_OK) return code;
+
+        result->value = ~result->value;
+
+        return ERROR_OK;
+    }
+
+    if (token.kind == PP_TOKEN_EXCLAMATION) {
+        (*idx)++;
+        if (*idx > tokens->length) return ERROR_OUT_OF_RANGE;
+
+        code = vector_get(tokens, *idx, &token);
+        if (code != ERROR_OK) return code;
+
+        code = pp_process_primary_expression(tokens, idx, evaluate, result, error);
+        if (code != ERROR_OK) return code;
+
+        result->value = !result->value;
+
+        return ERROR_OK;
+    }
+
+    return pp_process_primary_expression(tokens, idx, evaluate, result, error);
+}
+
+static Error pp_process_multiplicative_expression(const Vector *tokens, size_t *idx, const bool evaluate, PPInteger *result, PreprocessorError *error) {
+    PPInteger left;
+    Error code = pp_process_unary_expression(tokens, idx, evaluate, &left, error);
+    if (code != ERROR_OK) return code;
+
+    PPToken token;
+
+    code = vector_get(tokens, *idx, &token);
+    if (code == ERROR_OUT_OF_RANGE) {
+        *result = left;
+        return ERROR_OK;
+    }
+    if (code != ERROR_OK) return code;
+
+    while (
+        token.kind == PP_TOKEN_ASTERISK ||
+        token.kind == PP_TOKEN_SLASH ||
+        token.kind == PP_TOKEN_PERCENT
+    ) {
+        const PPTokenKind operator = token.kind;
+
+        (*idx)++;
+        if (*idx > tokens->length) {
+            break;
+        }
+
+        PPInteger right;
+        code = pp_process_multiplicative_expression(tokens, idx, evaluate, &right, error);
+        if (code != ERROR_OK) return code;
+
+        switch (operator) {
+            case PP_TOKEN_ASTERISK:
+                left.value = left.value * right.value;
+                break;
+            case PP_TOKEN_SLASH:
+                left.value = left.value / right.value;
+                break;
+            case PP_TOKEN_PERCENT:
+                left.value = left.value % right.value;
+                break;
+            default:
+                return ERROR_INTERNAL; // TODO error
+        }
+
+        code = vector_get(tokens, *idx, &token);
+        if (code == ERROR_OUT_OF_RANGE) break;
+        if (code != ERROR_OK) return code;
+    }
+
+    *result = left;
+    return ERROR_OK;
+}
+
+static Error pp_process_additive_expression(const Vector *tokens, size_t *idx, const bool evaluate, PPInteger *result, PreprocessorError *error) {
+    PPInteger left;
+    Error code = pp_process_multiplicative_expression(tokens, idx, evaluate, &left, error);
+    if (code != ERROR_OK) return code;
+
+    PPToken token;
+
+    code = vector_get(tokens, *idx, &token);
+    if (code == ERROR_OUT_OF_RANGE) {
+        *result = left;
+        return ERROR_OK;
+    }
+    if (code != ERROR_OK) return code;
+
+    while (
+        token.kind == PP_TOKEN_PLUS ||
+        token.kind == PP_TOKEN_MINUS
+    ) {
+        const PPTokenKind operator = token.kind;
+
+        (*idx)++;
+        if (*idx > tokens->length) {
+            break;
+        }
+
+        PPInteger right;
+        code = pp_process_additive_expression(tokens, idx, evaluate, &right, error);
+        if (code != ERROR_OK) return code;
+
+        switch (operator) {
+            case PP_TOKEN_PLUS:
+                left.value = left.value + right.value;
+                break;
+            case PP_TOKEN_MINUS:
+                left.value = left.value - right.value;
+                break;
+            default:
+                return ERROR_INTERNAL; // TODO error
+        }
+
+        code = vector_get(tokens, *idx, &token);
+        if (code == ERROR_OUT_OF_RANGE) break;
+        if (code != ERROR_OK) return code;
+    }
+
+    *result = left;
+    return ERROR_OK;
+}
+
+static Error pp_process_shift_expression(const Vector *tokens, size_t *idx, const bool evaluate, PPInteger *result, PreprocessorError *error) {
+    PPInteger left;
+    Error code = pp_process_additive_expression(tokens, idx, evaluate, &left, error);
+    if (code != ERROR_OK) return code;
+
+    PPToken token;
+
+    code = vector_get(tokens, *idx, &token);
+    if (code == ERROR_OUT_OF_RANGE) {
+        *result = left;
+        return ERROR_OK;
+    }
+    if (code != ERROR_OK) return code;
+
+    while (
+        token.kind == PP_TOKEN_SHIFT_LEFT ||
+        token.kind == PP_TOKEN_SHIFT_RIGHT
+    ) {
+        const PPTokenKind operator = token.kind;
+
+        (*idx)++;
+        if (*idx > tokens->length) {
+            break;
+        }
+
+        PPInteger right;
+        code = pp_process_shift_expression(tokens, idx, evaluate, &right, error);
+        if (code != ERROR_OK) return code;
+
+        switch (operator) {
+            case PP_TOKEN_SHIFT_LEFT:
+                left.value = left.value <<  right.value;
+                break;
+            case PP_TOKEN_SHIFT_RIGHT:
+                left.value = left.value >> right.value;
+                break;
+            default:
+                return ERROR_INTERNAL; // TODO error
+        }
+
+        code = vector_get(tokens, *idx, &token);
+        if (code == ERROR_OUT_OF_RANGE) break;
+        if (code != ERROR_OK) return code;
+    }
+
+    *result = left;
+    return ERROR_OK;
+}
+
+static Error pp_process_relational_expression(const Vector *tokens, size_t *idx, const bool evaluate, PPInteger *result, PreprocessorError *error) {
+    PPInteger left;
+    Error code = pp_process_shift_expression(tokens, idx, evaluate, &left, error);
+    if (code != ERROR_OK) return code;
+
+    PPToken token;
+
+    code = vector_get(tokens, *idx, &token);
+    if (code == ERROR_OUT_OF_RANGE) {
+        *result = left;
+        return ERROR_OK;
+    }
+    if (code != ERROR_OK) return code;
+
+    while (
+        token.kind == PP_TOKEN_LESS ||
+        token.kind == PP_TOKEN_LESS_EQUAL ||
+        token.kind == PP_TOKEN_GREATER ||
+        token.kind == PP_TOKEN_GREATER_EQUAL
+    ) {
+        const PPTokenKind operator = token.kind;
+
+        (*idx)++;
+        if (*idx > tokens->length) {
+            break;
+        }
+
+        PPInteger right;
+        code = pp_process_relational_expression(tokens, idx, evaluate, &right, error);
+        if (code != ERROR_OK) return code;
+
+        switch (operator) {
+            case PP_TOKEN_LESS:
+                left.value = left.value < right.value;
+                break;
+            case PP_TOKEN_LESS_EQUAL:
+                left.value = left.value <= right.value;
+                break;
+            case PP_TOKEN_GREATER:
+                left.value = left.value > right.value;
+                break;
+            case PP_TOKEN_GREATER_EQUAL:
+                left.value = left.value >= right.value;
+                break;
+            default:
+                return ERROR_INTERNAL; // TODO error
+        }
+
+        code = vector_get(tokens, *idx, &token);
+        if (code == ERROR_OUT_OF_RANGE) break;
+        if (code != ERROR_OK) return code;
+    }
+
+    *result = left;
+    return ERROR_OK;
+}
+
+static Error pp_process_equality_expression(const Vector *tokens, size_t *idx, const bool evaluate, PPInteger *result, PreprocessorError *error) {
+    PPInteger left;
+    Error code = pp_process_relational_expression(tokens, idx, evaluate, &left, error);
+    if (code != ERROR_OK) return code;
+
+    PPToken token;
+
+    code = vector_get(tokens, *idx, &token);
+    if (code == ERROR_OUT_OF_RANGE) {
+        *result = left;
+        return ERROR_OK;
+    }
+    if (code != ERROR_OK) return code;
+
+    while (
+        token.kind == PP_TOKEN_EQUAL_EQUAL ||
+        token.kind == PP_TOKEN_NOT_EQUAL
+    ) {
+        const PPTokenKind operator = token.kind;
+
+        (*idx)++;
+        if (*idx > tokens->length) {
+            break;
+        }
+
+        PPInteger right;
+        code = pp_process_equality_expression(tokens, idx, evaluate, &right, error);
+        if (code != ERROR_OK) return code;
+
+        switch (operator) {
+            case PP_TOKEN_EQUAL_EQUAL:
+                left.value = left.value == right.value;
+                break;
+            case PP_TOKEN_NOT_EQUAL:
+                left.value = left.value != right.value;
+                break;
+            default:
+                return ERROR_INTERNAL; // TODO error
+        }
+
+        code = vector_get(tokens, *idx, &token);
+        if (code == ERROR_OUT_OF_RANGE) break;
+        if (code != ERROR_OK) return code;
+    }
+
+    *result = left;
+    return ERROR_OK;
+}
+
+static Error pp_process_and_expression(const Vector *tokens, size_t *idx, const bool evaluate, PPInteger *result, PreprocessorError *error) {
+    PPInteger left;
+    Error code = pp_process_equality_expression(tokens, idx, evaluate, &left, error);
+    if (code != ERROR_OK) return code;
+
+    PPToken token;
+
+    code = vector_get(tokens, *idx, &token);
+    if (code == ERROR_OUT_OF_RANGE) {
+        *result = left;
+        return ERROR_OK;
+    }
+    if (code != ERROR_OK) return code;
+
+    while (
+        token.kind == PP_TOKEN_AMPERSAND
+    ) {
+        const PPTokenKind operator = token.kind;
+
+        (*idx)++;
+        if (*idx > tokens->length) {
+            break;
+        }
+
+        PPInteger right;
+        code = pp_process_and_expression(tokens, idx, evaluate, &right, error);
+        if (code != ERROR_OK) return code;
+
+        switch (operator) {
+            case PP_TOKEN_AMPERSAND:
+                left.value = left.value & right.value;
+                break;
+            default:
+                return ERROR_INTERNAL; // TODO error
+        }
+
+        code = vector_get(tokens, *idx, &token);
+        if (code == ERROR_OUT_OF_RANGE) break;
+        if (code != ERROR_OK) return code;
+    }
+
+    *result = left;
+    return ERROR_OK;
+}
+
+static Error pp_process_xor_expression(const Vector *tokens, size_t *idx, const bool evaluate, PPInteger *result, PreprocessorError *error) {
+    PPInteger left;
+    Error code = pp_process_and_expression(tokens, idx, evaluate, &left, error);
+    if (code != ERROR_OK) return code;
+
+    PPToken token;
+
+    code = vector_get(tokens, *idx, &token);
+    if (code == ERROR_OUT_OF_RANGE) {
+        *result = left;
+        return ERROR_OK;
+    }
+    if (code != ERROR_OK) return code;
+
+    while (
+        token.kind == PP_TOKEN_CARET
+    ) {
+        const PPTokenKind operator = token.kind;
+
+        (*idx)++;
+        if (*idx > tokens->length) {
+            break;
+        }
+
+        PPInteger right;
+        code = pp_process_xor_expression(tokens, idx, evaluate, &right, error);
+        if (code != ERROR_OK) return code;
+
+        switch (operator) {
+            case PP_TOKEN_CARET:
+                left.value = left.value ^ right.value;
+                break;
+            default:
+                return ERROR_INTERNAL; // TODO error
+        }
+
+        code = vector_get(tokens, *idx, &token);
+        if (code == ERROR_OUT_OF_RANGE) break;
+        if (code != ERROR_OK) return code;
+    }
+
+    *result = left;
+    return ERROR_OK;
+}
+
+static Error pp_process_or_expression(const Vector *tokens, size_t *idx, const bool evaluate, PPInteger *result, PreprocessorError *error) {
+    PPInteger left;
+    Error code = pp_process_xor_expression(tokens, idx, evaluate, &left, error);
+    if (code != ERROR_OK) return code;
+
+    PPToken token;
+
+    code = vector_get(tokens, *idx, &token);
+    if (code == ERROR_OUT_OF_RANGE) {
+        *result = left;
+        return ERROR_OK;
+    }
+    if (code != ERROR_OK) return code;
+
+    while (
+        token.kind == PP_TOKEN_PIPE
+    ) {
+        const PPTokenKind operator = token.kind;
+
+        (*idx)++;
+        if (*idx > tokens->length) {
+            break;
+        }
+
+        PPInteger right;
+        code = pp_process_or_expression(tokens, idx, evaluate, &right, error);
+        if (code != ERROR_OK) return code;
+
+        switch (operator) {
+            case PP_TOKEN_PIPE:
+                left.value = left.value | right.value;
+                break;
+            default:
+                return ERROR_INTERNAL; // TODO error
+        }
+
+        code = vector_get(tokens, *idx, &token);
+        if (code == ERROR_OUT_OF_RANGE) break;
+        if (code != ERROR_OK) return code;
+    }
+
+    *result = left;
+    return ERROR_OK;
+}
+
+static Error pp_process_logical_and_expression(const Vector *tokens, size_t *idx, const bool evaluate, PPInteger *result, PreprocessorError *error) {
+    PPInteger left;
+    Error code = pp_process_or_expression(tokens, idx, evaluate, &left, error);
+    if (code != ERROR_OK) return code;
+
+    PPToken token;
+
+    code = vector_get(tokens, *idx, &token);
+    if (code == ERROR_OUT_OF_RANGE) {
+        *result = left;
+        return ERROR_OK;
+    }
+    if (code != ERROR_OK) return code;
+
+    while (
+        token.kind == PP_TOKEN_LOGICAL_AND
+    ) {
+        const PPTokenKind operator = token.kind;
+
+        (*idx)++;
+        if (*idx > tokens->length) {
+            break;
+        }
+
+        PPInteger right;
+        const bool to_eval = evaluate && pp_integer_truthy(left);
+        code = pp_process_logical_and_expression(tokens, idx, evaluate, &right, error);
+        if (code != ERROR_OK) return code;
+
+        switch (operator) {
+            case PP_TOKEN_LOGICAL_AND:
+                left.value = left.value && right.value;
+                break;
+            default:
+                return ERROR_INTERNAL; // TODO error
+        }
+
+        code = vector_get(tokens, *idx, &token);
+        if (code == ERROR_OUT_OF_RANGE) break;
+        if (code != ERROR_OK) return code;
+    }
+
+    *result = left;
+    return ERROR_OK;
+}
+
+static Error pp_process_logical_or_expression(const Vector *tokens, size_t *idx, const bool evaluate, PPInteger *result, PreprocessorError *error) {
+    PPInteger left;
+    Error code = pp_process_logical_and_expression(tokens, idx, evaluate, &left, error);
+    if (code != ERROR_OK) return code;
+
+    PPToken token;
+
+    code = vector_get(tokens, *idx, &token);
+    if (code == ERROR_OUT_OF_RANGE) {
+        *result = left;
+        return ERROR_OK;
+    }
+    if (code != ERROR_OK) return code;
+
+    while (
+        token.kind == PP_TOKEN_LOGICAL_OR
+    ) {
+        const PPTokenKind operator = token.kind;
+
+        (*idx)++;
+        if (*idx > tokens->length) {
+            break;
+        }
+
+        PPInteger right;
+        const bool to_eval = evaluate && !pp_integer_truthy(left);
+        code = pp_process_logical_or_expression(tokens, idx, to_eval, &right, error);
+        if (code != ERROR_OK) return code;
+
+        switch (operator) {
+            case PP_TOKEN_LOGICAL_OR:
+                left.value = left.value || right.value;
+                break;
+            default:
+                return ERROR_INTERNAL; // TODO error
+        }
+
+        code = vector_get(tokens, *idx, &token);
+        if (code == ERROR_OUT_OF_RANGE) break;
+        if (code != ERROR_OK) return code;
+    }
+
+    *result = left;
+    return ERROR_OK;
+}
+
+static Error pp_process_conditional_expression(const Vector *tokens, size_t *idx, const bool evaluate, PPInteger *result, PreprocessorError *error) {
+    PPInteger condition;
+    Error code = pp_process_logical_or_expression(tokens, idx, evaluate, &condition, error);
+    if (code != ERROR_OK) return code;
+
+    PPToken token;
+
+    code = vector_get(tokens, *idx, &token);
+    if (code == ERROR_OUT_OF_RANGE) {
+        *result = condition;
+        return ERROR_OK;
+    }
+    if (code != ERROR_OK) return code;
+
+    if (token.kind != PP_TOKEN_QUESTION) { // TODO error
+        return ERROR_INTERNAL;
+    }
+
     (*idx)++;
+    if (*idx > tokens->length) return ERROR_OUT_OF_RANGE;
+
+    PPInteger true_val;
+
+    code = pp_process_conditional_expression(tokens, idx, evaluate, &true_val, error);
+    if (code != ERROR_OK) return code;
+
+    (*idx)++;
+    if (*idx > tokens->length) return ERROR_OUT_OF_RANGE;
+
+    code = vector_get(tokens, *idx, &token);
+    if (code != ERROR_OK) return code;
+
+    if (token.kind != PP_TOKEN_COLON) { // TODO error
+        return ERROR_INTERNAL;
+    }
+
+    PPInteger false_val;
+
+    code = pp_process_conditional_expression(tokens, idx, evaluate, &false_val, error);
+    if (code != ERROR_OK) return code;
+
+    (*idx)++;
+    if (*idx > tokens->length) return ERROR_OUT_OF_RANGE;
+
+    *result = condition.value ? true_val : false_val;
 
     return ERROR_OK;
 }
@@ -285,8 +906,6 @@ static Error pp_process_condition(Preprocessor *preprocessor, bool *condition, P
 
             PPToken tok = {
                 .kind = PP_TOKEN_NUMBER,
-                .actual_span = {0},
-                .presumed_span = {0},
                 .leading_space = false,
                 .start_of_line = false,
                 .wide = false,
@@ -318,8 +937,6 @@ static Error pp_process_condition(Preprocessor *preprocessor, bool *condition, P
             if (macro == nullptr) {
                 PPToken tok = {
                     .kind = PP_TOKEN_NUMBER,
-                    .actual_span = {0},
-                    .presumed_span = {0},
                     .leading_space = false,
                     .start_of_line = false,
                     .wide = false,
@@ -354,12 +971,11 @@ static Error pp_process_condition(Preprocessor *preprocessor, bool *condition, P
     PPInteger num;
 
     size_t idx = 0;
-    code = pp_process_primary_expression(&token_buffer, &idx, true, &num, error);
+    code = pp_process_conditional_expression(&token_buffer, &idx, true, &num, error);
 
     if (code != ERROR_OK) return code;
 
-    if (num.value == 0) *condition = false;
-    else *condition = true;
+    *condition = pp_integer_truthy(num);
 
     return ERROR_OK;
 }
@@ -404,7 +1020,9 @@ static Error pp_process_directive(Preprocessor *preprocessor, PreprocessorError 
         };
 
         return vector_push(&preprocessor->conditionals, &conditional);
-    } else if (strcmp(token.data.string, "elif") == 0) {
+    }
+
+    if (strcmp(token.data.string, "elif") == 0) {
         PPConditionalFrame frame;
 
         if ((code = vector_get(&preprocessor->conditionals, preprocessor->conditionals.length-1, &frame)) != ERROR_OK) return code;
@@ -416,7 +1034,7 @@ static Error pp_process_directive(Preprocessor *preprocessor, PreprocessorError 
         bool condition = false;
 
         if (frame.parent_active && !frame.branch_taken) {
-            condition = false;
+            condition = pp_process_condition(preprocessor, &condition, error);
         }
 
         frame.branch_active =
@@ -522,8 +1140,7 @@ static Error pp_process_directive(Preprocessor *preprocessor, PreprocessorError 
 }
 
 static Error pp_try_expand_macro(Preprocessor *preprocessor, PPToken *identifier, bool *expanded) {
-    Error code;
-    Macro *macro = macro_table_find(&preprocessor->macro_table, identifier->data.string);
+    const Macro *macro = macro_table_find(&preprocessor->macro_table, identifier->data.string);
 
     if (macro == nullptr) {
         *expanded = false;
@@ -538,7 +1155,7 @@ static Error pp_try_expand_macro(Preprocessor *preprocessor, PPToken *identifier
         expansion.macro.count = macro->replacement_count;
         expansion.macro.tokens = macro->replacement;
 
-        code = vector_push(&preprocessor->sources, &expansion);
+        const Error code = vector_push(&preprocessor->sources, &expansion);
 
         if (code != ERROR_OK) return code;
     } else if (macro->kind == MACRO_FUNCTION_LIKE) {

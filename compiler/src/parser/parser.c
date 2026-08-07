@@ -81,8 +81,7 @@ Expression *parser_parse_expression(Parser *parser) {
         return nullptr;
     }
 
-    Error code;
-    while ((code = parser_match(parser, C_TOKEN_COMMA)) == ERROR_OK) {
+    while (parser_match(parser, C_TOKEN_COMMA) == ERROR_OK) {
         Expression *right = parser_parse_assignment_expression(parser);
 
         if (right == nullptr) {
@@ -90,7 +89,7 @@ Expression *parser_parse_expression(Parser *parser) {
             return nullptr;
         }
 
-        Expression *comma = malloc (sizeof(*comma));
+        Expression *comma = malloc(sizeof(*comma));
 
         if (comma == nullptr) {
             free(left);
