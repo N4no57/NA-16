@@ -27,6 +27,15 @@ Error preprocessor_init(Preprocessor *preprocessor, const Lexer *lexer) {
         return code;
     }
 
+    code = vector_init(&preprocessor->token_queue, sizeof(PPQueueItem));
+
+    if (code != ERROR_OK) {
+        vector_destroy(&preprocessor->macro_table);
+        vector_destroy(&preprocessor->sources);
+        vector_destroy(&preprocessor->conditionals);
+        return code;
+    }
+
     const PPSourceFrame source = {
         .kind = PP_FILE_SOURCE,
         .file = *lexer
@@ -48,13 +57,28 @@ static void generate_error(PreprocessorError *error, SourceSpan error_location, 
 
 static Error pp_read_unexpanded(Preprocessor *preprocessor, PPToken *result, PPSourceKind *origin, PreprocessorError *error) {
     while (preprocessor->sources.length > 0) {
-        PPSourceFrame source;
         Error code;
+
+        if (preprocessor->token_queue.length > 0) {
+            PPQueueItem item;
+
+            code = vector_get(&preprocessor->token_queue, 0, &item);
+
+            if (code != ERROR_OK) return code;
+
+            *origin = item.kind;
+            *result = item.token;
+
+            vector_remove(&preprocessor->token_queue, 0, nullptr);
+
+            return ERROR_OK;
+        }
+
+        PPSourceFrame source;
         if ((code = vector_get(&preprocessor->sources, preprocessor->sources.length-1, &source)) != ERROR_OK) {
             return code;
         }
         *origin = source.kind;
-
 
         switch (source.kind) {
             case PP_FILE_SOURCE: {
@@ -99,6 +123,44 @@ static Error pp_read_unexpanded(Preprocessor *preprocessor, PPToken *result, PPS
     }
 
     return ERROR_INTERNAL; // TODO error
+}
+
+static Error pp_peek_unexpanded(Preprocessor *preprocessor, size_t lookahead, PPToken *result, PPSourceKind *origin, PreprocessorError *error) {
+    Error code;
+
+    if (preprocessor->token_queue.length > lookahead) {
+        PPQueueItem item;
+
+        code = vector_get(&preprocessor->token_queue, lookahead, &item);
+
+        if (code != ERROR_OK) return code;
+
+        *origin = item.kind;
+        *result = item.token;
+
+        return ERROR_OK;
+    }
+
+    PPQueueItem item = {0};
+
+    const size_t loop_count = lookahead - preprocessor->token_queue.length;
+
+    for (size_t i = 0; i <= loop_count; i++) {
+        code = pp_read_unexpanded(preprocessor, &item.token, &item.kind, error);
+
+        if (code != ERROR_OK) return code;
+
+        code = vector_push(&preprocessor->token_queue, &item);
+
+        if (code != ERROR_OK) return code;
+
+        lookahead--;
+    }
+
+    *result = item.token;
+    *origin = item.kind;
+
+    return ERROR_OK;
 }
 
 static bool pp_active(Preprocessor *preprocessor) {

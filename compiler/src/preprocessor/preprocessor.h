@@ -39,6 +39,11 @@ typedef struct PPConditionalFrame {
     bool saw_else;
 } PPConditionalFrame;
 
+typedef struct PPQueueItem {
+    PPSourceKind kind;
+    PPToken token;
+} PPQueueItem;
+
 typedef LexerError PreprocessorError;
 
 typedef struct Preprocessor {
@@ -46,6 +51,8 @@ typedef struct Preprocessor {
     Vector conditionals;
 
     Vector macro_table;
+
+    Vector token_queue;
 } Preprocessor;
 
 Error preprocessor_init(Preprocessor *preprocessor, const Lexer *lexer);
