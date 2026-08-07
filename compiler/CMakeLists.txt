@@ -3,8 +3,6 @@ project(Compiler C)
 
 set(CMAKE_C_STANDARD 23)
 
-add_compile_options(-Wall -Wextra -Wpedantic -Wconversion)
-
 add_executable(Compiler src/main.c
         src/target/target.c src/target/target.h
         src/type.c src/type.h
