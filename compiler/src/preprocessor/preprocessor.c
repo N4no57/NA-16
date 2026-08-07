@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "preprocessor.h"
+#include "c_token.h"
 
 Error preprocessor_init(Preprocessor *preprocessor, const Lexer *lexer) {
     if (!lexer || !preprocessor) return ERROR_NULL_POINTER;
@@ -170,8 +171,197 @@ static bool pp_active(Preprocessor *preprocessor) {
     return true;
 }
 
-static Error pp_peek_unexpanded(...) {
+typedef struct PPInteger {
+    uintmax_t value;
+    bool is_unsigned;
+} PPInteger;
 
+static Error pp_process_primary_expression(const Vector *tokens, size_t *idx, const bool evaluate, PPInteger *result, PreprocessorError *error) {
+    PPToken token;
+
+    const Error code = vector_get(tokens, *idx, &token);
+
+    if (code != ERROR_OK) return code;
+
+    if (token.kind != PP_TOKEN_NUMBER && token.kind != PP_TOKEN_CHARACTER_CONSTANT) { // TODO error
+        return ERROR_INTERNAL;
+    }
+
+    if (token.kind == PP_TOKEN_CHARACTER_CONSTANT) {
+        *result = (PPInteger){
+            .value = (uintmax_t)*token.data.string,
+            .is_unsigned = false
+        };
+    } else {
+        CToken ct;
+        convert_ppt_to_ct(&token, &ct);
+
+        result->value = ct.data.integer.unsigned_int;
+        result->is_unsigned = ct.data.integer.suffix.is_unsigned;
+    }
+
+    (*idx)++;
+
+    return ERROR_OK;
+}
+
+static Error pp_process_condition(Preprocessor *preprocessor, bool *condition, PreprocessorError *error) {
+    Error code;
+
+    // collect conditional
+    Vector token_buffer;
+    code = vector_init(&token_buffer, sizeof(PPToken));
+
+    if (code != ERROR_OK) return code;
+
+    PPToken token;
+    PPSourceKind origin;
+
+    code = pp_read_unexpanded(preprocessor, &token, &origin, error);
+
+    if (code != ERROR_OK) return code;
+
+    while (token.kind != PP_TOKEN_NEWLINE && token.kind != PP_TOKEN_EOF) {
+        if (origin != PP_FILE_SOURCE) { // TODO error
+            vector_destroy(&token_buffer);
+            return ERROR_INTERNAL;
+        }
+
+        code = vector_push(&token_buffer, &token);
+        if (code != ERROR_OK) return code;
+
+        code = pp_read_unexpanded(preprocessor, &token, &origin, error);
+        if (code != ERROR_OK) return code;
+    }
+
+    // replace defined() functions
+    size_t i = 0;
+    for (i = 0; i < token_buffer.length; i++) {
+        code = vector_get(&token_buffer, i, &token);
+
+        if (code != ERROR_OK) return code;
+
+        if (token.kind == PP_TOKEN_IDENTIFIER && strcmp(token.data.string, "defined") == 0) {
+            const size_t start = i;
+            i++;
+            if (i > token_buffer.length) return ERROR_OUT_OF_RANGE;
+
+            code = vector_get(&token_buffer, i, &token);
+            if (code != ERROR_OK) return code;
+
+            if (token.kind != PP_TOKEN_LEFT_PAREN) { // TODO error
+                return ERROR_INTERNAL;
+            }
+
+            i++;
+            if (i > token_buffer.length) return ERROR_OUT_OF_RANGE;
+
+            code = vector_get(&token_buffer, i, &token);
+            if (code != ERROR_OK) return code;
+
+            if (token.kind != PP_TOKEN_IDENTIFIER) { // TODO error
+                return ERROR_INTERNAL;
+            }
+
+            const void *macro = macro_table_find(&preprocessor->macro_table, token.data.string);
+
+            const bool defined = macro != nullptr;
+
+            i++;
+            if (i > token_buffer.length) return ERROR_OUT_OF_RANGE;
+
+            code = vector_get(&token_buffer, i, &token);
+
+            if (code != ERROR_OK) return code;
+
+            if (token.kind != PP_TOKEN_RIGHT_PAREN) { // TODO error
+                return ERROR_INTERNAL;
+            }
+
+            i++;
+            if (i > token_buffer.length) return ERROR_OUT_OF_RANGE;
+
+            const size_t end = i;
+
+            PPToken tok = {
+                .kind = PP_TOKEN_NUMBER,
+                .actual_span = {0},
+                .presumed_span = {0},
+                .leading_space = false,
+                .start_of_line = false,
+                .wide = false,
+                .data = {nullptr}
+            };
+
+            tok.data.string = defined ? strdup("1") : strdup("0");
+
+            vector_set(&token_buffer, start, &tok);
+
+            for (size_t j = 1; j < end - start; j++) {
+                code = vector_remove(&token_buffer, start+1, nullptr);
+                if (code != ERROR_OK) return code;
+            }
+
+            i = start;
+        }
+    }
+
+    // macro expand macros
+    i = 0;
+    while (i < token_buffer.length) { // expand macros
+        code = vector_get(&token_buffer, i, &token);
+        if (code != ERROR_OK) return code;
+
+        if (token.kind == PP_TOKEN_IDENTIFIER) {
+            Macro *macro = macro_table_find(&preprocessor->macro_table, token.data.string);
+
+            if (macro == nullptr) {
+                PPToken tok = {
+                    .kind = PP_TOKEN_NUMBER,
+                    .actual_span = {0},
+                    .presumed_span = {0},
+                    .leading_space = false,
+                    .start_of_line = false,
+                    .wide = false,
+                    .data = {strdup("0")}
+                };
+
+                vector_set(&token_buffer, i, &tok);
+
+                i++;
+                continue;
+            }
+
+            if (macro->kind == MACRO_OBJECT_LIKE) {
+                code = vector_remove(&token_buffer, i, nullptr);
+                if (code != ERROR_OK) return code;
+
+                for (size_t j = 0; j < macro->replacement_count; j++) {
+                    code = vector_insert(&token_buffer, i+j, &macro->replacement[j]);
+
+                    if (code != ERROR_OK) return code;
+                }
+            } else if (macro->kind == MACRO_FUNCTION_LIKE) {
+
+            }
+
+            continue;
+        }
+
+        i++;
+    }
+
+    PPInteger num;
+
+    size_t idx = 0;
+    code = pp_process_primary_expression(&token_buffer, &idx, true, &num, error);
+
+    if (code != ERROR_OK) return code;
+
+    if (num.value == 0) *condition = false;
+    else *condition = true;
+
+    return ERROR_OK;
 }
 
 static Error pp_process_directive(Preprocessor *preprocessor, PreprocessorError *error) {
@@ -197,24 +387,74 @@ static Error pp_process_directive(Preprocessor *preprocessor, PreprocessorError 
         strcmp(token.data.string, "ifdef") == 0 ||
         strcmp(token.data.string, "ifndef") == 0
     ) {
-        bool parent_active = pp_active(preprocessor);
+        const bool parent_active = pp_active(preprocessor);
         bool condition = false;
 
+        if (parent_active) {
+            if ((code = pp_process_condition(preprocessor, &condition, error)) != ERROR_OK) {
+                return code;
+            }
+        }
 
-        PPConditionalFrame conditional = {
+        const PPConditionalFrame conditional = {
             .parent_active = parent_active,
             .branch_active = parent_active && condition,
             .branch_taken = parent_active && condition,
             .saw_else = false
         };
 
-        vector_push(&preprocessor->conditionals, &conditional);
+        return vector_push(&preprocessor->conditionals, &conditional);
     } else if (strcmp(token.data.string, "elif") == 0) {
+        PPConditionalFrame frame;
 
-    } else if (strcmp(token.data.string, "else") == 0) {
+        if ((code = vector_get(&preprocessor->conditionals, preprocessor->conditionals.length-1, &frame)) != ERROR_OK) return code;
 
-    } else if (strcmp(token.data.string, "endif") == 0) {
+        if (frame.saw_else) { // TODO error
+            return ERROR_INTERNAL;
+        }
 
+        bool condition = false;
+
+        if (frame.parent_active && !frame.branch_taken) {
+            condition = false;
+        }
+
+        frame.branch_active =
+            frame.parent_active &&
+            !frame.branch_taken &&
+            condition;
+
+        if (frame.branch_active) frame.branch_taken = true;
+
+        return vector_set(&preprocessor->conditionals, preprocessor->conditionals.length-1, &frame);
+    }
+
+    if (strcmp(token.data.string, "else") == 0) {
+        PPConditionalFrame frame;
+
+        if ((code = vector_get(&preprocessor->conditionals, preprocessor->conditionals.length-1, &frame)) != ERROR_OK) return code;
+
+        if (frame.saw_else) { // TODO error
+            return ERROR_INTERNAL;
+        }
+
+        frame.saw_else = true;
+
+        frame.branch_active =
+            frame.parent_active &&
+            !frame.branch_taken;
+
+            frame.branch_taken = true;
+
+        return vector_set(&preprocessor->conditionals, preprocessor->conditionals.length-1, &frame);
+    }
+
+    if (strcmp(token.data.string, "endif") == 0) {
+        if (preprocessor->conditionals.length == 0) { // TODO error
+            return ERROR_INTERNAL;
+        }
+
+        return vector_pop(&preprocessor->conditionals, nullptr);
     }
 
     if (!pp_active(preprocessor)) return ERROR_OK;
@@ -277,9 +517,12 @@ static Error pp_process_directive(Preprocessor *preprocessor, PreprocessorError 
     } else if (strcmp(token.data.string, "pragma") == 0) {
 
     }
+
+    return ERROR_OK;
 }
 
 static Error pp_try_expand_macro(Preprocessor *preprocessor, PPToken *identifier, bool *expanded) {
+    Error code;
     Macro *macro = macro_table_find(&preprocessor->macro_table, identifier->data.string);
 
     if (macro == nullptr) {
@@ -295,7 +538,9 @@ static Error pp_try_expand_macro(Preprocessor *preprocessor, PPToken *identifier
         expansion.macro.count = macro->replacement_count;
         expansion.macro.tokens = macro->replacement;
 
-        vector_push(&preprocessor->sources, &expansion);
+        code = vector_push(&preprocessor->sources, &expansion);
+
+        if (code != ERROR_OK) return code;
     } else if (macro->kind == MACRO_FUNCTION_LIKE) {
 
     }
@@ -324,6 +569,10 @@ Error preprocessor_next(Preprocessor *preprocessor, PPToken *result, Preprocesso
         }
 
         if (token.kind == PP_TOKEN_EOF) {
+            if (preprocessor->conditionals.length != 0) { // TODO error
+                return ERROR_INTERNAL;
+            }
+
             *result = token;
             return ERROR_OK;
         }
