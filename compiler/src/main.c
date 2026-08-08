@@ -27,9 +27,7 @@ int main(void) {
     if ((code = preprocessor_init(&preprocessor, &lexer)) != ERROR_OK) return (int)code;
     if ((code = token_stream_init(&stream, &preprocessor)) != ERROR_OK) return (int)code;
 
-    FILE *f = fopen("test.s", "w");
-
-    PPToken token;
+    /*PPToken token;
     preprocessor_next(&preprocessor, &token, nullptr);
     size_t indent_count = 0;
 
@@ -210,11 +208,9 @@ int main(void) {
         }
 
         preprocessor_next(&preprocessor, &token, nullptr);
-    }
+    }*/
 
-    return 0;
-
-    // parser_init(&parser, &stream);
+    parser_init(&parser, &stream);
 
     TranslationUnit unit;
 

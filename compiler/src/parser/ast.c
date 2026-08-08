@@ -38,8 +38,8 @@ bool compound_statement_append(CompoundStatement *compound_statement, const Bloc
     return true;
 }
 
-void expression_destroy(Expression *expression) {
-    if (expression->kind == EXPRESSION_INTEGER_CONSTANT) {
+void expression_destroy(Expr *expression) {
+    if (expression->kind == EXPR_INTEGER) {
         free(expression);
     } else if (expression->kind == EXPRESSION_COMMA) {
         expression_destroy(expression->data.comma.left);

@@ -8,15 +8,16 @@
 
 typedef struct Declaration Declaration;
 
-typedef enum ExpressionKind {
-    EXPRESSION_INTEGER_CONSTANT,
+typedef enum ExprKind {
+    EXPR_INTEGER,
+
     EXPRESSION_COMMA
-} ExpressionKind;
+} ExprKind;
 
-typedef struct Expression Expression;
+typedef struct Expr Expr;
 
-struct Expression {
-    ExpressionKind kind;
+struct Expr {
+    ExprKind kind;
     SourceSpan span;
     const CType *type;
 
@@ -26,8 +27,8 @@ struct Expression {
         } integer_constant;
 
         struct {
-            Expression *left;
-            Expression *right;
+            Expr *left;
+            Expr *right;
         } comma;
     } data;
 };
@@ -48,7 +49,7 @@ typedef struct JumpStatement {
         } goto_statement;
 
         struct {
-            Expression *expression;
+            Expr *expression;
         } return_statement;
     } data;
 } JumpStatement;
@@ -136,7 +137,7 @@ bool translation_unit_init(TranslationUnit *unit);
 bool push_external_declaration(TranslationUnit *unit, const ExternalDeclaration *external_declaration);
 bool compound_statement_append(CompoundStatement *compound_statement, const BlockItem *item);
 
-void expression_destroy(Expression *expression);
+void expression_destroy(Expr *expression);
 void statement_destroy(const Statement *statement);
 void compound_statement_destroy(const CompoundStatement *compound_statement);
 void translation_unit_destroy(const TranslationUnit *unit);

@@ -56,9 +56,9 @@ bool ir_function_append(IRModule *module, const IRFunction *function) {
 
 static bool lower_compound_statement(CompoundStatement *statement, IRBasicBlock *block);
 
-static bool lower_expression(Expression *expression, IRValue *result) {
+static bool lower_expression(Expr *expression, IRValue *result) {
     switch (expression->kind) {
-        case EXPRESSION_INTEGER_CONSTANT:
+        case EXPR_INTEGER:
             *result = (IRValue){
                 .kind = IR_VALUE_INTEGER_CONSTANT,
                 .type = expression->type,

@@ -8,12 +8,12 @@ void parser_init(Parser *parser, TokenStream *tokens) {
     memset(&parser->error, 0, sizeof(parser->error));
 }
 
-static const CToken *parser_peek(const Parser *parser) {
-    return token_stream_peek(parser->tokens);
+static const CToken *parser_peek(const Parser *parser, size_t lookahead) {
+    return token_stream_peek(parser->tokens, lookahead);
 }
 
-static Error parser_consume(const Parser *parser) {
-    return token_stream_consume(parser->tokens);
+static Error parser_consume(const Parser *parser, CToken *token) {
+    return token_stream_consume(parser->tokens, token);
 }
 
 static Error parser_match(const Parser *parser, const CTokenKind expected) {
@@ -21,7 +21,7 @@ static Error parser_match(const Parser *parser, const CTokenKind expected) {
 }
 
 static Error parser_expected(Parser *parser, const CTokenKind expected, CToken *result) {
-    const CToken *token = parser_peek(parser);
+    const CToken *token = parser_peek(parser, 0);
 
     if (token == nullptr) {
         return ERROR_NULL_POINTER;
@@ -38,17 +38,17 @@ static Error parser_expected(Parser *parser, const CTokenKind expected, CToken *
         *result = *token;
     }
 
-    return token_stream_consume(parser->tokens);
+    return token_stream_consume(parser->tokens, nullptr);
 }
 
-Expression *parser_parse_assignment_expression(const Parser *parser) {
-    const CToken *token = parser_peek(parser);
+Expr *parser_parse_assignment_expression(const Parser *parser) {
+    const CToken *token = parser_peek(parser, 0);
 
     if (token == nullptr || token->kind != C_TOKEN_INTEGER_CONSTANT) {
         return nullptr;
     }
 
-    Expression *expression = malloc(sizeof(Expression));
+    Expr *expression = malloc(sizeof(Expr));
 
     if (expression == nullptr) {
         return nullptr;
@@ -56,8 +56,8 @@ Expression *parser_parse_assignment_expression(const Parser *parser) {
 
     const CType *type = ctype_builtin(CTYPE_INT);
 
-    *expression = (Expression){
-        .kind = EXPRESSION_INTEGER_CONSTANT,
+    *expression = (Expr){
+        .kind = EXPR_INTEGER,
         .span = token->span,
         .type = type,
         .data.integer_constant = {
@@ -65,31 +65,31 @@ Expression *parser_parse_assignment_expression(const Parser *parser) {
         }
     };
 
-    parser_consume(parser);
+    parser_consume(parser, nullptr);
     return expression;
 }
 
-Expression *parser_parse_expression(Parser *parser) {
+Expr *parser_parse_expression(Parser *parser) {
     /*
      * expression ::= assignment-expression
      *              | expression ',' assignment-expression
      */
 
-    Expression *left = parser_parse_assignment_expression(parser);
+    Expr *left = parser_parse_assignment_expression(parser);
 
     if (left == nullptr) {
         return nullptr;
     }
 
     while (parser_match(parser, C_TOKEN_COMMA) == ERROR_OK) {
-        Expression *right = parser_parse_assignment_expression(parser);
+        Expr *right = parser_parse_assignment_expression(parser);
 
         if (right == nullptr) {
             free(left);
             return nullptr;
         }
 
-        Expression *comma = malloc(sizeof(*comma));
+        Expr *comma = malloc(sizeof(*comma));
 
         if (comma == nullptr) {
             free(left);
@@ -97,7 +97,7 @@ Expression *parser_parse_expression(Parser *parser) {
             return nullptr;
         }
 
-        *comma = (Expression){
+        *comma = (Expr){
             .kind = EXPRESSION_COMMA,
             .span = {
                 .begin = left->span.begin,
@@ -124,9 +124,9 @@ Error parser_parse_jump_statement(Parser *parser, Statement *result) {
         return code;
     }
 
-    Expression *expression = nullptr;
+    Expr *expression = nullptr;
 
-    if (parser_peek(parser)->kind != C_TOKEN_SEMICOLON) {
+    if (parser_peek(parser, 0)->kind != C_TOKEN_SEMICOLON) {
         expression = parser_parse_expression(parser);
 
         if (expression == nullptr) {
@@ -157,13 +157,13 @@ Error parser_parse_jump_statement(Parser *parser, Statement *result) {
 }
 
 Error parser_parse_statement(Parser *parser, Statement *result) {
-    const CToken *token = parser_peek(parser);
+    const CToken *token = parser_peek(parser, 0);
 
     if (token->kind == C_TOKEN_KW_RETURN) {
         return parser_parse_jump_statement(parser, result);
     }
 
-    parser->error.span = parser_peek(parser)->span;
+    parser->error.span = parser_peek(parser, 0)->span;
     parser->error.message = "Expected \"return\"";
 
     return ERROR_OK;
@@ -181,8 +181,8 @@ Error parser_parse_compound_statement(Parser *parser, CompoundStatement *result)
     compound.capacity = 8;
     compound.items = malloc(sizeof(BlockItem) * compound.capacity);
 
-    while (parser_peek(parser)->kind != C_TOKEN_RIGHT_BRACE &&
-           parser_peek(parser)->kind != C_TOKEN_EOF) {
+    while (parser_peek(parser, 0)->kind != C_TOKEN_RIGHT_BRACE &&
+           parser_peek(parser, 0)->kind != C_TOKEN_EOF) {
         BlockItem item;
         item.kind = BLOCK_ITEM_STATEMENT;
 
@@ -280,7 +280,7 @@ Error parser_parse_external_declaration(Parser *parser, TranslationUnit *unit) {
 
 Error parser_parse_translation_unit(Parser *parser, TranslationUnit *unit) {
     Error code;
-    while (parser_peek(parser)->kind != C_TOKEN_EOF) {
+    while (parser_peek(parser, 0)->kind != C_TOKEN_EOF) {
         if ((code = parser_parse_external_declaration(parser, unit))) return code;
     }
 
