@@ -2,6 +2,7 @@
 #define NA_16_AST_H
 
 #include <stdint.h>
+#include <vector.h>
 
 #include "../lexer/source.h"
 #include "../type.h"
@@ -97,9 +98,7 @@ typedef struct BlockItem {
 typedef struct CompoundStatement {
     SourceSpan span;
 
-    BlockItem *items;
-    size_t count;
-    size_t capacity;
+    Vector items;
 } CompoundStatement;
 
 typedef struct FunctionDefinition {
@@ -126,20 +125,11 @@ typedef struct ExternalDeclaration {
     } data;
 } ExternalDeclaration;
 
-typedef struct TranslationUnit {
-    ExternalDeclaration *items;
-    size_t count;
-    size_t capacity;
-} TranslationUnit;
+typedef Vector TranslationUnit;
 
-bool translation_unit_init(TranslationUnit *unit);
-
-bool push_external_declaration(TranslationUnit *unit, const ExternalDeclaration *external_declaration);
-bool compound_statement_append(CompoundStatement *compound_statement, const BlockItem *item);
-
-void expression_destroy(Expr *expression);
-void statement_destroy(const Statement *statement);
-void compound_statement_destroy(const CompoundStatement *compound_statement);
-void translation_unit_destroy(const TranslationUnit *unit);
+Error expression_destroy(Expr *expression);
+Error statement_destroy(const Statement *statement);
+Error compound_statement_destroy(CompoundStatement *compound_statement);
+Error translation_unit_destroy(TranslationUnit *translation_unit);
 
 #endif //NA_16_AST_H

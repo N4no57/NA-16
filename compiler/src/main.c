@@ -214,7 +214,7 @@ int main(void) {
 
     TranslationUnit unit;
 
-    translation_unit_init(&unit);
+    vector_init(&unit, sizeof(ExternalDeclaration));
 
     if ((code = parser_parse_translation_unit(&parser, &unit)) != ERROR_OK) return (int)code;
 
@@ -223,7 +223,7 @@ int main(void) {
         .current_function_return_type = nullptr
     };
 
-    analyse_function_definition(&semantic_context ,&unit.items[0].data.function_definition);
+    analyse_function_definition(&semantic_context, &((ExternalDeclaration *)unit.data)[0].data.function_definition);
 
     IRModule module = {
         .function_capacity = 8,

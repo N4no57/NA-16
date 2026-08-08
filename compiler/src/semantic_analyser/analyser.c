@@ -21,8 +21,8 @@ bool analyse_statement(SemanticContext *context, const Statement *statement) {
 }
 
 bool analyse_compound_statement(SemanticContext *context, const CompoundStatement *compound) {
-    for (size_t i = 0; i < compound->count; i++) {
-        const BlockItem *item = &compound->items[i];
+    for (size_t i = 0; i < compound->items.length; i++) {
+        const BlockItem *item = &((BlockItem *)compound->items.data)[i];
 
         if (item->kind == BLOCK_ITEM_STATEMENT) {
             if (!analyse_statement(context, &item->data.statement)) {

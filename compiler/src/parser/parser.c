@@ -177,9 +177,7 @@ Error parser_parse_compound_statement(Parser *parser, CompoundStatement *result)
         return code;
     }
 
-    CompoundStatement compound = {0};
-    compound.capacity = 8;
-    compound.items = malloc(sizeof(BlockItem) * compound.capacity);
+    vector_init(&result->items, sizeof(BlockItem));
 
     while (parser_peek(parser, 0)->kind != C_TOKEN_RIGHT_BRACE &&
            parser_peek(parser, 0)->kind != C_TOKEN_EOF) {
@@ -187,13 +185,13 @@ Error parser_parse_compound_statement(Parser *parser, CompoundStatement *result)
         item.kind = BLOCK_ITEM_STATEMENT;
 
         if ((code = parser_parse_statement(parser, &item.data.statement)) != ERROR_OK) {
-            compound_statement_destroy(&compound);
+            vector_destroy(&result->items);
             return code;
         }
 
-        if ((code = compound_statement_append(&compound, &item)) != ERROR_OK) {
+        if ((code = vector_push(&result->items, &item)) != ERROR_OK) {
             statement_destroy(&item.data.statement);
-            compound_statement_destroy(&compound);
+            compound_statement_destroy(result);
             return code;
         }
     }
@@ -201,16 +199,15 @@ Error parser_parse_compound_statement(Parser *parser, CompoundStatement *result)
     CToken right_brace;
 
     if ((code = parser_expected(parser, C_TOKEN_RIGHT_BRACE, &right_brace)) != ERROR_OK) {
-        compound_statement_destroy(&compound);
+        compound_statement_destroy(result);
         return code;
     }
 
-    compound.span = (SourceSpan){
+    result->span = (SourceSpan){
         .begin = left_brace.span.begin,
         .end = right_brace.span.end
     };
 
-    *result = compound;
     return ERROR_OK;
 }
 
@@ -271,11 +268,9 @@ Error parser_parse_external_declaration(Parser *parser, TranslationUnit *unit) {
         return code;
     }
 
-    push_external_declaration(unit, &external_declaration);
-
     // TODO: declaration
 
-    return ERROR_OK;
+    return vector_push(unit, &external_declaration);
 }
 
 Error parser_parse_translation_unit(Parser *parser, TranslationUnit *unit) {

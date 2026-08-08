@@ -2,43 +2,8 @@
 
 #include <stdlib.h>
 
-bool translation_unit_init(TranslationUnit *unit) {
-    unit->count = 0;
-    unit->capacity = 8;
-    unit->items = malloc(sizeof(ExternalDeclaration) * unit->capacity);
 
-    if (!unit->items) return false;
-    return true;
-}
-
-bool push_external_declaration(TranslationUnit *unit, const ExternalDeclaration *external_declaration) {
-    if (unit->count == unit->capacity) {
-        unit->capacity *= 2;
-        ExternalDeclaration *tmp = realloc(unit->items, sizeof(ExternalDeclaration) * unit->capacity);
-        if (!tmp) return false;
-
-        unit->items = tmp;
-    }
-
-    unit->items[unit->count++] = *external_declaration;
-
-    return true;
-}
-
-bool compound_statement_append(CompoundStatement *compound_statement, const BlockItem *item) {
-    if (compound_statement->count == compound_statement->capacity) {
-        compound_statement->capacity *= 2;
-        BlockItem *tmp = realloc(compound_statement->items, sizeof(BlockItem) * compound_statement->capacity);
-        if (!tmp) return false;
-
-        compound_statement->items = tmp;
-    }
-
-    compound_statement->items[compound_statement->count++] = *item;
-    return true;
-}
-
-void expression_destroy(Expr *expression) {
+Error expression_destroy(Expr *expression) {
     if (expression->kind == EXPR_INTEGER) {
         free(expression);
     } else if (expression->kind == EXPRESSION_COMMA) {
@@ -46,9 +11,11 @@ void expression_destroy(Expr *expression) {
         expression_destroy(expression->data.comma.right);
         free(expression);
     }
+
+    return ERROR_OK;
 }
 
-void statement_destroy(const Statement *statement) {
+Error statement_destroy(const Statement *statement) {
     if (statement->kind == STATEMENT_JUMP) {
         const JumpStatement *jump_statement = &statement->data.jump_statement;
 
@@ -60,31 +27,34 @@ void statement_destroy(const Statement *statement) {
     } else if (statement->kind == STATEMENT_COMPOUND) {
         compound_statement_destroy(statement->data.compound_statement);
     }
+
+    return ERROR_OK;
 }
 
-void compound_statement_destroy(const CompoundStatement *compound_statement) {
-    for (size_t i = 0; i < compound_statement->count; i++) {
-        const BlockItem *item = &compound_statement->items[i];
+Error compound_statement_destroy(CompoundStatement *compound_statement) {
+    for (size_t i = 0; i < compound_statement->items.length; i++) {
+        const BlockItem *item = &((BlockItem *)compound_statement->items.data)[i];
 
         if (item->kind == BLOCK_ITEM_STATEMENT) {
-            statement_destroy(&item->data.statement);
+            const Error code = statement_destroy(&item->data.statement);
+            if (code != ERROR_OK) return code;
         }
     }
 
-    free(compound_statement->items);
+    return vector_destroy(&compound_statement->items);
 }
 
-void translation_unit_destroy(const TranslationUnit *unit) {
-    for (size_t i = 0; i < unit->count; i++) {
-        const ExternalDeclaration *external_declaration = &unit->items[i];
+Error translation_unit_destroy(TranslationUnit *translation_unit) {
+    for (size_t i = 0; i < translation_unit->length; i++) {
+        const ExternalDeclaration *external_declaration = &((ExternalDeclaration *)translation_unit->data)[i];
 
         if (external_declaration->kind == EXTERNAL_DECLARATION_FUNCTION_DEFINITION) {
-            const FunctionDefinition *function_definition = &external_declaration->data.function_definition;
+            FunctionDefinition *function_definition = &external_declaration->data.function_definition;
             free(function_definition->name);
 
             compound_statement_destroy(&function_definition->body);
         }
     }
 
-    free(unit->items);
+    return vector_destroy(translation_unit);
 }

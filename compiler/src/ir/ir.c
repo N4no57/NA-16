@@ -109,8 +109,8 @@ static bool lower_statement(Statement *statement, IRBasicBlock *block) {
 }
 
 static bool lower_compound_statement(CompoundStatement *statement, IRBasicBlock *block) {
-    for (size_t i = 0; i < statement->count; i++) {
-        BlockItem *item = &statement->items[i];
+    for (size_t i = 0; i < statement->items.length; i++) {
+        BlockItem *item = &((BlockItem *)statement->items.data)[i];
 
         switch (item->kind) {
             case BLOCK_ITEM_STATEMENT:
@@ -172,8 +172,8 @@ static bool lower_function_definition(FunctionDefinition *function, IRModule *mo
 }
 
 bool lower_ast(TranslationUnit *unit, IRModule *module) {
-    for (size_t i = 0; i < unit->count; i++) {
-        ExternalDeclaration *item = &unit->items[i];
+    for (size_t i = 0; i < unit->length; i++) {
+        ExternalDeclaration *item = &((ExternalDeclaration *)unit->data)[i];
 
         if (item->kind == EXTERNAL_DECLARATION_FUNCTION_DEFINITION) {
             if (!lower_function_definition(&item->data.function_definition, module)) return false;
