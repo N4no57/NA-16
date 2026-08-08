@@ -7,14 +7,13 @@
 typedef struct TokenStream {
     Preprocessor preprocessor;
 
-    CToken current;
-    bool has_current;
+    Vector token_buffer;
 } TokenStream;
 
 Error token_stream_init(TokenStream *token_stream, const Preprocessor *preprocessor);
 
-const CToken *token_stream_peek(TokenStream *stream);
-Error token_stream_consume(TokenStream *stream);
+const CToken *token_stream_peek(TokenStream *stream, size_t lookahead);
+Error token_stream_consume(TokenStream *stream, CToken *result);
 
 Error token_stream_match(TokenStream *stream, CTokenKind expected);
 
