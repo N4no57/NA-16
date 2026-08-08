@@ -5,6 +5,18 @@
 #include "preprocessor.h"
 #include "c_token.h"
 
+char *(builtin_directives[]) = {
+    "__DATE__",
+    "__FILE__",
+    "__STDC__",
+    "__STDC_HOSTED__",
+    "__STDC_MB_MIGHT_NEQ_WC__",
+    "__STDC_VERSION__",
+    "__TIME__",
+    "__STDC_IEC_599__",
+    "__STDC_IEC_599_COMPLEX__"
+};
+
 Error preprocessor_init(Preprocessor *preprocessor, const Lexer *lexer) {
     if (!lexer || !preprocessor) return ERROR_NULL_POINTER;
 
@@ -42,6 +54,7 @@ Error preprocessor_init(Preprocessor *preprocessor, const Lexer *lexer) {
         .file = *lexer
     };
 
+    // init source
     vector_push(&preprocessor->sources, &source);
 
     return ERROR_OK;
@@ -864,6 +877,8 @@ static Error pp_process_condition(Preprocessor *preprocessor, bool *condition, P
 
         if (token.kind == PP_TOKEN_IDENTIFIER && strcmp(token.data.string, "defined") == 0) {
             const size_t start = i;
+            const SourceSpan actual_span = token.actual_span;
+
             i++;
             if (i > token_buffer.length) return ERROR_OUT_OF_RANGE;
 
@@ -906,6 +921,8 @@ static Error pp_process_condition(Preprocessor *preprocessor, bool *condition, P
 
             PPToken tok = {
                 .kind = PP_TOKEN_NUMBER,
+                .actual_span = actual_span,
+                .presumed_span = actual_span,
                 .leading_space = false,
                 .start_of_line = false,
                 .wide = false,
@@ -980,6 +997,38 @@ static Error pp_process_condition(Preprocessor *preprocessor, bool *condition, P
     return ERROR_OK;
 }
 
+static Error pp_process_def(Preprocessor *preprocessor, bool *condition, bool not_def, PreprocessorError *error) {
+    PPToken token;
+    PPSourceKind origin;
+
+    Error code = pp_read_unexpanded(preprocessor, &token, &origin, error);
+    if (code != ERROR_OK) return code;
+    if (origin != PP_FILE_SOURCE) { // TODO error
+        return ERROR_INTERNAL;
+    }
+
+    if (token.kind != PP_TOKEN_IDENTIFIER) { // TODO error
+        return ERROR_INTERNAL;
+    }
+
+    Macro *macro = macro_table_find(&preprocessor->macro_table, token.data.string);
+
+    if (not_def) *condition = macro == nullptr;
+    else *condition = macro != nullptr;
+
+    code = pp_read_unexpanded(preprocessor, &token, &origin, error);
+    if (code != ERROR_OK) return code;
+    if (origin != PP_FILE_SOURCE) { // TODO error
+        return ERROR_INTERNAL;
+    }
+
+    if (token.kind != PP_TOKEN_NEWLINE) { // TODO error
+        return ERROR_INTERNAL;
+    }
+
+    return ERROR_OK;
+}
+
 static Error pp_process_directive(Preprocessor *preprocessor, PreprocessorError *error) {
     Error code;
     PPToken token;
@@ -999,10 +1048,7 @@ static Error pp_process_directive(Preprocessor *preprocessor, PreprocessorError 
         return ERROR_INTERNAL;
     }
 
-    if (strcmp(token.data.string, "if") == 0 ||
-        strcmp(token.data.string, "ifdef") == 0 ||
-        strcmp(token.data.string, "ifndef") == 0
-    ) {
+    if (strcmp(token.data.string, "if") == 0) {
         const bool parent_active = pp_active(preprocessor);
         bool condition = false;
 
@@ -1010,6 +1056,42 @@ static Error pp_process_directive(Preprocessor *preprocessor, PreprocessorError 
             if ((code = pp_process_condition(preprocessor, &condition, error)) != ERROR_OK) {
                 return code;
             }
+        }
+
+        const PPConditionalFrame conditional = {
+            .parent_active = parent_active,
+            .branch_active = parent_active && condition,
+            .branch_taken = parent_active && condition,
+            .saw_else = false
+        };
+
+        return vector_push(&preprocessor->conditionals, &conditional);
+    }
+
+    if (strcmp(token.data.string, "ifdef") == 0) {
+        const bool parent_active = pp_active(preprocessor);
+        bool condition = false;
+
+        if (parent_active) {
+            pp_process_def(preprocessor, &condition, false, error);
+        }
+
+        const PPConditionalFrame conditional = {
+            .parent_active = parent_active,
+            .branch_active = parent_active && condition,
+            .branch_taken = parent_active && condition,
+            .saw_else = false
+        };
+
+        return vector_push(&preprocessor->conditionals, &conditional);
+    }
+
+    if (strcmp(token.data.string, "ifndef") == 0) {
+        const bool parent_active = pp_active(preprocessor);
+        bool condition = false;
+
+        if (parent_active) {
+            pp_process_def(preprocessor, &condition, true, error);
         }
 
         const PPConditionalFrame conditional = {
@@ -1129,11 +1211,11 @@ static Error pp_process_directive(Preprocessor *preprocessor, PreprocessorError 
     } else if (strcmp(token.data.string, "include") == 0) {
 
     } else if (strcmp(token.data.string, "line") == 0) {
-
+        // TODO needs to be done for C99 compliance
     } else if (strcmp(token.data.string, "error") == 0) {
-
+        // TODO needs to be done for C99 compliance
     } else if (strcmp(token.data.string, "pragma") == 0) {
-
+        // TODO needs to be done for C99 compliance
     }
 
     return ERROR_OK;
@@ -1154,6 +1236,25 @@ static Error pp_try_expand_macro(Preprocessor *preprocessor, PPToken *identifier
         expansion.macro.macro = macro;
         expansion.macro.count = macro->replacement_count;
         expansion.macro.tokens = macro->replacement;
+
+        {
+            PPToken *replacement = &macro->replacement[0];
+            size_t size = replacement->actual_span.end.offset - replacement->actual_span.begin.offset;
+
+            replacement->presumed_span = identifier->presumed_span;
+
+            replacement->presumed_span.end.offset = replacement->presumed_span.begin.offset + size;
+
+            for (size_t i = 1; i < macro->replacement_count; i++) {
+                replacement = &macro->replacement[i];
+                size = replacement->actual_span.end.offset - replacement->actual_span.begin.offset;
+
+                replacement->presumed_span.begin = macro->replacement[i-1].presumed_span.end;
+                if (replacement->leading_space) replacement->presumed_span.begin.offset++;
+
+                replacement->presumed_span.end.offset = replacement->presumed_span.begin.offset + size;
+            }
+        }
 
         const Error code = vector_push(&preprocessor->sources, &expansion);
 
