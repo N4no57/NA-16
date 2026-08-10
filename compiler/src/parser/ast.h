@@ -6,33 +6,60 @@
 
 #include "../lexer/source.h"
 #include "../type.h"
+#include "../preprocessor/c_token.h"
 
 typedef struct Declaration Declaration;
 
 typedef enum ExprKind {
     EXPR_INTEGER,
+    EXPR_IDENTIFIER,
 
-    EXPRESSION_COMMA
+    EXPR_BINARY,
+    EXPR_UNARY,
+
+    EXPR_CALL,
+    EXPR_SUBSCRIPT,
+    EXPR_MEMBER,
+
+    EXPR_ASSIGN,
+    EXPR_CONDITIONAL,
+    EXPR_CAST,
 } ExprKind;
+
+typedef enum BinaryOp {
+    
+} BinaryOp;
+
+typedef enum UnaryOp {
+
+} UnaryOp;
 
 typedef struct Expr Expr;
 
-struct Expr {
+typedef struct Expr {
     ExprKind kind;
-    SourceSpan span;
-    const CType *type;
 
     union {
         struct {
-            uint64_t value;
-        } integer_constant;
+            i64 value;
+        } integer;
 
         struct {
+            CToken name;
+        } identifier;
+
+        struct {
+            BinaryOp op;
             Expr *left;
             Expr *right;
-        } comma;
-    } data;
-};
+        } binary;
+
+        struct {
+            UnaryOp op;
+            Expr *operand;
+        } unary;
+    };
+} Expr;
 
 typedef enum JumpStatementKind {
     JUMP_STATEMENT_GOTO,

@@ -41,76 +41,42 @@ static Error parser_expected(Parser *parser, const CTokenKind expected, CToken *
     return token_stream_consume(parser->tokens, nullptr);
 }
 
-Expr *parser_parse_assignment_expression(const Parser *parser) {
-    const CToken *token = parser_peek(parser, 0);
+typedef struct Precedence {
+    float lbp;
+    float rbp;
+} Precedence;
 
-    if (token == nullptr || token->kind != C_TOKEN_INTEGER_CONSTANT) {
-        return nullptr;
-    }
+Expr *parser_parse_expression(Parser *parser, float min_bp) {
+    const CToken *tok = parser_peek(parser, 0);
+    Expr *left = nullptr;
 
-    Expr *expression = malloc(sizeof(Expr));
+    if (tok->kind != C_TOKEN_LEFT_PAREN) {
+        parser_consume(parser, nullptr);
+        left = parser_parse_expression(parser, 0);
 
-    if (expression == nullptr) {
-        return nullptr;
-    }
-
-    const CType *type = ctype_builtin(CTYPE_INT);
-
-    *expression = (Expr){
-        .kind = EXPR_INTEGER,
-        .span = token->span,
-        .type = type,
-        .data.integer_constant = {
-            .value = token->data.integer.unsigned_int
-        }
-    };
-
-    parser_consume(parser, nullptr);
-    return expression;
-}
-
-Expr *parser_parse_expression(Parser *parser) {
-    /*
-     * expression ::= assignment-expression
-     *              | expression ',' assignment-expression
-     */
-
-    Expr *left = parser_parse_assignment_expression(parser);
-
-    if (left == nullptr) {
-        return nullptr;
-    }
-
-    while (parser_match(parser, C_TOKEN_COMMA) == ERROR_OK) {
-        Expr *right = parser_parse_assignment_expression(parser);
-
-        if (right == nullptr) {
-            free(left);
+        tok = parser_peek(parser, 0);
+        if (tok->kind != C_TOKEN_RIGHT_PAREN) {
             return nullptr;
         }
+        return left;
+    }
 
-        Expr *comma = malloc(sizeof(*comma));
+    left = malloc(sizeof(Expr));
 
-        if (comma == nullptr) {
-            free(left);
-            free(right);
-            return nullptr;
+    while (true) {
+        tok = parser_peek(parser, 0);
+
+        if (
+            tok->kind == C_TOKEN_EOF ||
+            tok->kind == C_TOKEN_RIGHT_PAREN) {
+            break;
         }
 
-        *comma = (Expr){
-            .kind = EXPRESSION_COMMA,
-            .span = {
-                .begin = left->span.begin,
-                .end = right->span.end,
-            },
-            .type = right->type,
-            .data.comma = {
-                .left = left,
-                .right = right
-            }
-        };
+        parser_consume(parser, nullptr);
 
-        left = comma;
+        float r_bp = 0;
+
+        Expr *right = parser_parse_expression(parser, r_bp);
     }
 
     return left;
