@@ -5,25 +5,58 @@
 #include <string.h>
 
 char *(keywords[]) = {
+    "auto",
+    "break",
+    "case",
+    "char",
+    "const",
+    "continue",
+    "default",
+    "do",
+    "double",
+    "else",
+    "enum",
+    "extern",
+    "float",
+    "for",
+    "goto",
+    "if",
+    "inline",
     "int",
+    "long",
+    "register",
+    "restrict",
+    "return",
+    "short",
+    "signed",
+    "sizeof",
+    "static",
+    "struct",
+    "switch",
+    "typedef",
+    "union",
+    "unsigned",
     "void",
-    "return"
+    "volatile",
+    "while",
+    "_Bool",
+    "_Complex",
+    "_Imaginary"
 };
 
 constexpr size_t keyword_list_size = sizeof(keywords)/sizeof(keywords[0]);
 
-static Error handle_identifier(const PPToken *ppt, CToken *ct) {
+void handle_identifier(const PPToken *ppt, CToken *ct) {
     const char *identifier = ppt->data.string;
 
     for (size_t i = 0; i < keyword_list_size; ++i) {
         if (strcmp(keywords[i], identifier) == 0) {
-            ct->kind = C_TOKEN_KW_INT + (CTokenKind)i;
-            return ERROR_OK;
+            ct->kind = C_TOKEN_KW_AUTO + (CTokenKind)i;
+            return;
         }
     }
 
     ct->kind = C_TOKEN_IDENTIFIER;
-    return ERROR_OK;
 }
 
 static Error get_suffix(const char *text, IntegerSuffix *suffix) {
@@ -125,38 +158,27 @@ Error convert_ppt_to_ct(const PPToken *ppt, CToken *ct) {
             ct->kind = C_TOKEN_EOF;
             return ERROR_OK;
 
-        case PP_TOKEN_LEFT_BRACE:
-            ct->kind = C_TOKEN_LEFT_BRACE;
-            return ERROR_OK;
-
-        case PP_TOKEN_RIGHT_BRACE:
-            ct->kind = C_TOKEN_RIGHT_BRACE;
-            return ERROR_OK;
-
-        case PP_TOKEN_LEFT_PAREN:
-            ct->kind = C_TOKEN_LEFT_PAREN;
-            return ERROR_OK;
-
-        case PP_TOKEN_RIGHT_PAREN:
-            ct->kind = C_TOKEN_RIGHT_PAREN;
-            return ERROR_OK;
-
-        case PP_TOKEN_SEMICOLON:
-            ct->kind = C_TOKEN_SEMICOLON;
-            return ERROR_OK;
-
-        case PP_TOKEN_COMMA:
-            ct->kind = C_TOKEN_COMMA;
-            return ERROR_OK;
-
         case PP_TOKEN_IDENTIFIER:
-            return handle_identifier(ppt, ct);
+            handle_identifier(ppt, ct);
+            return ERROR_OK;
 
         case PP_TOKEN_NUMBER:
             return convert_pp_number(ppt, ct);
 
+        case PP_TOKEN_CHARACTER_CONSTANT:
+        case PP_TOKEN_STRING_LITERAL:
+            ct->kind = C_TOKEN_CHARACTER_CONSTANT;
+            ct->data.string_or_character.str = ppt->data.string;
+            return ERROR_OK;
+
         default:
-            // there was an error but not gonna handle that as of yet
-            return ERROR_INTERNAL;
+            ct->kind = C_TOKEN_LEFT_BRACKET + (ppt->kind - PP_TOKEN_LEFT_BRACKET);
+
+            if (ct->kind >= C_TOKEN_COUNT) {
+                // there was an error but not gonna handle that as of yet
+                // TODO
+                return ERROR_INTERNAL;
+            }
+            return ERROR_OK;
     }
 }
