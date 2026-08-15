@@ -5,7 +5,6 @@
 
 void parser_init(Parser *parser, TokenStream *tokens) {
     parser->tokens = tokens;
-    memset(&parser->error, 0, sizeof(parser->error));
 }
 
 static const CToken *parser_peek(const Parser *parser, size_t lookahead) {
@@ -28,8 +27,8 @@ static Error parser_expected(Parser *parser, const CTokenKind expected, CToken *
     }
 
     if (token->kind != expected) {
-        parser->error.span = token->span;
-        parser->error.message = "Unexpected token";
+        // parser->error.span = token->span;
+        // parser->error.message = "Unexpected token";
 
         return ERROR_NOT_FOUND;
     }
@@ -44,15 +43,27 @@ static Error parser_expected(Parser *parser, const CTokenKind expected, CToken *
 typedef struct Precedence {
     float lbp;
     float rbp;
+    bool valid;
 } Precedence;
 
-Expr *parser_parse_expression(Parser *parser, float min_bp) {
+static Precedence get_precedence(CTokenKind operator) {
+    switch (operator) {
+        default:
+            return (Precedence){
+                .lbp = 0,
+                .rbp = 0,
+                .valid = false
+            };
+    }
+}
+
+Expr *parse_expression(Parser *parser, float min_bp) {
     const CToken *tok = parser_peek(parser, 0);
     Expr *left = nullptr;
 
     if (tok->kind != C_TOKEN_LEFT_PAREN) {
         parser_consume(parser, nullptr);
-        left = parser_parse_expression(parser, 0);
+        left = parse_expression(parser, 0);
 
         tok = parser_peek(parser, 0);
         if (tok->kind != C_TOKEN_RIGHT_PAREN) {
@@ -76,13 +87,13 @@ Expr *parser_parse_expression(Parser *parser, float min_bp) {
 
         float r_bp = 0;
 
-        Expr *right = parser_parse_expression(parser, r_bp);
+        Expr *right = parse_expression(parser, r_bp);
     }
 
     return left;
 }
 
-Error parser_parse_jump_statement(Parser *parser, Statement *result) {
+Error parse_jump_statement(Parser *parser, Statement *result) {
     Error code;
     CToken return_token;
 
@@ -93,7 +104,7 @@ Error parser_parse_jump_statement(Parser *parser, Statement *result) {
     Expr *expression = nullptr;
 
     if (parser_peek(parser, 0)->kind != C_TOKEN_SEMICOLON) {
-        expression = parser_parse_expression(parser);
+        expression = parse_expression(parser, 0);
 
         if (expression == nullptr) {
             return ERROR_NULL_POINTER;
@@ -122,20 +133,41 @@ Error parser_parse_jump_statement(Parser *parser, Statement *result) {
     return ERROR_OK;
 }
 
-Error parser_parse_statement(Parser *parser, Statement *result) {
+Error parse_compound_statement(Parser *parser, Statement *result);
+
+Error parse_statement(Parser *parser, Statement *result) {
     const CToken *token = parser_peek(parser, 0);
 
-    if (token->kind == C_TOKEN_KW_RETURN) {
-        return parser_parse_jump_statement(parser, result);
+    if (token->kind == C_TOKEN_LEFT_BRACE) return parse_compound_statement(parser, result);
+
+    if (token->kind == C_TOKEN_LEFT_PAREN ||
+        token->kind == C_TOKEN_IDENTIFIER ||
+        token->kind == C_TOKEN_CHARACTER_CONSTANT ||
+        token->kind == C_TOKEN_FLOATING_CONSTANT ||
+        token->kind == C_TOKEN_INTEGER_CONSTANT ||
+        token->kind == C_TOKEN_STRING_LITERAL
+    ) {
+        Expr *expression = parse_expression(parser, 0);
+        if (expression == nullptr) return ERROR_NULL_POINTER;
+
+        result->kind = STATEMENT_EXPRESSION;
+        result->data.expression_statement = expression;
+
+        return ERROR_OK;
     }
 
-    parser->error.span = parser_peek(parser, 0)->span;
-    parser->error.message = "Expected \"return\"";
+    if (token->kind == C_TOKEN_KW_RETURN ||
+        token->kind == C_TOKEN_KW_BREAK ||
+        token->kind == C_TOKEN_KW_GOTO ||
+        token->kind == C_TOKEN_KW_CONTINUE
+    ) {
+        return parse_jump_statement(parser, result);
+    }
 
     return ERROR_OK;
 }
 
-Error parser_parse_compound_statement(Parser *parser, CompoundStatement *result) {
+Error parse_compound_statement(Parser *parser, Statement *result) {
     Error code;
     CToken left_brace;
 
@@ -143,21 +175,21 @@ Error parser_parse_compound_statement(Parser *parser, CompoundStatement *result)
         return code;
     }
 
-    vector_init(&result->items, sizeof(BlockItem));
+    vector_init(&result->data.compound_statement.items, sizeof(BlockItem));
 
     while (parser_peek(parser, 0)->kind != C_TOKEN_RIGHT_BRACE &&
            parser_peek(parser, 0)->kind != C_TOKEN_EOF) {
         BlockItem item;
         item.kind = BLOCK_ITEM_STATEMENT;
 
-        if ((code = parser_parse_statement(parser, &item.data.statement)) != ERROR_OK) {
-            vector_destroy(&result->items);
+        if ((code = parse_statement(parser, &item.data.statement)) != ERROR_OK) {
+            vector_destroy(&result->data.compound_statement.items);
             return code;
         }
 
-        if ((code = vector_push(&result->items, &item)) != ERROR_OK) {
+        if ((code = vector_push(&result->data.compound_statement.items, &item)) != ERROR_OK) {
             statement_destroy(&item.data.statement);
-            compound_statement_destroy(result);
+            vector_destroy(&result->data.compound_statement.items);
             return code;
         }
     }
@@ -165,7 +197,7 @@ Error parser_parse_compound_statement(Parser *parser, CompoundStatement *result)
     CToken right_brace;
 
     if ((code = parser_expected(parser, C_TOKEN_RIGHT_BRACE, &right_brace)) != ERROR_OK) {
-        compound_statement_destroy(result);
+        vector_destroy(&result->data.compound_statement.items);
         return code;
     }
 
@@ -177,15 +209,8 @@ Error parser_parse_compound_statement(Parser *parser, CompoundStatement *result)
     return ERROR_OK;
 }
 
-Error parser_parse_function_definition(Parser *parser, FunctionDefinition *function) {
+Error parse_function_definition(Parser *parser, FunctionDefinition *function) {
     Error code;
-    CToken declarator;
-
-    if ((code = parser_expected(parser, C_TOKEN_KW_INT, &declarator)) != ERROR_OK) {
-        return code;
-    }
-
-    function->return_type = ctype_builtin(CTYPE_INT);
 
     {
         CToken function_name;
@@ -194,55 +219,53 @@ Error parser_parse_function_definition(Parser *parser, FunctionDefinition *funct
             return code;
         }
 
-        const char *name_start = &function_name.span.begin.file->contents[function_name.span.begin.offset];
-        const size_t function_name_size = function_name.span.end.offset - function_name.span.begin.offset;
-
-        function->name = malloc(function_name_size+1);
-
-        memcpy(function->name, name_start, function_name_size);
-
-        function->name[function_name_size] = '\0';
+        function->declarator.identifier = function_name;
     }
 
-    if ((code = parser_expected(parser, C_TOKEN_LEFT_PAREN, nullptr)) != ERROR_OK) {
+    function->body = malloc(sizeof(Statement));
+
+    if (function->body == nullptr) return ERROR_ALLOCATION_FAILED;
+
+    if ((code = parse_compound_statement(parser, function->body)) != ERROR_OK) {
         return code;
     }
-
-    token_stream_match(parser->tokens, C_TOKEN_KW_VOID);
-
-    if ((code = parser_expected(parser, C_TOKEN_RIGHT_PAREN, nullptr)) != ERROR_OK) {
-        return code;
-    }
-
-    if ((code = parser_parse_compound_statement(parser, &function->body)) != ERROR_OK) {
-        return code;
-    }
-
-    function->span = (SourceSpan){
-        .begin = declarator.span.begin,
-        .end = function->body.span.end
-    };
 
     return ERROR_OK;
 }
 
-Error parser_parse_external_declaration(Parser *parser, TranslationUnit *unit) {
-    Error code;
-    ExternalDeclaration external_declaration;
-    external_declaration.kind = EXTERNAL_DECLARATION_FUNCTION_DEFINITION;
-    if ((code = parser_parse_function_definition(parser, &external_declaration.data.function_definition)) != ERROR_OK) {
-        return code;
-    }
+DeclarationSpecifiers parse_declaration_specifiers(Parser *parser) {
+    const CToken *tok = parser_peek(parser, 0);
 
-    // TODO: declaration
+    
+}
+
+Error parse_external_declaration(Parser *parser, TranslationUnit *unit) {
+    Error code;
+    ExternalDeclaration external_declaration = {0};
+
+    DeclarationSpecifiers specs = parse_declaration_specifiers(parser);
+
+    Declarator declarator; // = parse_declarator(parser);
+
+    if (declarator.kind == DECL_FUNCTION &&
+        parser_peek(parser, 0)->kind == C_TOKEN_LEFT_BRACE) {
+        external_declaration.kind = EXTERNAL_DECLARATION_FUNCTION_DEFINITION;
+        external_declaration.data.function_definition.specifiers = specs;
+        external_declaration.data.function_definition.declarator = declarator;
+
+        code = parse_function_definition(parser, &external_declaration.data.function_definition);
+        if (code != ERROR_OK) return code;
+    } else {
+
+    }
 
     return vector_push(unit, &external_declaration);
 }
 
-Error parser_parse_translation_unit(Parser *parser, TranslationUnit *unit) {
+Error parse_translation_unit(Parser *parser, TranslationUnit *unit) {
     Error code;
     while (parser_peek(parser, 0)->kind != C_TOKEN_EOF) {
-        if ((code = parser_parse_external_declaration(parser, unit))) return code;
+        if ((code = parse_external_declaration(parser, unit))) return code;
     }
 
     return ERROR_OK;

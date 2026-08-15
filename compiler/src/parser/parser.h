@@ -12,12 +12,10 @@ typedef struct ParserError {
 
 typedef struct Parser {
     TokenStream *tokens;
-
-    ParserError error;
 } Parser;
 
 void parser_init(Parser *parser, TokenStream *tokens);
 
-Error parser_parse_translation_unit(Parser *parser, TranslationUnit *unit);
+Error parse_translation_unit(Parser *parser, TranslationUnit *unit);
 
 #endif //NA_16_PARSER_H
