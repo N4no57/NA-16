@@ -8,10 +8,8 @@
 #include "../type.h"
 #include "../preprocessor/c_token.h"
 
-typedef struct Declaration Declaration;
-
 typedef enum ExprKind {
-    EXPR_INTEGER,
+    EXPR_CONSTANT,
     EXPR_IDENTIFIER,
 
     EXPR_BINARY,
@@ -27,22 +25,56 @@ typedef enum ExprKind {
 } ExprKind;
 
 typedef enum BinaryOp {
-    
+    BIN_OP_MULTIPLY,
+    BIN_OP_DIVIDE,
+    BIN_OP_MOD,
+    BIN_OP_ADD,
+    BIN_OP_SUBTRACT,
+    BIN_OP_SHIFT_LEFT,
+    BIN_OP_SHIFT_RIGHT,
+    BIN_OP_LESS,
+    BIN_OP_GREATER,
+    BIN_OP_LESS_OR_EQUAL,
+    BIN_OP_GREATER_OR_EQUAL,
+    BIN_OP_EQUAL,
+    BIN_OP_NOT_EQUAL,
+    BIN_OP_BITWISE_AND,
+    BIN_OP_EXCLUSIVE_OR,
+    BIN_OP_INCLUSIVE_OR,
+    BIN_OP_LOGICAL_AND,
+    BIN_OP_LOGICAL_OR,
+    BIN_OP_COMMA
 } BinaryOp;
 
 typedef enum UnaryOp {
-
+    OP_PREFIX_INCREMENT,
+    OP_PREFIX_DECREMENT,
+    OP_POSTFIX_INCREMENT,
+    OP_POSTFIX_DECREMENT,
+    OP_AMPERSAND,
+    OP_ASTERISK,
+    OP_PLUS,
+    OP_MINUS,
+    OP_BITWISE_NOT,
+    OP_LOGICAL_NOT
 } UnaryOp;
 
 typedef struct Expr Expr;
-
 typedef struct Expr {
     ExprKind kind;
 
     union {
         struct {
-            i64 value;
-        } integer;
+            struct {
+                union {
+                    uint64_t unsigned_int;
+                    int64_t signed_int;
+                };
+                IntegerSuffix suffix;
+            } integer;
+
+            char character;
+        } constant;
 
         struct {
             CToken name;
@@ -58,8 +90,97 @@ typedef struct Expr {
             UnaryOp op;
             Expr *operand;
         } unary;
+
+        struct {
+            Expr *expression;
+            Expr *true_expression;
+            Expr *false_expression;
+        } conditional;
     };
 } Expr;
+
+typedef enum StorageClass {
+    STORAGE_NONE,
+    STORAGE_TYPEDEF,
+    STORAGE_EXTERN,
+    STORAGE_STATIC,
+    STORAGE_AUTO,
+    STORAGE_REGISTER
+} StorageClass;
+
+enum TypeSpecifier {
+    TYPE_SPEC_VOID     = 1 << 0,
+    TYPE_SPEC_CHAR     = 1 << 1,
+    TYPE_SPEC_SHORT    = 1 << 2,
+    TYPE_SPEC_INT      = 1 << 3,
+    TYPE_SPEC_LONG     = 1 << 4,
+    TYPE_SPEC_FLOAT    = 1 << 5,
+    TYPE_SPEC_DOUBLE   = 1 << 6,
+    TYPE_SPEC_SIGNED   = 1 << 7,
+    TYPE_SPEC_UNSIGNED = 1 << 8,
+};
+
+typedef struct DeclarationSpecifiers {
+    StorageClass storage_class;
+
+    unsigned type_qualifiers;
+    unsigned type_specifiers;
+
+    unsigned char long_count;
+} DeclarationSpecifiers;
+
+typedef enum DeclaratorKind {
+    DECL_IDENTIFIER,
+    DECL_POINTER,
+    DECL_ARRAY,
+    DECL_FUNCTION
+} DeclaratorKind;
+
+typedef struct Declarator Declarator;
+
+typedef struct ParameterDeclaration {
+    DeclarationSpecifiers specifiers;
+    Declarator *declarator;
+} ParameterDeclaration;
+
+typedef struct Declarator {
+    DeclaratorKind kind;
+
+    union {
+        CToken identifier;
+
+        struct {
+            unsigned qualifiers;
+            Declarator *inner;
+        } pointer;
+
+        struct {
+            Declarator *inner;
+            Expr *size;
+        } array;
+
+        struct {
+            Declarator *inner;
+
+            ParameterDeclaration *parameters;
+            size_t parameter_count;
+
+            bool variadic;
+        } function;
+    };
+} Declarator;
+
+typedef struct InitDeclarator {
+    Declarator *declarator;
+    Expr *initializer;
+} InitDeclarator;
+
+typedef struct Declaration {
+    DeclarationSpecifiers specifiers;
+
+    InitDeclarator *declarators;
+    size_t declarator_count;
+} Declaration;
 
 typedef enum JumpStatementKind {
     JUMP_STATEMENT_GOTO,
@@ -82,28 +203,57 @@ typedef struct JumpStatement {
     } data;
 } JumpStatement;
 
+typedef enum LabeledStatementKind {
+    LABELED_LABEL,
+    LABELED_CASE,
+    LABELED_DEFAULT
+} LabeledStatementKind;
+
+typedef struct Statement Statement;
+
+typedef struct LabeledStatement {
+    LabeledStatementKind kind;
+
+    union {
+        char *label; // goto label
+
+        Expr *expression; // expression for switch cases
+    } data;
+
+    Statement *statement;
+} LabeledStatement;
+
 typedef enum StatementKind {
     STATEMENT_LABELED,
-    STATEMENT_EXPRESSION,
     STATEMENT_COMPOUND,
+    STATEMENT_EXPRESSION,
     STATEMENT_SELECTION,
     STATEMENT_ITERATION,
     STATEMENT_JUMP
 } StatementKind;
-
-typedef struct CompoundStatement CompoundStatement;
 
 typedef struct Statement {
     StatementKind kind;
     SourceSpan span;
 
     union {
-        JumpStatement jump_statement;
-        CompoundStatement *compound_statement;
+        LabeledStatement labeled_statement;
 
-        /*
-         * Other statement representations added incrementally.
-         */
+        struct {
+            Vector items;
+        } compound_statement;
+
+        Expr *expression_statement;
+
+        struct { // if or if/else or switch
+            char temp1;
+        } selection_statement;
+
+        struct { // while, dowhile, for w/ out "int i =" bullshit and for w/ "int i =" bullshit
+            char temp2;
+        } iteration_statement;
+
+        JumpStatement jump_statement;
     } data;
 } Statement;
 
@@ -117,24 +267,15 @@ typedef struct BlockItem {
     SourceSpan span;
 
     union {
-        Declaration *declaration;
+        Declaration declaration;
         Statement statement;
     } data;
 } BlockItem;
 
-typedef struct CompoundStatement {
-    SourceSpan span;
-
-    Vector items;
-} CompoundStatement;
-
 typedef struct FunctionDefinition {
-    SourceSpan span;
-
-    char *name;
-    const CType *return_type;
-
-    CompoundStatement body;
+    DeclarationSpecifiers specifiers;
+    Declarator declarator;
+    Statement *body;
 } FunctionDefinition;
 
 typedef enum ExternalDeclarationKind {
@@ -148,7 +289,7 @@ typedef struct ExternalDeclaration {
 
     union {
         FunctionDefinition function_definition;
-        Declaration *declaration;
+        Declaration declaration;
     } data;
 } ExternalDeclaration;
 
@@ -156,7 +297,6 @@ typedef Vector TranslationUnit;
 
 Error expression_destroy(Expr *expression);
 Error statement_destroy(const Statement *statement);
-Error compound_statement_destroy(CompoundStatement *compound_statement);
 Error translation_unit_destroy(TranslationUnit *translation_unit);
 
 #endif //NA_16_AST_H
