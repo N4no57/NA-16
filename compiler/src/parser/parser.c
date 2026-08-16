@@ -5,6 +5,8 @@
 
 void parser_init(Parser *parser, TokenStream *tokens) {
     parser->tokens = tokens;
+
+    vector_init(&parser->errors, sizeof(ParserError));
 }
 
 static const CToken *parser_peek(const Parser *parser, size_t lookahead) {
