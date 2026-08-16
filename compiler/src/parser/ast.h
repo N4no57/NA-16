@@ -108,7 +108,7 @@ typedef enum StorageClass {
     STORAGE_REGISTER
 } StorageClass;
 
-enum TypeSpecifier {
+typedef enum TypeSpecifier {
     TYPE_SPEC_VOID     = 1 << 0,
     TYPE_SPEC_CHAR     = 1 << 1,
     TYPE_SPEC_SHORT    = 1 << 2,
@@ -118,7 +118,7 @@ enum TypeSpecifier {
     TYPE_SPEC_DOUBLE   = 1 << 6,
     TYPE_SPEC_SIGNED   = 1 << 7,
     TYPE_SPEC_UNSIGNED = 1 << 8,
-};
+} TypeSpecifier;
 
 typedef struct DeclarationSpecifiers {
     StorageClass storage_class;
