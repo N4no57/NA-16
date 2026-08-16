@@ -42,6 +42,63 @@ static Error parser_expected(Parser *parser, const CTokenKind expected, CToken *
     return token_stream_consume(parser->tokens, nullptr);
 }
 
+static bool is_storage_class_specifier(const CTokenKind tok) {
+    switch (tok) {
+        case C_TOKEN_KW_TYPEDEF:
+        case C_TOKEN_KW_EXTERN:
+        case C_TOKEN_KW_STATIC:
+        case C_TOKEN_KW_AUTO:
+        case C_TOKEN_KW_REGISTER:
+            return true;
+        default:
+            return false;
+    }
+}
+
+static bool is_type_specifier(const CTokenKind tok) {
+    switch (tok) {
+        case C_TOKEN_KW_VOID:
+        case C_TOKEN_KW_CHAR:
+        case C_TOKEN_KW_SHORT:
+        case C_TOKEN_KW_INT:
+        case C_TOKEN_KW_LONG:
+        case C_TOKEN_KW_FLOAT:
+        case C_TOKEN_KW_DOUBLE:
+        case C_TOKEN_KW_SIGNED:
+        case C_TOKEN_KW_UNSIGNED:
+        case C_TOKEN_KW__BOOL:
+        case C_TOKEN_KW__COMPLEX:
+        // TODO structs, enums and typedef names
+            return true;
+        default:
+            return false;
+    }
+}
+
+static bool is_type_qualifier(const CTokenKind tok) {
+    switch (tok) {
+        case C_TOKEN_KW_CONST:
+        case C_TOKEN_KW_RESTRICT:
+        case C_TOKEN_KW_VOLATILE:
+            return true;
+        default:
+            return false;
+    }
+}
+
+static bool is_function_specifier(const CTokenKind tok) {
+    switch (tok) {
+        case C_TOKEN_KW_INLINE:
+            return true;
+        default:
+            return false;
+    }
+}
+
+static bool is_declaration_specifier(const CTokenKind tok) {
+    return is_storage_class_specifier(tok) || is_type_specifier(tok) || is_type_qualifier(tok);
+}
+
 typedef struct Precedence {
     float lbp;
     float rbp;
@@ -235,17 +292,56 @@ Error parse_function_definition(Parser *parser, FunctionDefinition *function) {
     return ERROR_OK;
 }
 
-DeclarationSpecifiers parse_declaration_specifiers(Parser *parser) {
-    const CToken *tok = parser_peek(parser, 0);
+Error parse_declaration_specifiers(Parser *parser, DeclarationSpecifiers *result) {
+    DeclarationSpecifiers spec = {
+        .storage_class = STORAGE_NONE,
+        .type_qualifiers = 0,
+        .type_specifiers = 0,
+        .long_count = 0
+    };
 
-    
+    while (true) {
+        const CToken *tok = parser_peek(parser, 0);
+
+        if (is_storage_class_specifier(tok->kind)) {
+            // parse storage class
+            if (spec.storage_class != STORAGE_NONE) {
+                return ERROR_INTERNAL; // TODO error
+            }
+
+            if (tok->kind == C_TOKEN_KW_TYPEDEF) spec.storage_class = STORAGE_TYPEDEF;
+            else if (tok->kind == C_TOKEN_KW_EXTERN) spec.storage_class = STORAGE_EXTERN;
+            else if (tok->kind == C_TOKEN_KW_STATIC) spec.storage_class = STORAGE_STATIC;
+            else if (tok->kind == C_TOKEN_KW_AUTO) spec.storage_class = STORAGE_AUTO;
+            else if (tok->kind == C_TOKEN_KW_REGISTER) spec.storage_class = STORAGE_REGISTER;
+        } else if (is_type_qualifier(tok->kind)) {
+            // parse type qualifier
+            if (tok->kind == C_TOKEN_KW_CONST) {
+                if () {
+                    return ERROR_INTERNAL; // TODO error
+                }
+
+                spec.type_qualifiers |= CTYPE_QUALIFIER_CONST;
+            }
+        } else if (is_type_specifier(tok->kind)) {
+            // parse type specifier
+        } else {
+            break;
+        }
+    }
+
+    // validate declaration specifiers
+    *result = spec;
+    return ERROR_OK;
 }
 
 Error parse_external_declaration(Parser *parser, TranslationUnit *unit) {
     Error code;
     ExternalDeclaration external_declaration = {0};
 
-    DeclarationSpecifiers specs = parse_declaration_specifiers(parser);
+    DeclarationSpecifiers specs;
+    code = parse_declaration_specifiers(parser, &specs);
+    if (code != ERROR_OK) return code;
 
     Declarator declarator; // = parse_declarator(parser);
 
