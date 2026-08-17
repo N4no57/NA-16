@@ -99,57 +99,239 @@ static bool is_declaration_specifier(const CTokenKind tok) {
     return is_storage_class_specifier(tok) || is_type_specifier(tok) || is_type_qualifier(tok);
 }
 
-typedef struct Precedence {
-    float lbp;
-    float rbp;
-    bool valid;
-} Precedence;
+constexpr BinaryOp TT_to_BinaryOp[C_TOKEN_COUNT] = {
+    [C_TOKEN_ASTERISK] = BIN_OP_MULTIPLY,
+    [C_TOKEN_SLASH] = BIN_OP_DIVIDE,
+    [C_TOKEN_PERCENT] = BIN_OP_MOD,
+    [C_TOKEN_PLUS] = BIN_OP_ADD,
+    [C_TOKEN_MINUS] = BIN_OP_SUBTRACT,
+    [C_TOKEN_SHIFT_LEFT] = BIN_OP_SHIFT_LEFT,
+    [C_TOKEN_SHIFT_RIGHT] = BIN_OP_SHIFT_RIGHT,
+    [C_TOKEN_LESS] = BIN_OP_LESS,
+    [C_TOKEN_GREATER] = BIN_OP_GREATER,
+    [C_TOKEN_LESS_EQUAL] = BIN_OP_LESS_OR_EQUAL,
+    [C_TOKEN_GREATER_EQUAL] = BIN_OP_GREATER_OR_EQUAL,
+    [C_TOKEN_ASSIGN] = BIN_OP_EQUAL,
+    [C_TOKEN_NOT_EQUAL] = BIN_OP_NOT_EQUAL,
+    [C_TOKEN_AMPERSAND] = BIN_OP_BITWISE_AND,
+    [C_TOKEN_CARET] = BIN_OP_EXCLUSIVE_OR,
+    [C_TOKEN_PIPE] = BIN_OP_INCLUSIVE_OR,
+    [C_TOKEN_LOGICAL_AND] = BIN_OP_LOGICAL_AND,
+    [C_TOKEN_LOGICAL_OR] = BIN_OP_LOGICAL_OR,
+    [C_TOKEN_COMMA] = BIN_OP_COMMA
+};
 
-static Precedence get_precedence(CTokenKind operator) {
+enum {
+    BP_COMMA          = 10,
+    BP_ASSIGNMENT     = 20,
+    BP_CONDITIONAL    = 30,
+    BP_LOGICAL_OR     = 40,
+    BP_LOGICAL_AND    = 50,
+    BP_BITWISE_OR     = 60,
+    BP_BITWISE_XOR    = 70,
+    BP_BITWISE_AND    = 80,
+    BP_EQUALITY       = 90,
+    BP_RELATIONAL     = 100,
+    BP_SHIFT          = 110,
+    BP_ADDITIVE       = 120,
+    BP_MULTIPLICATIVE = 130,
+    BP_PREFIX         = 140,
+    BP_POSTFIX        = 150,
+};
+
+typedef struct {
+    int left_bp;
+    int right_bp;
+    bool valid;
+} BinaryOperatorInfo;
+
+static BinaryOperatorInfo get_infix_info(const CTokenKind operator) {
+    BinaryOperatorInfo info = {0};
     switch (operator) {
+        case C_TOKEN_COMMA:
+            info.left_bp = info.right_bp = BP_COMMA;
+            info.right_bp++;
+            break;
+        case C_TOKEN_ASSIGN:
+            info.left_bp = info.right_bp = BP_ASSIGNMENT;
+            break;
+        case C_TOKEN_QUESTION:
+            break; // TODO conditional
+        case C_TOKEN_LOGICAL_OR:
+            info.left_bp = info.right_bp = BP_LOGICAL_OR;
+            info.right_bp++;
+            break;
+        case C_TOKEN_LOGICAL_AND:
+            info.left_bp = info.right_bp = BP_LOGICAL_AND;
+            info.right_bp++;
+            break;
+        case C_TOKEN_PIPE:
+            info.left_bp = info.right_bp = BP_BITWISE_OR;
+            info.right_bp++;
+            break;
+        case C_TOKEN_CARET:
+            info.left_bp = info.right_bp = BP_BITWISE_XOR;
+            info.right_bp++;
+            break;
+        case C_TOKEN_AMPERSAND:
+            info.left_bp = info.right_bp = BP_BITWISE_AND;
+            info.right_bp++;
+            break;
+        case C_TOKEN_EQUAL_EQUAL:
+        case C_TOKEN_NOT_EQUAL:
+            info.left_bp = info.right_bp = BP_EQUALITY;
+            info.right_bp++;
+            break;
+        case C_TOKEN_LESS:
+        case C_TOKEN_LESS_EQUAL:
+        case C_TOKEN_GREATER:
+        case C_TOKEN_GREATER_EQUAL:
+            info.left_bp = info.right_bp = BP_RELATIONAL;
+            info.right_bp++;
+            break;
+        case C_TOKEN_SHIFT_LEFT:
+        case C_TOKEN_SHIFT_RIGHT:
+            info.left_bp = info.right_bp = BP_SHIFT;
+            info.right_bp++;
+            break;
+        case C_TOKEN_MINUS:
+        case C_TOKEN_PLUS:
+            info.left_bp = info.right_bp = BP_ADDITIVE;
+            info.right_bp++;
+            break;
+        case C_TOKEN_ASTERISK:
+        case C_TOKEN_SLASH:
+        case C_TOKEN_PERCENT:
+            info.left_bp = info.right_bp = BP_MULTIPLICATIVE;
+            info.right_bp++;
+            break;
         default:
-            return (Precedence){
-                .lbp = 0,
-                .rbp = 0,
-                .valid = false
-            };
+            break;
     }
+
+    return info;
 }
 
-Expr *parse_expression(Parser *p, float min_bp) {
-    const CToken *tok = parser_peek(p, 0);
-    Expr *left = nullptr;
+Expr *parse_expression(Parser *p, int min_bp);
 
-    if (tok->kind != C_TOKEN_LEFT_PAREN) {
-        parser_consume(p, nullptr);
-        left = parse_expression(p, 0);
+Expr *parse_prefix(Parser *p) {
+    Expr *ret_val = malloc(sizeof(Expr));
+    CToken tok = *parser_peek(p, 0);
 
-        tok = parser_peek(p, 0);
-        if (tok->kind != C_TOKEN_RIGHT_PAREN) {
-            return nullptr;
-        }
-        return left;
+    switch (tok.kind) {
+        case C_TOKEN_IDENTIFIER:
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr;
+            ret_val->kind = EXPR_IDENTIFIER;
+            ret_val->identifier.name = tok;
+            parser_consume(p, nullptr);
+            return ret_val;
+
+        case C_TOKEN_INTEGER_CONSTANT:
+        case C_TOKEN_FLOATING_CONSTANT:
+        case C_TOKEN_CHARACTER_CONSTANT:
+            ret_val->kind = EXPR_CONSTANT;
+            parser_consume(p, nullptr);
+            return ret_val;// TODO bean
+
+        case C_TOKEN_STRING_LITERAL:
+            parser_consume(p, nullptr);
+            return ret_val; // TODO
+
+        case C_TOKEN_INCREMENT:
+            parser_consume(p, nullptr);
+            ret_val->kind = EXPR_UNARY;
+            ret_val->unary.op = OP_PREFIX_INCREMENT;
+            ret_val->unary.operand = parse_expression(p, BP_PREFIX);
+            return ret_val;
+
+        case C_TOKEN_DECREMENT:
+            parser_consume(p, nullptr);
+            ret_val->kind = EXPR_UNARY;
+            ret_val->unary.op = OP_PREFIX_DECREMENT;
+            ret_val->unary.operand = parse_expression(p, BP_PREFIX);
+            return ret_val;
+
+        case C_TOKEN_AMPERSAND:
+            parser_consume(p, nullptr);
+            ret_val->kind = EXPR_UNARY;
+            ret_val->unary.op = OP_AMPERSAND;
+            ret_val->unary.operand = parse_expression(p, BP_PREFIX);
+            return ret_val;
+
+        case C_TOKEN_ASTERISK:
+            parser_consume(p, nullptr);
+            ret_val->kind = EXPR_UNARY;
+            ret_val->unary.op = OP_ASTERISK;
+            ret_val->unary.operand = parse_expression(p, BP_PREFIX);
+            return ret_val;
+
+        case C_TOKEN_PLUS:
+            parser_consume(p, nullptr);
+            ret_val->kind = EXPR_UNARY;
+            ret_val->unary.op = OP_PLUS;
+            ret_val->unary.operand = parse_expression(p, BP_PREFIX);
+            return ret_val;
+
+        case C_TOKEN_MINUS:
+            parser_consume(p, nullptr);
+            ret_val->kind = EXPR_UNARY;
+            ret_val->unary.op = OP_MINUS;
+            ret_val->unary.operand = parse_expression(p, BP_PREFIX);
+            return ret_val;
+
+        case C_TOKEN_TILDE:
+            parser_consume(p, nullptr);
+            ret_val->kind = EXPR_UNARY;
+            ret_val->unary.op = OP_BITWISE_NOT;
+            ret_val->unary.operand = parse_expression(p, BP_PREFIX);
+            return ret_val;
+
+        case C_TOKEN_EXCLAMATION:
+            parser_consume(p, nullptr);
+            ret_val->kind = EXPR_UNARY;
+            ret_val->unary.op = OP_LOGICAL_NOT;
+            ret_val->unary.operand = parse_expression(p, BP_PREFIX);
+            return ret_val;
+
+        case C_TOKEN_KW_SIZEOF:
+            parser_consume(p, nullptr);
     }
 
-    left = malloc(sizeof(Expr));
+    return nullptr;
+}
+
+Expr *parse_infix(Parser *p, Expr *lhs, const CToken *tok, BinaryOperatorInfo op) {
+    Expr *binary_op = malloc(sizeof(Expr));
+
+    binary_op->kind = EXPR_BINARY;
+
+    binary_op->binary.left = lhs;
+    binary_op->binary.right = parse_expression(p, op.right_bp);
+
+    binary_op->binary.op = TT_to_BinaryOp[tok->kind];
+
+    return binary_op;
+}
+
+Expr *parse_expression(Parser *p, int min_bp) {
+    Expr *lhs = parse_prefix(p);
 
     while (true) {
-        tok = parser_peek(p, 0);
+        const CToken *tok = parser_peek(p, 0);
 
-        if (
-            tok->kind == C_TOKEN_EOF ||
-            tok->kind == C_TOKEN_RIGHT_PAREN) {
-            break;
-        }
+        if (tok->kind == C_TOKEN_EOF) break;
+
+        const BinaryOperatorInfo op = get_infix_info(tok->kind);
+
+        if (!op.valid) break;
+        if (op.left_bp < min_bp) break;
 
         parser_consume(p, nullptr);
 
-        float r_bp = 0;
-
-        Expr *right = parse_expression(p, r_bp);
+        lhs = parse_infix(p, lhs, tok, op);
     }
 
-    return left;
+    return lhs;
 }
 
 Error parse_jump_statement(Parser *p, Statement *result) {
