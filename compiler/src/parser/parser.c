@@ -341,40 +341,59 @@ Expr *parse_expression(Parser *p, int min_bp) {
 
 Error parse_jump_statement(Parser *p, Statement *result) {
     Error code;
-    CToken return_token;
-
-    if ((code = parser_expected(p, C_TOKEN_KW_RETURN, &return_token)) != ERROR_OK) {
-        return code;
-    }
-
-    Expr *expression = nullptr;
-
-    if (parser_peek(p, 0)->kind != C_TOKEN_SEMICOLON) {
-        expression = parse_expression(p, 0);
-
-        if (expression == nullptr) {
-            return ERROR_NULL_POINTER;
-        }
-    }
-
     CToken semicolon;
 
+    const CToken *tok = parser_peek(p, 0);
+    result->kind = STATEMENT_JUMP;
+
+    CToken keyword_token = *tok;
+
+    if (tok->kind == C_TOKEN_KW_RETURN) {
+        result->data.jump_statement.kind = JUMP_STATEMENT_RETURN;
+        code = parser_consume(p, nullptr);
+        if (code != ERROR_OK) return code;
+
+        Expr *expression = nullptr;
+
+        if (parser_peek(p, 0)->kind != C_TOKEN_SEMICOLON) {
+            expression = parse_expression(p, 0);
+
+            if (expression == nullptr) {
+                return ERROR_NULL_POINTER;
+            }
+        }
+
+        if (parser_peek(p, 0)->kind != C_TOKEN_SEMICOLON) expression_destroy(expression);
+    } else if (tok->kind == C_TOKEN_KW_GOTO) {
+        code = parser_consume(p, nullptr);
+        if (code != ERROR_OK) return code;
+
+        result->data.jump_statement.kind = JUMP_STATEMENT_GOTO;
+
+        result->data.jump_statement.data.goto_statement.label = tok->data.string_or_character.str;
+
+        code = parser_consume(p, nullptr);
+        if (code != ERROR_OK) return code;
+    } else if (tok->kind == C_TOKEN_KW_BREAK) {
+        code = parser_consume(p, nullptr);
+        if (code != ERROR_OK) return code;
+
+        result->data.jump_statement.kind = JUMP_STATEMENT_BREAK;
+    } else if (tok->kind == C_TOKEN_KW_CONTINUE) {
+        code = parser_consume(p, nullptr);
+        if (code != ERROR_OK) return code;
+
+        result->data.jump_statement.kind = JUMP_STATEMENT_CONTINUE;
+    } else {
+        return ERROR_INTERNAL; // TODO error
+    }
+
     if ((code = parser_expected(p, C_TOKEN_SEMICOLON, &semicolon)) != ERROR_OK) {
-        expression_destroy(expression);
         return code;
     }
 
-    *result = (Statement){
-        .kind = STATEMENT_JUMP,
-        .span = {
-            .begin = return_token.span.begin,
-            .end = semicolon.span.end
-        },
-        .data.jump_statement = {
-            .kind = JUMP_STATEMENT_RETURN,
-            .data.return_statement.expression = expression
-        }
-    };
+    result->span.begin = keyword_token.span.begin;
+    result->span.end = semicolon.span.end;
 
     return ERROR_OK;
 }
@@ -383,6 +402,12 @@ Error parse_compound_statement(Parser *p, Statement *result);
 
 Error parse_statement(Parser *p, Statement *result) {
     const CToken *token = parser_peek(p, 0);
+
+    if (token->kind == C_TOKEN_IDENTIFIER &&
+        parser_peek(p, 1)->kind == C_TOKEN_COLON) {
+        // TODO labeled statement
+        return parse_labeled_statement(p, result);
+    }
 
     if (token->kind == C_TOKEN_LEFT_BRACE) return parse_compound_statement(p, result);
 
@@ -399,7 +424,16 @@ Error parse_statement(Parser *p, Statement *result) {
         result->kind = STATEMENT_EXPRESSION;
         result->data.expression_statement = expression;
 
-        return ERROR_OK;
+        return parser_expected(p, C_TOKEN_SEMICOLON, nullptr);
+    }
+
+    if (token->kind == C_TOKEN_KW_IF || token->kind == C_TOKEN_KW_SWITCH) {
+        return parse_selection_statement(p, result);
+    }
+
+    if (token->kind == C_TOKEN_KW_WHILE || token->kind == C_TOKEN_KW_DO
+        || token->kind == C_TOKEN_KW_FOR) {
+        return parse_iteration_statement(p, result);
     }
 
     if (token->kind == C_TOKEN_KW_RETURN ||
