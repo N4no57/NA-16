@@ -133,7 +133,8 @@ typedef enum DeclaratorKind {
     DECL_IDENTIFIER,
     DECL_POINTER,
     DECL_ARRAY,
-    DECL_FUNCTION
+    DECL_FUNCTION,
+    DECL_ABSTRACT
 } DeclaratorKind;
 
 typedef struct Declarator Declarator;
