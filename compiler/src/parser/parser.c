@@ -3,6 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+Error parse_declaration_specifiers(Parser *p, DeclarationSpecifiers *result);
+Error parse_declarator(Parser *p, Declarator **result);
+Error parse_declaration(Parser *p, Declaration *declaration);
+
 void parser_init(Parser *p, TokenStream *tokens) {
     p->tokens = tokens;
 
@@ -223,78 +227,79 @@ Expr *parse_prefix(Parser *p) {
             if (parser_consume(p, nullptr) != ERROR_OK) return nullptr;
             ret_val->kind = EXPR_IDENTIFIER;
             ret_val->identifier.name = tok;
-            parser_consume(p, nullptr);
             return ret_val;
 
         case C_TOKEN_INTEGER_CONSTANT:
         case C_TOKEN_FLOATING_CONSTANT:
         case C_TOKEN_CHARACTER_CONSTANT:
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr;
             ret_val->kind = EXPR_CONSTANT;
-            parser_consume(p, nullptr);
             return ret_val;// TODO bean
 
         case C_TOKEN_STRING_LITERAL:
-            parser_consume(p, nullptr);
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr;
             return ret_val; // TODO
 
         case C_TOKEN_INCREMENT:
-            parser_consume(p, nullptr);
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr;
             ret_val->kind = EXPR_UNARY;
             ret_val->unary.op = OP_PREFIX_INCREMENT;
             ret_val->unary.operand = parse_expression(p, BP_PREFIX);
             return ret_val;
 
         case C_TOKEN_DECREMENT:
-            parser_consume(p, nullptr);
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr;
             ret_val->kind = EXPR_UNARY;
             ret_val->unary.op = OP_PREFIX_DECREMENT;
             ret_val->unary.operand = parse_expression(p, BP_PREFIX);
             return ret_val;
 
         case C_TOKEN_AMPERSAND:
-            parser_consume(p, nullptr);
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr;
             ret_val->kind = EXPR_UNARY;
             ret_val->unary.op = OP_AMPERSAND;
             ret_val->unary.operand = parse_expression(p, BP_PREFIX);
             return ret_val;
 
         case C_TOKEN_ASTERISK:
-            parser_consume(p, nullptr);
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr;
             ret_val->kind = EXPR_UNARY;
             ret_val->unary.op = OP_ASTERISK;
             ret_val->unary.operand = parse_expression(p, BP_PREFIX);
             return ret_val;
 
         case C_TOKEN_PLUS:
-            parser_consume(p, nullptr);
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr;
             ret_val->kind = EXPR_UNARY;
             ret_val->unary.op = OP_PLUS;
             ret_val->unary.operand = parse_expression(p, BP_PREFIX);
             return ret_val;
 
         case C_TOKEN_MINUS:
-            parser_consume(p, nullptr);
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr;
             ret_val->kind = EXPR_UNARY;
             ret_val->unary.op = OP_MINUS;
             ret_val->unary.operand = parse_expression(p, BP_PREFIX);
             return ret_val;
 
         case C_TOKEN_TILDE:
-            parser_consume(p, nullptr);
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr;
             ret_val->kind = EXPR_UNARY;
             ret_val->unary.op = OP_BITWISE_NOT;
             ret_val->unary.operand = parse_expression(p, BP_PREFIX);
             return ret_val;
 
         case C_TOKEN_EXCLAMATION:
-            parser_consume(p, nullptr);
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr;
             ret_val->kind = EXPR_UNARY;
             ret_val->unary.op = OP_LOGICAL_NOT;
             ret_val->unary.operand = parse_expression(p, BP_PREFIX);
             return ret_val;
 
         case C_TOKEN_KW_SIZEOF:
-            parser_consume(p, nullptr);
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr;
+            ret_val->kind = EXPR_UNARY;
+            return ret_val;
     }
 
     return nullptr;
@@ -420,15 +425,32 @@ Error parse_compound_statement(Parser *p, Statement *result) {
 
     while (parser_peek(p, 0)->kind != C_TOKEN_RIGHT_BRACE &&
            parser_peek(p, 0)->kind != C_TOKEN_EOF) {
-        BlockItem item;
-        item.kind = BLOCK_ITEM_STATEMENT;
+        BlockItem item = {0};
+        if (is_declaration_specifier(parser_peek(p, 0)->kind)) {
+            item.kind = BLOCK_ITEM_DECLARATION;
 
-        if ((code = parse_statement(p, &item.data.statement)) != ERROR_OK) {
-            vector_destroy(&result->data.compound_statement.items);
-            return code;
+            code = parse_declaration_specifiers(p, &item.data.declaration.specifiers);
+            if (code != ERROR_OK) {
+                vector_destroy(&result->data.compound_statement.items);
+                return code;
+            }
+
+            code = parse_declaration(p, &item.data.declaration);
+            if (code != ERROR_OK) {
+                vector_destroy(&result->data.compound_statement.items);
+                return code;
+            }
+        } else {
+            item.kind = BLOCK_ITEM_STATEMENT;
+
+            if ((code = parse_statement(p, &item.data.statement)) != ERROR_OK) {
+                vector_destroy(&result->data.compound_statement.items);
+                return code;
+            }
         }
 
-        if ((code = vector_push(&result->data.compound_statement.items, &item)) != ERROR_OK) {
+        code = vector_push(&result->data.compound_statement.items, &item);
+        if (code != ERROR_OK) {
             statement_destroy(&item.data.statement);
             vector_destroy(&result->data.compound_statement.items);
             return code;
@@ -452,16 +474,6 @@ Error parse_compound_statement(Parser *p, Statement *result) {
 
 Error parse_function_definition(Parser *p, FunctionDefinition *function) {
     Error code;
-
-    {
-        CToken function_name;
-
-        if ((code = parser_expected(p, C_TOKEN_IDENTIFIER, &function_name)) != ERROR_OK) {
-            return code;
-        }
-
-        function->declarator.identifier = function_name;
-    }
 
     function->body = malloc(sizeof(Statement));
 
@@ -517,7 +529,6 @@ Error parse_declaration(Parser *p, Declaration *declaration) {
     declaration->declarators = init_declarator_list.data;
 
     if ((code = parser_expected(p, C_TOKEN_SEMICOLON, nullptr)) != ERROR_OK) return code;
-    parser_consume(p, nullptr);
     return ERROR_OK;
 }
 
@@ -688,8 +699,6 @@ Error parse_pointer_prefix(Parser *p, Vector *pointer_list) {
 
     return ERROR_OK;
 }
-
-Error parse_declarator(Parser *p, Declarator **result);
 
 Error parse_declarator_suffix(Parser *p, Declarator **result) {
     const CToken *tok = parser_peek(p, 0);
@@ -867,10 +876,35 @@ Error parse_external_declaration(Parser *p, TranslationUnit *unit) {
         if (code != ERROR_OK) return code;
     } else {
         external_declaration.kind = EXTERNAL_DECLARATION_DECLARATION;
-        external_declaration.data.declaration.specifiers = specs;
+        Declaration *declaration = &external_declaration.data.declaration;
+        declaration->specifiers = specs;
+
+        InitDeclarator init_declarator = {0};
+        init_declarator.declarator = declarator;
+
+        const CToken *tok = parser_peek(p, 0);
+
+        if (tok->kind == C_TOKEN_ASSIGN) {
+            code = parser_consume(p, nullptr);
+            if (code != ERROR_OK) return code;
+            tok = parser_peek(p, 0);
+
+            if (tok->kind == C_TOKEN_LEFT_BRACE) {
+                // TODO initializer list bs
+            } else {
+                init_declarator.initializer = parse_expression(p, BP_ASSIGNMENT);
+            }
+        }
 
         code = parse_declaration(p, &external_declaration.data.declaration);
         if (code != ERROR_OK) return code;
+
+        declaration->declarator_count++;
+        InitDeclarator *tmp = realloc(declaration->declarators, declaration->declarator_count * sizeof(InitDeclarator));
+        if (tmp == nullptr) return ERROR_ALLOCATION_FAILED;
+        declaration->declarators = tmp;
+
+        memcpy(&declaration->declarators[declaration->declarator_count-1], &init_declarator, sizeof(InitDeclarator));
     }
 
     return vector_push(unit, &external_declaration);
