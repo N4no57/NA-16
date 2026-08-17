@@ -57,6 +57,7 @@ void handle_identifier(const PPToken *ppt, CToken *ct) {
     }
 
     ct->kind = C_TOKEN_IDENTIFIER;
+    ct->data.string_or_character.str = ppt->data.string;
 }
 
 static Error get_suffix(const char *text, IntegerSuffix *suffix) {
