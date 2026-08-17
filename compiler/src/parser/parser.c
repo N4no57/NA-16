@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "../type.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -318,6 +319,8 @@ Expr *parse_infix(Parser *p, Expr *lhs, const CToken *tok, BinaryOperatorInfo op
     return binary_op;
 }
 
+Error parse_statement(Parser *p, Statement *result);
+
 Expr *parse_expression(Parser *p, int min_bp) {
     Expr *lhs = parse_prefix(p);
 
@@ -339,6 +342,145 @@ Expr *parse_expression(Parser *p, int min_bp) {
     return lhs;
 }
 
+Error parse_labeled_statement(Parser *p, Statement *result) {
+    SourceSpan span;
+
+    const CToken *tok = parser_peek(p, 0);
+    result->kind = STATEMENT_LABELED;
+
+    span.begin = tok->span.begin;
+
+    if (tok->kind == C_TOKEN_IDENTIFIER) {
+        result->data.labeled_statement.kind = LABELED_LABEL;
+        result->data.labeled_statement.data.label = tok->data.string_or_character.str;
+    } else if (tok->kind == C_TOKEN_KW_CASE) {
+        result->data.labeled_statement.kind = LABELED_CASE;
+        result->data.labeled_statement.data.expression = parse_expression(p, BP_PREFIX);
+    } else if (tok->kind == C_TOKEN_KW_DEFAULT) {
+        result->data.labeled_statement.kind = LABELED_DEFAULT;
+    } else {
+        return ERROR_INTERNAL; // TODO error
+    }
+
+    Error code = parser_consume(p, nullptr);
+    if (code != ERROR_OK) return code;
+    tok = parser_peek(p, 0);
+
+    code = parser_expected(p, C_TOKEN_COLON, nullptr);
+    if (code != ERROR_OK) return code;
+
+    span.end = tok->span.end;
+
+    result->span = span;
+
+    result->data.labeled_statement.statement = malloc(sizeof(Statement));
+    if (result->data.labeled_statement.statement == nullptr) return ERROR_ALLOCATION_FAILED;
+    return parse_statement(p, result->data.labeled_statement.statement);
+}
+
+Error parse_selection_statement(Parser *p, Statement *result) {
+    Error code;
+
+    const CToken *tok = parser_peek(p, 0);
+
+    result->kind = STATEMENT_SELECTION;
+
+    SelectionStatement *selec_stmt = &result->data.selection_statement;
+
+    if (tok->kind == C_TOKEN_KW_IF) {
+        selec_stmt->kind = SELECTION_IF;
+
+        code = parser_consume(p, nullptr);
+        if (code != ERROR_OK) return code;
+
+        code = parser_expected(p, C_TOKEN_LEFT_PAREN, nullptr);
+        if (code != ERROR_OK) return code;
+
+        selec_stmt->if_stmt.conditional = parse_expression(p, 0);
+
+        code = parser_expected(p, C_TOKEN_RIGHT_PAREN, nullptr);
+        if (code != ERROR_OK) return code;
+
+        Statement stmt = {0};
+
+        code = parse_statement(p, &stmt);
+        if (code != ERROR_OK) return code;
+        tok = parser_peek(p, 0);
+
+        selec_stmt->if_stmt.then_branch = malloc(sizeof(Statement));
+        if (selec_stmt->if_stmt.then_branch == nullptr) return ERROR_ALLOCATION_FAILED;
+        *selec_stmt->if_stmt.then_branch = stmt;
+
+        if (tok->kind == C_TOKEN_KW_ELSE) {
+            code = parser_consume(p, nullptr);
+            if (code != ERROR_OK) return code;
+
+            code = parse_statement(p, &stmt);
+            if (code != ERROR_OK) return code;
+
+            selec_stmt->if_stmt.else_branch = malloc(sizeof(Statement));
+            if (selec_stmt->if_stmt.else_branch == nullptr) return ERROR_ALLOCATION_FAILED;
+            *selec_stmt->if_stmt.else_branch = stmt;
+        } else {
+            selec_stmt->if_stmt.else_branch = nullptr;
+        }
+
+        return ERROR_OK;
+    }
+
+    if (tok->kind == C_TOKEN_KW_SWITCH) {
+        selec_stmt->kind = SELECTION_SWITCH;
+
+        code = parser_consume(p, nullptr);
+        if (code != ERROR_OK) return code;
+
+        code = parser_expected(p, C_TOKEN_LEFT_PAREN, nullptr);
+        if (code != ERROR_OK) return code;
+
+        selec_stmt->switch_stmt.expression = parse_expression(p, 0);
+
+        code = parser_expected(p, C_TOKEN_RIGHT_PAREN, nullptr);
+        if (code != ERROR_OK) return code;
+
+        Statement stmt = {0};
+
+        code = parse_statement(p, &stmt);
+        if (code != ERROR_OK) return code;
+
+        selec_stmt->switch_stmt.body = malloc(sizeof(Statement));
+        if (selec_stmt->switch_stmt.body == nullptr) return ERROR_ALLOCATION_FAILED;
+        *selec_stmt->switch_stmt.body = stmt;
+
+        return ERROR_OK;
+    }
+
+    return ERROR_INTERNAL; // TODO error
+}
+
+Error parse_iteration_statement(Parser *p, Statement *result) {
+    Error code;
+
+    const CToken *tok = parser_peek(p, 0);
+
+    result->kind = STATEMENT_ITERATION;
+
+    IterationStatement *iter_stmt = &result->data.iteration_statement;
+
+    iter_stmt->kind = ITERATION_WHILE;
+    if (tok->kind == C_TOKEN_KW_DO) {
+        iter_stmt->while_loop.do_while = true;
+
+    } else if (tok->kind == C_TOKEN_KW_WHILE) {
+        iter_stmt->while_loop.do_while = false;
+
+    } else if (tok->kind == C_TOKEN_KW_FOR) {
+        iter_stmt->kind = ITERATION_FOR;
+
+    } else {
+        return ERROR_INTERNAL; // TODO error
+    }
+}
+
 Error parse_jump_statement(Parser *p, Statement *result) {
     Error code;
     CToken semicolon;
@@ -346,7 +488,7 @@ Error parse_jump_statement(Parser *p, Statement *result) {
     const CToken *tok = parser_peek(p, 0);
     result->kind = STATEMENT_JUMP;
 
-    CToken keyword_token = *tok;
+    const CToken keyword_token = *tok;
 
     if (tok->kind == C_TOKEN_KW_RETURN) {
         result->data.jump_statement.kind = JUMP_STATEMENT_RETURN;
@@ -403,9 +545,8 @@ Error parse_compound_statement(Parser *p, Statement *result);
 Error parse_statement(Parser *p, Statement *result) {
     const CToken *token = parser_peek(p, 0);
 
-    if (token->kind == C_TOKEN_IDENTIFIER &&
-        parser_peek(p, 1)->kind == C_TOKEN_COLON) {
-        // TODO labeled statement
+    if ((token->kind == C_TOKEN_IDENTIFIER && parser_peek(p, 1)->kind == C_TOKEN_COLON) ||
+        token->kind == C_TOKEN_KW_CASE || token->kind == C_TOKEN_KW_DEFAULT) {
         return parse_labeled_statement(p, result);
     }
 
