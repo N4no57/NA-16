@@ -151,13 +151,17 @@ typedef struct Declarator {
         CToken identifier;
 
         struct {
-            unsigned qualifiers;
             Declarator *inner;
+            unsigned qualifiers;
         } pointer;
 
         struct {
             Declarator *inner;
             Expr *size;
+
+            unsigned qualifiers;
+            bool is_static;
+            bool is_star;
         } array;
 
         struct {
