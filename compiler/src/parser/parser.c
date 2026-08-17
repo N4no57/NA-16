@@ -460,22 +460,107 @@ Error parse_pointer_prefix(Parser *p, Vector *pointer_list) {
     return ERROR_OK;
 }
 
+Error parse_declarator(Parser *p, Declarator **result);
+
 Error parse_declarator_suffix(Parser *p, Declarator **result) {
     const CToken *tok = parser_peek(p, 0);
     Error code;
 
     Declarator *decl = malloc(sizeof(Declarator));
-    if (*result != nullptr) return ERROR_ALLOCATION_FAILED;
+    if (decl == nullptr) return ERROR_ALLOCATION_FAILED;
+    memset(decl, 0, sizeof(Declarator));
 
     if (tok->kind == C_TOKEN_LEFT_PAREN) {
         // this is a function... thingy. BRING IN THE ASSAULT RIFLE.
+        decl->kind = DECL_FUNCTION;
+
+        code = parser_consume(p, nullptr);
+        if (code != ERROR_OK) return code;
+        tok = parser_peek(p, 0);
+
+        Vector parameters;
+        vector_init(&parameters, sizeof(ParameterDeclaration));
+
+        do {
+            if (tok->kind == C_TOKEN_COMMA) {
+                code = parser_consume(p, nullptr);
+                if (code != ERROR_OK) return code;
+                tok = parser_peek(p, 0);
+            }
+
+            ParameterDeclaration parameter;
+            if (tok->kind == C_TOKEN_ELLIPSIS) {
+                decl->function.variadic = true;
+
+                if (tok->kind != C_TOKEN_LEFT_PAREN) {
+                    return ERROR_INTERNAL; // TODO error
+                }
+
+                break;
+            }
+
+            code = parse_declaration_specifiers(p, &parameter.specifiers);
+            if (code != ERROR_OK) return code;
+            tok = parser_peek(p, 0);
+
+            if (tok->kind == C_TOKEN_IDENTIFIER) {
+                code = parse_declarator(p, &parameter.declarator);
+                if (code != ERROR_OK) return code;
+            } else {
+                // TODO handle abstract declarators
+            }
+
+            if (tok->kind == C_TOKEN_RIGHT_PAREN) break;
+
+            code = vector_push(&parameters, &parameter);
+            if (code != ERROR_OK) return code;
+        } while (tok->kind == C_TOKEN_COMMA);
 
         code = parser_match(p, C_TOKEN_RIGHT_PAREN);
         if (code != ERROR_OK) return code;
+
+        decl->function.parameter_count = parameters.length;
+        decl->function.parameters = parameters.data;
     } else if (tok->kind == C_TOKEN_LEFT_BRACKET) {
         // this is an array; GET EM!!!!
+        decl->kind = DECL_ARRAY;
+
         code = parser_consume(p, nullptr);
         if (code != ERROR_OK) return code;
+        tok = parser_peek(p, 0);
+
+        if (tok->kind == C_TOKEN_KW_STATIC) {
+            decl->array.is_static = true;
+            code = parser_consume(p, nullptr);
+            if (code != ERROR_OK) return code;
+            tok = parser_peek(p, 0);
+        }
+
+        {
+            DeclarationSpecifiers spec = {0};
+            while (is_type_qualifier(tok->kind)) {
+                code = parse_type_specifier(p, &spec);
+                if (code != ERROR_OK) return code;
+            }
+            decl->array.qualifiers = spec.type_qualifiers;
+        }
+
+        if (tok->kind == C_TOKEN_KW_STATIC && !decl->array.is_static) {
+            decl->array.is_static = true;
+            code = parser_consume(p, nullptr);
+            if (code != ERROR_OK) return code;
+            tok = parser_peek(p, 0);
+        } else if (tok->kind == C_TOKEN_KW_STATIC && decl->array.is_static) {
+            return ERROR_INTERNAL; // TODO error
+        }
+
+        if (tok->kind == C_TOKEN_ASTERISK) {
+            if (parser_peek(p, 1)->kind != C_TOKEN_RIGHT_BRACKET) {
+                decl->array.size = parse_expression(p, 0.f); // TODO determine assignment expression precedence
+            } else {
+                decl->array.is_static = true;
+            }
+        }
 
         code = parser_match(p, C_TOKEN_RIGHT_BRACKET);
         if (code != ERROR_OK) return code;
@@ -556,7 +641,7 @@ Error parse_external_declaration(Parser *p, TranslationUnit *unit) {
         external_declaration.kind = EXTERNAL_DECLARATION_DECLARATION;
         external_declaration.data.declaration.specifiers = specs;
 
-        // code = parse_declaration(p, &external_declaration.data.declaration);
+        code = parse_declaration(p, &external_declaration.data.declaration);
         if (code != ERROR_OK) return code;
     }
 
