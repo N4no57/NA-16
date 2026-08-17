@@ -292,6 +292,53 @@ Error parse_function_definition(Parser *p, FunctionDefinition *function) {
     return ERROR_OK;
 }
 
+Error parse_declaration(Parser *p, Declaration *declaration) {
+    Error code;
+    Vector init_declarator_list;
+    vector_init(&init_declarator_list, sizeof(InitDeclarator));
+
+    const CToken *tok = parser_peek(p, 0);
+
+    do {
+        if (tok->kind == C_TOKEN_COMMA) {
+            code = parser_consume(p, nullptr);
+            if (code != ERROR_OK) return code;
+            tok = parser_peek(p, 0);
+        }
+
+        if (tok->kind == C_TOKEN_SEMICOLON) break;
+
+        InitDeclarator init_declarator;
+
+        code = parse_declarator(p, &init_declarator.declarator);
+        if (code != ERROR_OK) return code;
+
+        tok = parser_peek(p, 0);
+
+        if (tok->kind == C_TOKEN_ASSIGN) {
+            code = parser_consume(p, nullptr);
+            if (code != ERROR_OK) return code;
+            tok = parser_peek(p, 0);
+
+            if (tok->kind == C_TOKEN_LEFT_BRACE) {
+                // TODO initializer list bs
+            } else {
+                init_declarator.initializer = parse_expression(p, BP_ASSIGNMENT); // TODO get assignment expression precedence
+            }
+        }
+
+        code = vector_push(&init_declarator_list, &init_declarator);
+        if (code != ERROR_OK) return code;
+    } while (tok->kind == C_TOKEN_COMMA);
+
+    declaration->declarator_count = init_declarator_list.length;
+    declaration->declarators = init_declarator_list.data;
+
+    if ((code = parser_expected(p, C_TOKEN_SEMICOLON, nullptr)) != ERROR_OK) return code;
+    parser_consume(p, nullptr);
+    return ERROR_OK;
+}
+
 Error parse_storage_class(Parser *p, DeclarationSpecifiers *spec) {
     const CToken *tok = parser_peek(p, 0);
 
@@ -554,12 +601,11 @@ Error parse_declarator_suffix(Parser *p, Declarator **result) {
             return ERROR_INTERNAL; // TODO error
         }
 
-        if (tok->kind == C_TOKEN_ASTERISK) {
-            if (parser_peek(p, 1)->kind != C_TOKEN_RIGHT_BRACKET) {
-                decl->array.size = parse_expression(p, 0.f); // TODO determine assignment expression precedence
-            } else {
-                decl->array.is_static = true;
-            }
+        if (tok->kind == C_TOKEN_ASTERISK &&
+            parser_peek(p, 1)->kind == C_TOKEN_RIGHT_BRACKET) {
+            decl->array.is_star = true;
+        } else {
+            decl->array.size = parse_expression(p, BP_ASSIGNMENT);
         }
 
         code = parser_match(p, C_TOKEN_RIGHT_BRACKET);
