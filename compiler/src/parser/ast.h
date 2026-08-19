@@ -5,7 +5,6 @@
 #include <vector.h>
 
 #include "../lexer/source.h"
-#include "../type.h"
 #include "../preprocessor/c_token.h"
 
 typedef enum ExprKind {
@@ -56,8 +55,16 @@ typedef enum UnaryOp {
     OP_PLUS,
     OP_MINUS,
     OP_BITWISE_NOT,
-    OP_LOGICAL_NOT
+    OP_LOGICAL_NOT,
+    OP_CAST
 } UnaryOp;
+
+typedef enum ConstantKind {
+    CONSTANT_INTEGER,
+    CONSTANT_FLOAT,
+    CONSTANT_CHAR,
+    CONSTANT_STRING_LITERAL
+} ConstantKind;
 
 typedef struct Expr Expr;
 typedef struct Expr {
@@ -65,15 +72,20 @@ typedef struct Expr {
 
     union {
         struct {
-            struct {
-                union {
-                    uint64_t unsigned_int;
-                    int64_t signed_int;
-                };
-                IntegerSuffix suffix;
-            } integer;
+            ConstantKind kind;
 
-            char character;
+            union {
+                struct {
+                    union {
+                        uint64_t unsigned_int;
+                        int64_t signed_int;
+                    };
+                    IntegerSuffix suffix;
+                } integer;
+
+                double floating;
+                char *character_or_str;
+            };
         } constant;
 
         struct {
@@ -84,6 +96,8 @@ typedef struct Expr {
             BinaryOp op;
             Expr *left;
             Expr *right;
+
+            CToken op_tok; // To lazy to add assigns for each kind so this is here
         } binary;
 
         struct {
@@ -96,6 +110,18 @@ typedef struct Expr {
             Expr *true_expression;
             Expr *false_expression;
         } conditional;
+
+        struct {
+            Expr **args;
+            size_t argument_count;
+            Expr *name;
+        } function_call;
+
+        struct {
+            bool dereference;
+            Expr *member;
+            CToken member_item;
+        } member;
     };
 } Expr;
 
@@ -228,6 +254,57 @@ typedef struct LabeledStatement {
     Statement *statement;
 } LabeledStatement;
 
+typedef enum SelectionStatementKind {
+    SELECTION_IF,
+    SELECTION_SWITCH
+} SelectionStatementKind;
+
+typedef struct SelectionStatement {
+    SelectionStatementKind kind;
+
+    union {
+        struct {
+            Expr *conditional;
+            Statement *then_branch;
+            Statement *else_branch; // null of no else
+        } if_stmt;
+
+        struct {
+            Expr *expression;
+            Statement *body;
+        } switch_stmt;
+    };
+} SelectionStatement;
+
+typedef enum IterationStatementKind {
+    ITERATION_WHILE,
+    ITERATION_FOR
+} IterationStatementKind;
+
+typedef struct IterationStatement {
+    IterationStatementKind kind;
+
+    union {
+        struct {
+            bool do_while;
+            Expr* condition;
+
+            Statement *body;
+        } while_loop;
+
+        struct {
+            union {
+                Declarator *declarator; // "int i = 0" or smth
+                Expr *expr; // "i = 0" or smth
+            } expr1;
+            Expr *expr2;
+            Expr *expr3;
+
+            Statement *body;
+        } for_loop;
+    };
+} IterationStatement;
+
 typedef enum StatementKind {
     STATEMENT_LABELED,
     STATEMENT_COMPOUND,
@@ -250,13 +327,9 @@ typedef struct Statement {
 
         Expr *expression_statement;
 
-        struct { // if or if/else or switch
-            char temp1;
-        } selection_statement;
+        SelectionStatement selection_statement;
 
-        struct { // while, dowhile, for w/ out "int i =" bullshit and for w/ "int i =" bullshit
-            char temp2;
-        } iteration_statement;
+        IterationStatement iteration_statement;
 
         JumpStatement jump_statement;
     } data;

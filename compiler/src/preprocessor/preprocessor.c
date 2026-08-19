@@ -60,7 +60,7 @@ Error preprocessor_init(Preprocessor *preprocessor, const Lexer *lexer) {
     return ERROR_OK;
 }
 
-static void generate_error(PreprocessorError *error, SourceSpan error_location,  char *message) {
+void generate_error(PreprocessorError *error, SourceSpan error_location,  char *message) {
     if (error == nullptr) return;
 
     *error = (PreprocessorError){
@@ -139,7 +139,7 @@ static Error pp_read_unexpanded(Preprocessor *preprocessor, PPToken *result, PPS
     return ERROR_INTERNAL; // TODO error
 }
 
-static Error pp_peek_unexpanded(Preprocessor *preprocessor, size_t lookahead, PPToken *result, PPSourceKind *origin, PreprocessorError *error) {
+Error pp_peek_unexpanded(Preprocessor *preprocessor, size_t lookahead, PPToken *result, PPSourceKind *origin, PreprocessorError *error) {
     Error code;
 
     if (preprocessor->token_queue.length > lookahead) {
@@ -724,7 +724,7 @@ static Error pp_process_logical_and_expression(const Vector *tokens, size_t *idx
 
         PPInteger right;
         const bool to_eval = evaluate && pp_integer_truthy(left);
-        code = pp_process_logical_and_expression(tokens, idx, evaluate, &right, error);
+        code = pp_process_logical_and_expression(tokens, idx, to_eval, &right, error);
         if (code != ERROR_OK) return code;
 
         switch (operator) {
