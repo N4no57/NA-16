@@ -104,6 +104,29 @@ static bool is_declaration_specifier(const CTokenKind tok) {
     return is_storage_class_specifier(tok) || is_type_specifier(tok) || is_type_qualifier(tok);
 }
 
+static bool is_expression_start(const CTokenKind tok) {
+    switch (tok) {
+        case C_TOKEN_LEFT_PAREN:
+        case C_TOKEN_IDENTIFIER:
+        case C_TOKEN_CHARACTER_CONSTANT:
+        case C_TOKEN_INTEGER_CONSTANT:
+        case C_TOKEN_FLOATING_CONSTANT:
+        case C_TOKEN_STRING_LITERAL:
+        case C_TOKEN_INCREMENT:
+        case C_TOKEN_DECREMENT:
+        case C_TOKEN_ASTERISK:
+        case C_TOKEN_AMPERSAND:
+        case C_TOKEN_MINUS:
+        case C_TOKEN_PLUS:
+        case C_TOKEN_EXCLAMATION:
+        case C_TOKEN_TILDE:
+        case C_TOKEN_KW_SIZEOF:
+            return true;
+        default:
+            return false;
+    }
+}
+
 constexpr BinaryOp TT_to_BinaryOp[C_TOKEN_COUNT] = {
     [C_TOKEN_ASTERISK] = BIN_OP_MULTIPLY,
     [C_TOKEN_SLASH] = BIN_OP_DIVIDE,
@@ -117,6 +140,16 @@ constexpr BinaryOp TT_to_BinaryOp[C_TOKEN_COUNT] = {
     [C_TOKEN_LESS_EQUAL] = BIN_OP_LESS_OR_EQUAL,
     [C_TOKEN_GREATER_EQUAL] = BIN_OP_GREATER_OR_EQUAL,
     [C_TOKEN_ASSIGN] = BIN_OP_EQUAL,
+    [C_TOKEN_ADD_ASSIGN] = BIN_OP_EQUAL,
+    [C_TOKEN_SUBTRACT_ASSIGN] = BIN_OP_EQUAL,
+    [C_TOKEN_MULTIPLY_ASSIGN] = BIN_OP_EQUAL,
+    [C_TOKEN_DIVIDE_ASSIGN] = BIN_OP_EQUAL,
+    [C_TOKEN_REMAINDER_ASSIGN] = BIN_OP_EQUAL,
+    [C_TOKEN_SHIFT_LEFT_ASSIGN] = BIN_OP_EQUAL,
+    [C_TOKEN_SHIFT_RIGHT_ASSIGN] = BIN_OP_EQUAL,
+    [C_TOKEN_AND_ASSIGN] = BIN_OP_EQUAL,
+    [C_TOKEN_XOR_ASSIGN] = BIN_OP_EQUAL,
+    [C_TOKEN_OR_ASSIGN] = BIN_OP_EQUAL,
     [C_TOKEN_NOT_EQUAL] = BIN_OP_NOT_EQUAL,
     [C_TOKEN_AMPERSAND] = BIN_OP_BITWISE_AND,
     [C_TOKEN_CARET] = BIN_OP_EXCLUSIVE_OR,
@@ -140,8 +173,9 @@ enum {
     BP_SHIFT          = 110,
     BP_ADDITIVE       = 120,
     BP_MULTIPLICATIVE = 130,
-    BP_PREFIX         = 140,
-    BP_POSTFIX        = 150,
+    BP_CAST           = 140,
+    BP_PREFIX         = 150,
+    BP_POSTFIX        = 160,
 };
 
 typedef struct {
@@ -211,8 +245,10 @@ static BinaryOperatorInfo get_infix_info(const CTokenKind operator) {
             info.right_bp++;
             break;
         default:
-            break;
+            return info;
     }
+
+    info.valid = true;
 
     return info;
 }
@@ -223,9 +259,11 @@ Expr *parse_prefix(Parser *p) {
     Expr *ret_val = malloc(sizeof(Expr));
     CToken tok = *parser_peek(p, 0);
 
+    ret_val->kind = EXPR_UNARY;
+
     switch (tok.kind) {
         case C_TOKEN_IDENTIFIER:
-            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr;
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr; // TODO error
             ret_val->kind = EXPR_IDENTIFIER;
             ret_val->identifier.name = tok;
             return ret_val;
@@ -233,88 +271,126 @@ Expr *parse_prefix(Parser *p) {
         case C_TOKEN_INTEGER_CONSTANT:
         case C_TOKEN_FLOATING_CONSTANT:
         case C_TOKEN_CHARACTER_CONSTANT:
-            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr;
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr; // TODO error
             ret_val->kind = EXPR_CONSTANT;
-            return ret_val;// TODO bean
+
+            if (tok.kind == C_TOKEN_INTEGER_CONSTANT) {
+                ret_val->constant.kind = CONSTANT_INTEGER;
+                ret_val->constant.integer.suffix = tok.data.integer.suffix;
+                ret_val->constant.integer.unsigned_int = tok.data.integer.unsigned_int;
+            } else if (tok.kind == C_TOKEN_FLOATING_CONSTANT) {
+                ret_val->constant.kind = CONSTANT_FLOAT;
+                ret_val->constant.floating = tok.data.floating_point.floating;
+            } else {
+                ret_val->constant.kind = CONSTANT_CHAR;
+                ret_val->constant.character_or_str = tok.data.string_or_character.str;
+            }
+
+            return ret_val;
 
         case C_TOKEN_STRING_LITERAL:
-            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr;
-            return ret_val; // TODO
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr; // TODO error
+            ret_val->kind = EXPR_CONSTANT;
+
+            ret_val->constant.kind = CONSTANT_STRING_LITERAL;
+            ret_val->constant.character_or_str = tok.data.string_or_character.str;
+
+            return ret_val;
 
         case C_TOKEN_INCREMENT:
-            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr;
-            ret_val->kind = EXPR_UNARY;
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr; // TODO error
             ret_val->unary.op = OP_PREFIX_INCREMENT;
             ret_val->unary.operand = parse_expression(p, BP_PREFIX);
             return ret_val;
 
         case C_TOKEN_DECREMENT:
-            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr;
-            ret_val->kind = EXPR_UNARY;
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr; // TODO error
             ret_val->unary.op = OP_PREFIX_DECREMENT;
             ret_val->unary.operand = parse_expression(p, BP_PREFIX);
             return ret_val;
 
         case C_TOKEN_AMPERSAND:
-            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr;
-            ret_val->kind = EXPR_UNARY;
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr; // TODO error
             ret_val->unary.op = OP_AMPERSAND;
             ret_val->unary.operand = parse_expression(p, BP_PREFIX);
             return ret_val;
 
         case C_TOKEN_ASTERISK:
-            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr;
-            ret_val->kind = EXPR_UNARY;
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr; // TODO error
             ret_val->unary.op = OP_ASTERISK;
             ret_val->unary.operand = parse_expression(p, BP_PREFIX);
             return ret_val;
 
         case C_TOKEN_PLUS:
-            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr;
-            ret_val->kind = EXPR_UNARY;
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr; // TODO error
             ret_val->unary.op = OP_PLUS;
             ret_val->unary.operand = parse_expression(p, BP_PREFIX);
             return ret_val;
 
         case C_TOKEN_MINUS:
-            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr;
-            ret_val->kind = EXPR_UNARY;
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr; // TODO error
             ret_val->unary.op = OP_MINUS;
             ret_val->unary.operand = parse_expression(p, BP_PREFIX);
             return ret_val;
 
         case C_TOKEN_TILDE:
-            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr;
-            ret_val->kind = EXPR_UNARY;
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr; // TODO error
             ret_val->unary.op = OP_BITWISE_NOT;
             ret_val->unary.operand = parse_expression(p, BP_PREFIX);
             return ret_val;
 
         case C_TOKEN_EXCLAMATION:
-            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr;
-            ret_val->kind = EXPR_UNARY;
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr; // TODO error
             ret_val->unary.op = OP_LOGICAL_NOT;
             ret_val->unary.operand = parse_expression(p, BP_PREFIX);
             return ret_val;
 
         case C_TOKEN_KW_SIZEOF:
-            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr;
-            ret_val->kind = EXPR_UNARY;
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr; // TODO error
+            return ret_val; // TODO
+
+        case C_TOKEN_LEFT_PAREN:
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr; // TODO error
+
+            tok = *parser_peek(p, 0);
+
+            if (tok.kind == C_TOKEN_IDENTIFIER &&
+                parser_peek(p, 1)->kind == C_TOKEN_RIGHT_PAREN) {
+                // assume this is a cast and semantic analyzer will fix ts
+                /* There is this but this is a TODO
+                 * ( type-name ){ initializer-list }
+                 * ( type-name ){ initializer-list ,}
+                 */
+
+                ret_val->kind = EXPR_CAST;
+                ret_val->unary.op = OP_CAST;
+                ret_val->unary.operand = parse_expression(p, BP_CAST);
+            } else {
+                ret_val = parse_expression(p, 0);
+            }
+
             return ret_val;
+
+        default:
+            break;
     }
 
-    return nullptr;
+    free(ret_val);
+    return nullptr; // TODO error
 }
 
-Expr *parse_infix(Parser *p, Expr *lhs, const CToken *tok, BinaryOperatorInfo op) {
+Expr *parse_infix(Parser *p, Expr *lhs, const CToken tok, BinaryOperatorInfo op) {
     Expr *binary_op = malloc(sizeof(Expr));
+    if (binary_op == nullptr) return nullptr; // TODO error
 
-    binary_op->kind = EXPR_BINARY;
+    binary_op->binary.op = TT_to_BinaryOp[tok.kind];
+    binary_op->binary.op_tok = tok;
+
+    if (binary_op->binary.op == BIN_OP_EQUAL) binary_op->kind = EXPR_ASSIGN;
+    else binary_op->kind = EXPR_BINARY;
 
     binary_op->binary.left = lhs;
     binary_op->binary.right = parse_expression(p, op.right_bp);
-
-    binary_op->binary.op = TT_to_BinaryOp[tok->kind];
 
     return binary_op;
 }
@@ -325,11 +401,147 @@ Expr *parse_expression(Parser *p, int min_bp) {
     Expr *lhs = parse_prefix(p);
 
     while (true) {
-        const CToken *tok = parser_peek(p, 0);
+        const CToken tok = *parser_peek(p, 0);
 
-        if (tok->kind == C_TOKEN_EOF) break;
+        if (tok.kind == C_TOKEN_EOF) break;
 
-        const BinaryOperatorInfo op = get_infix_info(tok->kind);
+        // postfix
+        if (tok.kind == C_TOKEN_LEFT_BRACKET) {
+            if (BP_POSTFIX < min_bp) break;
+
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr; // TODO error
+
+            Expr *subscript = malloc(sizeof(Expr));
+            if (subscript == nullptr) return nullptr; // TODO error
+
+            subscript->kind = EXPR_SUBSCRIPT;
+
+            subscript->binary.left = lhs;
+            subscript->binary.right = parse_expression(p, 0);
+
+            if (parser_expected(p, C_TOKEN_RIGHT_BRACKET, nullptr)) {
+                expression_destroy(subscript);
+                return nullptr; // TODO error
+            }
+
+            lhs = subscript;
+            continue;
+        }
+
+        if (tok.kind == C_TOKEN_LEFT_PAREN) {
+            if (BP_POSTFIX < min_bp) break;
+
+            if (parser_consume(p, nullptr) != ERROR_OK) {
+                expression_destroy(lhs);
+                return nullptr; // TODO error
+            }
+
+            Vector arg_list;
+            if (vector_init(&arg_list, sizeof(Expr *))) {
+                expression_destroy(lhs);
+                return nullptr; // TODO error
+            }
+
+            while (true) { // TODO free every expression in the arg list
+                if (parser_peek(p, 0)->kind == C_TOKEN_RIGHT_PAREN) break;
+
+                Expr *arg = parse_expression(p, BP_ASSIGNMENT);
+                if (arg == nullptr) {
+                    expression_destroy(lhs);
+                    return nullptr; // TODO error
+                }
+
+                if (parser_expected(p, C_TOKEN_COMMA, nullptr)) {
+                    vector_destroy(&arg_list);
+                    expression_destroy(lhs);
+                    return nullptr; // TODO error
+                }
+
+                if (vector_push(&arg_list, &arg) != ERROR_OK) {
+                    expression_destroy(lhs);
+                    expression_destroy(arg);
+                    return nullptr; // TODO error
+                }
+            }
+
+            if (parser_expected(p, C_TOKEN_RIGHT_PAREN, nullptr)) {
+                expression_destroy(lhs);
+                return nullptr; // TODO error
+            }
+
+            Expr *func_call = malloc(sizeof(Expr));
+            func_call->kind = EXPR_CALL;
+            func_call->function_call.argument_count = arg_list.length;
+            func_call->function_call.args = arg_list.data;
+            func_call->function_call.name = lhs;
+
+            lhs = func_call;
+            continue;
+        }
+
+        if (tok.kind == C_TOKEN_DOT ||
+            tok.kind == C_TOKEN_ARROW) {
+            if (BP_POSTFIX < min_bp) break;
+
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr; // TODO error
+
+            Expr *member = malloc(sizeof(Expr));
+            if (member == nullptr) return nullptr; // TODO error
+
+            member->kind = EXPR_MEMBER;
+            member->member.dereference = tok.kind == C_TOKEN_ARROW;
+            member->member.member = lhs;
+
+            if (parser_expected(p, C_TOKEN_IDENTIFIER, &member->member.member_item) != ERROR_OK) {
+                return nullptr; // TODO error
+            }
+
+            lhs = member;
+            continue;
+        }
+
+        if (tok.kind == C_TOKEN_INCREMENT ||
+            tok.kind == C_TOKEN_DECREMENT) {
+            if (BP_POSTFIX < min_bp) break;
+
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr; // TODO error
+
+            Expr *inc_dec = malloc(sizeof(Expr));
+            if (inc_dec == nullptr) return nullptr; // TODO error
+
+            inc_dec->kind = EXPR_UNARY;
+            inc_dec->unary.op = tok.kind == C_TOKEN_INCREMENT ? OP_POSTFIX_INCREMENT : OP_POSTFIX_DECREMENT;
+            inc_dec->unary.operand = lhs;
+
+            lhs = inc_dec;
+            continue;
+        }
+
+        if (tok.kind == C_TOKEN_QUESTION) {
+            if (BP_CONDITIONAL < min_bp) break;
+
+            if (parser_consume(p, nullptr) != ERROR_OK) return nullptr; // TODO error
+
+            Expr *conditional = malloc(sizeof(Expr));
+            if (conditional == nullptr) return nullptr; // TODO error
+
+            conditional->kind = EXPR_CONDITIONAL;
+            conditional->conditional.expression = lhs;
+            conditional->conditional.true_expression = parse_expression(p, 0);
+
+            if (parser_expected(p, C_TOKEN_COLON, nullptr)) {
+                expression_destroy(conditional);
+                return nullptr; // TODO error
+            }
+
+            conditional->conditional.false_expression = parse_expression(p, BP_CONDITIONAL);
+
+            lhs = conditional;
+            continue;
+        }
+
+        // normal goo goo gaa gaa shit
+        const BinaryOperatorInfo op = get_infix_info(tok.kind);
 
         if (!op.valid) break;
         if (op.left_bp < min_bp) break;
@@ -343,6 +555,7 @@ Expr *parse_expression(Parser *p, int min_bp) {
 }
 
 Error parse_labeled_statement(Parser *p, Statement *result) {
+    Error code;
     SourceSpan span;
 
     const CToken *tok = parser_peek(p, 0);
@@ -353,18 +566,27 @@ Error parse_labeled_statement(Parser *p, Statement *result) {
     if (tok->kind == C_TOKEN_IDENTIFIER) {
         result->data.labeled_statement.kind = LABELED_LABEL;
         result->data.labeled_statement.data.label = tok->data.string_or_character.str;
+
+        code = parser_consume(p, nullptr);
+        if (code != ERROR_OK) return code;
+        tok = parser_peek(p, 0);
     } else if (tok->kind == C_TOKEN_KW_CASE) {
         result->data.labeled_statement.kind = LABELED_CASE;
+
+        code = parser_consume(p, nullptr);
+        if (code != ERROR_OK) return code;
+        tok = parser_peek(p, 0);
+
         result->data.labeled_statement.data.expression = parse_expression(p, BP_PREFIX);
     } else if (tok->kind == C_TOKEN_KW_DEFAULT) {
         result->data.labeled_statement.kind = LABELED_DEFAULT;
+
+        code = parser_consume(p, nullptr);
+        if (code != ERROR_OK) return code;
+        tok = parser_peek(p, 0);
     } else {
         return ERROR_INTERNAL; // TODO error
     }
-
-    Error code = parser_consume(p, nullptr);
-    if (code != ERROR_OK) return code;
-    tok = parser_peek(p, 0);
 
     code = parser_expected(p, C_TOKEN_COLON, nullptr);
     if (code != ERROR_OK) return code;
@@ -506,16 +728,21 @@ Error parse_jump_statement(Parser *p, Statement *result) {
         }
 
         if (parser_peek(p, 0)->kind != C_TOKEN_SEMICOLON) expression_destroy(expression);
-    } else if (tok->kind == C_TOKEN_KW_GOTO) {
-        code = parser_consume(p, nullptr);
-        if (code != ERROR_OK) return code;
 
+        result->data.jump_statement.data.return_statement.expression = expression;
+    } else if (tok->kind == C_TOKEN_KW_GOTO) {
         result->data.jump_statement.kind = JUMP_STATEMENT_GOTO;
 
-        result->data.jump_statement.data.goto_statement.label = tok->data.string_or_character.str;
-
         code = parser_consume(p, nullptr);
         if (code != ERROR_OK) return code;
+        tok = parser_peek(p, 0);
+
+        CToken identifier;
+
+        code = parser_expected(p, C_TOKEN_IDENTIFIER, &identifier);
+        if (code != ERROR_OK) return code;
+
+        result->data.jump_statement.data.goto_statement.label = identifier.data.string_or_character.str;
     } else if (tok->kind == C_TOKEN_KW_BREAK) {
         code = parser_consume(p, nullptr);
         if (code != ERROR_OK) return code;
@@ -545,6 +772,8 @@ Error parse_compound_statement(Parser *p, Statement *result);
 Error parse_statement(Parser *p, Statement *result) {
     const CToken *token = parser_peek(p, 0);
 
+    if (token->kind == C_TOKEN_SEMICOLON) return ERROR_OK;
+
     if ((token->kind == C_TOKEN_IDENTIFIER && parser_peek(p, 1)->kind == C_TOKEN_COLON) ||
         token->kind == C_TOKEN_KW_CASE || token->kind == C_TOKEN_KW_DEFAULT) {
         return parse_labeled_statement(p, result);
@@ -552,13 +781,7 @@ Error parse_statement(Parser *p, Statement *result) {
 
     if (token->kind == C_TOKEN_LEFT_BRACE) return parse_compound_statement(p, result);
 
-    if (token->kind == C_TOKEN_LEFT_PAREN ||
-        token->kind == C_TOKEN_IDENTIFIER ||
-        token->kind == C_TOKEN_CHARACTER_CONSTANT ||
-        token->kind == C_TOKEN_FLOATING_CONSTANT ||
-        token->kind == C_TOKEN_INTEGER_CONSTANT ||
-        token->kind == C_TOKEN_STRING_LITERAL
-    ) {
+    if (is_expression_start(token->kind)) {
         Expr *expression = parse_expression(p, 0);
         if (expression == nullptr) return ERROR_NULL_POINTER;
 
@@ -733,17 +956,17 @@ Error parse_type_qualifier(Parser *p, DeclarationSpecifiers *spec) {
 
         spec->type_qualifiers |= CTYPE_QUALIFIER_CONST;
     } else if (tok->kind == C_TOKEN_KW_RESTRICT) {
-        if (spec->type_qualifiers & C_TOKEN_KW_RESTRICT) {
+        if (spec->type_qualifiers & CTYPE_QUALIFIER_RESTRICT) {
             return ERROR_INTERNAL; // TODO error
         }
 
-        spec->type_qualifiers |= C_TOKEN_KW_RESTRICT;
+        spec->type_qualifiers |= CTYPE_QUALIFIER_RESTRICT;
     } else if (tok->kind == C_TOKEN_KW_VOLATILE) {
-        if (spec->type_qualifiers & C_TOKEN_KW_VOLATILE) {
+        if (spec->type_qualifiers & CTYPE_QUALIFIER_VOLATILE) {
             return ERROR_INTERNAL; // TODO error
         }
 
-        spec->type_qualifiers |= C_TOKEN_KW_VOLATILE;
+        spec->type_qualifiers |= CTYPE_QUALIFIER_VOLATILE;
     }
 
     return parser_consume(p, nullptr);
@@ -759,6 +982,9 @@ constexpr TypeSpecifier type_specifier_converter[C_TOKEN_COUNT] = {
     [C_TOKEN_KW_DOUBLE] = TYPE_SPEC_DOUBLE,
     [C_TOKEN_KW_SIGNED] = TYPE_SPEC_SIGNED,
     [C_TOKEN_KW_UNSIGNED] = TYPE_SPEC_UNSIGNED,
+    // these enums don't exist that so it is a TODO
+    // [C_TOKEN_KW__BOOL] = TYPE_SPEC__BOOL,
+    // [C_TOKEN_KW__COMPLEX] = TYPE_SPEC__COMPLEX,
 };
 
 Error parse_type_specifier(Parser *p, DeclarationSpecifiers *spec) {
@@ -767,14 +993,14 @@ Error parse_type_specifier(Parser *p, DeclarationSpecifiers *spec) {
     const TypeSpecifier specifier = type_specifier_converter[tok->kind];
 
     if (spec->type_specifiers & specifier &&
-        (spec->type_qualifiers & TYPE_SPEC_LONG && spec->long_count >= 2) != specifier
+        (spec->type_specifiers & TYPE_SPEC_LONG && spec->long_count >= 2) != specifier
     ) {
         return ERROR_INTERNAL; // TODO error
     }
 
     spec->type_specifiers |= specifier;
 
-    if (spec->type_qualifiers & TYPE_SPEC_LONG) spec->long_count++;
+    if (spec->type_specifiers & TYPE_SPEC_LONG) spec->long_count++;
 
     return parser_consume(p, nullptr);
 }
@@ -861,7 +1087,7 @@ Error parse_pointer_prefix(Parser *p, Vector *pointer_list) {
         {
             DeclarationSpecifiers spec = {0};
             while (is_type_qualifier(tok->kind)) {
-                code = parse_type_specifier(p, &spec);
+                code = parse_type_qualifier(p, &spec);
                 if (code != ERROR_OK) return code;
             }
             declarator->pointer.qualifiers = spec.type_qualifiers;
@@ -952,7 +1178,7 @@ Error parse_declarator_suffix(Parser *p, Declarator **result) {
         {
             DeclarationSpecifiers spec = {0};
             while (is_type_qualifier(tok->kind)) {
-                code = parse_type_specifier(p, &spec);
+                code = parse_type_qualifier(p, &spec);
                 if (code != ERROR_OK) return code;
             }
             decl->array.qualifiers = spec.type_qualifiers;
