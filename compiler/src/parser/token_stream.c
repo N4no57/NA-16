@@ -37,7 +37,7 @@ const CToken *token_stream_peek(TokenStream *stream, size_t lookahead) {
 
 Error token_stream_consume(TokenStream *stream, CToken *result) {
     if (stream->token_buffer.length > 0) {
-        return vector_pop(&stream->token_buffer, result);
+        return vector_remove(&stream->token_buffer, 0, result);
     }
 
     CToken token;
