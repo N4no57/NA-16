@@ -294,7 +294,7 @@ typedef struct IterationStatement {
 
         struct {
             union {
-                Declarator *declarator; // "int i = 0" or smth
+                Declaration *declaration; // "int i = 0" or smth
                 Expr *expr; // "i = 0" or smth
             } expr1;
             Expr *expr2;
