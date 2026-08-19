@@ -979,6 +979,113 @@ Error parse_function_definition(Parser *p, FunctionDefinition *function) {
     return ERROR_OK;
 }
 
+Error parse_designation(Parser *p, InitializerEntry *entry) {
+    Vector designators;
+    Error code = vector_init(&designators, sizeof(Designator));
+    if (code != ERROR_OK) return code;
+
+    while (true) {
+        const CTokenKind kind = parser_peek(p, 0)->kind;
+
+        if (kind == C_TOKEN_LEFT_BRACKET) {
+        Designator designator = {0};
+            designator.kind = DESIGNATOR_INDEX;
+
+            code = parser_consume(p, nullptr);
+            if (code != ERROR_OK) return code;
+
+            designator.index = parse_expression(p, BP_CONDITIONAL);
+            if (designator.index == nullptr) return ERROR_INTERNAL;
+
+            code = parser_expected(p, C_TOKEN_RIGHT_BRACKET, nullptr);
+            if (code != ERROR_OK) return code;
+
+            code = vector_push(&designators, &designator);
+            if (code != ERROR_OK) return code;
+        }
+
+        if (kind == C_TOKEN_DOT) {
+            Designator designator = {0};
+            designator.kind = DESIGNATOR_MEMBER;
+
+            code = parser_consume(p, nullptr);
+            if (code != ERROR_OK) return code;
+
+            code = parser_expected(p, C_TOKEN_IDENTIFIER, &designator.member);
+            if (code != ERROR_OK) return code;
+
+            code = vector_push(&designators, &designator);
+            if (code != ERROR_OK) return code;
+        }
+
+        break;
+    }
+
+    if (parser_peek(p, 0)->kind != C_TOKEN_ASSIGN) return ERROR_INTERNAL; // TODO error
+
+    entry->designator_count = designators.length;
+    entry->designators = designators.data;
+
+    return ERROR_OK;
+}
+
+Error parse_initializer(Parser *p, Initializer **result) {
+    Error code = parser_consume(p, nullptr);
+    if (code != ERROR_OK) return code;
+    const CToken *tok = parser_peek(p, 0);
+
+    Initializer *init = malloc(sizeof(Initializer));
+    if (init == nullptr) return ERROR_ALLOCATION_FAILED;
+
+    if (tok->kind == C_TOKEN_LEFT_BRACE) {
+        init->kind = INITIALIZER_LIST;
+        code = parser_consume(p, nullptr); // consume '{'
+        if (code != ERROR_OK) return code;
+
+        Vector init_list;
+        code = vector_init(&init_list, sizeof(InitializerEntry));
+        if (code != ERROR_OK) return code;
+
+        while (parser_peek(p, 0)->kind != C_TOKEN_RIGHT_BRACE) {
+            InitializerEntry entry = {0};
+
+            // parse optional designation
+            const CTokenKind kind = parser_peek(p, 0)->kind;
+            if (kind == C_TOKEN_LEFT_BRACKET || kind == C_TOKEN_DOT) {
+                code = parse_designation(p, &entry);
+                if (code != ERROR_OK) return code;
+            }
+
+            // parse initialiser recursively
+            code = parse_initializer(p, &entry.initializer);
+            if (code != ERROR_OK) return code;
+
+            // add entry
+            code = vector_push(&init_list, &entry);
+            if (code != ERROR_OK) return code;
+
+            if (parser_peek(p, 0)->kind != C_TOKEN_COMMA) break;
+
+            code = parser_consume(p, nullptr);
+            if (code != ERROR_OK) return code;
+
+            if (parser_peek(p, 0)->kind != C_TOKEN_RIGHT_BRACE) break; // trailing comma
+        }
+
+        init->list.entries = init_list.data;
+        init->list.entry_count = init_list.length;
+
+        code = parser_expected(p, C_TOKEN_RIGHT_BRACE, nullptr);
+        if (code != ERROR_OK) return code;
+    } else {
+        init->kind = INITIALIZER_EXPRESSION;
+        init->expression = parse_expression(p, BP_ASSIGNMENT);
+    }
+
+    *result = init;
+    return ERROR_OK;
+}
+
 Error parse_declaration(Parser *p, Declaration *declaration) {
     Error code;
     Vector init_declarator_list;
@@ -1003,15 +1110,7 @@ Error parse_declaration(Parser *p, Declaration *declaration) {
         tok = parser_peek(p, 0);
 
         if (tok->kind == C_TOKEN_ASSIGN) {
-            code = parser_consume(p, nullptr);
-            if (code != ERROR_OK) return code;
-            tok = parser_peek(p, 0);
 
-            if (tok->kind == C_TOKEN_LEFT_BRACE) {
-                // TODO initializer list bs
-            } else {
-                init_declarator.initializer = parse_expression(p, BP_ASSIGNMENT); // TODO get assignment expression precedence
-            }
         }
 
         code = vector_push(&init_declarator_list, &init_declarator);
@@ -1021,8 +1120,7 @@ Error parse_declaration(Parser *p, Declaration *declaration) {
     declaration->declarator_count = init_declarator_list.length;
     declaration->declarators = init_declarator_list.data;
 
-    if ((code = parser_expected(p, C_TOKEN_SEMICOLON, nullptr)) != ERROR_OK) return code;
-    return ERROR_OK;
+    return parser_expected(p, C_TOKEN_SEMICOLON, nullptr);
 }
 
 Error parse_storage_class(Parser *p, DeclarationSpecifiers *spec) {

@@ -201,9 +201,50 @@ typedef struct Declarator {
     };
 } Declarator;
 
+typedef enum InitializerKind {
+    INITIALIZER_EXPRESSION,
+    INITIALIZER_LIST
+} InitializerKind;
+
+typedef enum DesignatorKind {
+    DESIGNATOR_INDEX,
+    DESIGNATOR_MEMBER
+} DesignatorKind;
+
+typedef struct Designator {
+    DesignatorKind kind;
+
+    union {
+        Expr *index;
+        CToken member;
+    };
+} Designator;
+
+typedef struct Initializer Initializer;
+
+typedef struct InitializerEntry {
+    Designator *designators;
+    size_t designator_count;
+
+    Initializer *initializer;
+} InitializerEntry;
+
+typedef struct Initializer {
+    InitializerKind kind;
+
+    union {
+        Expr *expression;
+
+        struct {
+            InitializerEntry *entries;
+            size_t entry_count;
+        } list;
+    };
+} Initializer;
+
 typedef struct InitDeclarator {
     Declarator *declarator;
-    Expr *initializer;
+    Initializer *initializer;
 } InitDeclarator;
 
 typedef struct Declaration {
