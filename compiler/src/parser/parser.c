@@ -369,6 +369,8 @@ Expr *parse_prefix(Parser *p) {
                 ret_val = parse_expression(p, 0);
             }
 
+            if (parser_expected(p, C_TOKEN_RIGHT_PAREN, nullptr) != ERROR_OK) return nullptr; // TODO error
+
             return ret_val;
 
         default:
@@ -442,8 +444,9 @@ Expr *parse_expression(Parser *p, int min_bp) {
                 return nullptr; // TODO error
             }
 
-            while (true) { // TODO free every expression in the arg list
-                if (parser_peek(p, 0)->kind == C_TOKEN_RIGHT_PAREN) break;
+
+            while (parser_peek(p, 0)->kind != C_TOKEN_RIGHT_PAREN) { // TODO free every expression in the arg list
+                if (parser_peek(p, 0)->kind == C_TOKEN_EOF) return nullptr; // TODO error
 
                 Expr *arg = parse_expression(p, BP_ASSIGNMENT);
                 if (arg == nullptr) {
@@ -457,6 +460,7 @@ Expr *parse_expression(Parser *p, int min_bp) {
                     return nullptr; // TODO error
                 }
 
+                if (parser_peek(p, 0)->kind == C_TOKEN_RIGHT_PAREN) break;
                 if (vector_push(&arg_list, &arg) != ERROR_OK) {
                     expression_destroy(lhs);
                     expression_destroy(arg);
@@ -577,7 +581,7 @@ Error parse_labeled_statement(Parser *p, Statement *result) {
         if (code != ERROR_OK) return code;
         tok = parser_peek(p, 0);
 
-        result->data.labeled_statement.data.expression = parse_expression(p, BP_PREFIX);
+        result->data.labeled_statement.data.expression = parse_expression(p, BP_CONDITIONAL);
     } else if (tok->kind == C_TOKEN_KW_DEFAULT) {
         result->data.labeled_statement.kind = LABELED_DEFAULT;
 
@@ -679,6 +683,24 @@ Error parse_selection_statement(Parser *p, Statement *result) {
     return ERROR_INTERNAL; // TODO error
 }
 
+Error parse_while(Parser *p, IterationStatement *result) {
+    const CToken *tok = parser_peek(p, 0);
+
+    Error code = parser_expected(p, C_TOKEN_KW_WHILE, nullptr);
+    if (code != ERROR_OK) return code;
+
+    code = parser_expected(p, C_TOKEN_LEFT_PAREN, nullptr);
+    if (code != ERROR_OK) return code;
+
+    result->while_loop.condition = parse_expression(p, 0);
+    if (result->while_loop.condition == nullptr) return ERROR_INTERNAL;
+
+    code = parser_expected(p, C_TOKEN_RIGHT_PAREN, nullptr);
+    if (code != ERROR_OK) return code;
+
+    return ERROR_OK;
+}
+
 Error parse_iteration_statement(Parser *p, Statement *result) {
     Error code;
 
@@ -692,15 +714,85 @@ Error parse_iteration_statement(Parser *p, Statement *result) {
     if (tok->kind == C_TOKEN_KW_DO) {
         iter_stmt->while_loop.do_while = true;
 
-    } else if (tok->kind == C_TOKEN_KW_WHILE) {
+        code = parser_consume(p, nullptr);
+        if (code != ERROR_OK) return code;
+
+        iter_stmt->while_loop.body = malloc(sizeof(Statement));
+        if (iter_stmt->while_loop.body == nullptr) return ERROR_ALLOCATION_FAILED;
+
+        code = parse_statement(p, iter_stmt->while_loop.body);
+        if (code != ERROR_OK) return code;
+
+        code = parse_while(p, iter_stmt);
+        if (code != ERROR_OK) return code;
+
+        code = parser_expected(p, C_TOKEN_SEMICOLON, nullptr);
+        if (code != ERROR_OK) return code;
+
+        return ERROR_OK;
+    }
+
+    if (tok->kind == C_TOKEN_KW_WHILE) {
         iter_stmt->while_loop.do_while = false;
 
-    } else if (tok->kind == C_TOKEN_KW_FOR) {
+        code = parse_while(p, iter_stmt);
+        if (code != ERROR_OK) return code;
+
+        iter_stmt->while_loop.body = malloc(sizeof(Statement));
+        if (iter_stmt->while_loop.body == nullptr) return ERROR_ALLOCATION_FAILED;
+
+        code = parse_statement(p, iter_stmt->while_loop.body);
+        if (code != ERROR_OK) return code;
+
+        return ERROR_OK;
+    }
+
+    if (tok->kind == C_TOKEN_KW_FOR) {
         iter_stmt->kind = ITERATION_FOR;
 
-    } else {
-        return ERROR_INTERNAL; // TODO error
+        code = parser_consume(p, nullptr);
+        if (code != ERROR_OK) return code;
+
+        code = parser_expected(p, C_TOKEN_LEFT_PAREN, nullptr);
+        if (code != ERROR_OK) return code;
+
+        if (is_expression_start(parser_peek(p, 0)->kind)) {
+            iter_stmt->for_loop.expr1.expr = parse_expression(p, 0);
+
+            code = parser_expected(p, C_TOKEN_SEMICOLON, nullptr);
+            if (code != ERROR_OK) return code;
+        } else if (is_declaration_specifier(parser_peek(p, 0)->kind)) {
+            code = parse_declaration_specifiers(p, &iter_stmt->for_loop.expr1.declaration->specifiers);
+            if (code != ERROR_OK) return code;
+
+            code = parse_declaration(p, iter_stmt->for_loop.expr1.declaration);
+            if (code != ERROR_OK) return code;
+        }
+
+        if (is_expression_start(parser_peek(p, 0)->kind)) {
+            iter_stmt->for_loop.expr2 = parse_expression(p, 0);
+        }
+
+        code = parser_expected(p, C_TOKEN_SEMICOLON, nullptr);
+        if (code != ERROR_OK) return code;
+
+        if (is_expression_start(parser_peek(p, 0)->kind)) {
+            iter_stmt->for_loop.expr3 = parse_expression(p, 0);
+        }
+
+        code = parser_expected(p, C_TOKEN_RIGHT_PAREN, nullptr);
+        if (code != ERROR_OK) return code;
+
+        iter_stmt->for_loop.body = malloc(sizeof(Statement));
+        if (iter_stmt->for_loop.body == nullptr) return ERROR_ALLOCATION_FAILED;
+
+        code = parse_statement(p, iter_stmt->for_loop.body);
+        if (code != ERROR_OK) return code;
+
+        return ERROR_OK;
     }
+
+    return ERROR_INTERNAL; // TODO error
 }
 
 Error parse_jump_statement(Parser *p, Statement *result) {
@@ -735,7 +827,6 @@ Error parse_jump_statement(Parser *p, Statement *result) {
 
         code = parser_consume(p, nullptr);
         if (code != ERROR_OK) return code;
-        tok = parser_peek(p, 0);
 
         CToken identifier;
 
@@ -772,7 +863,11 @@ Error parse_compound_statement(Parser *p, Statement *result);
 Error parse_statement(Parser *p, Statement *result) {
     const CToken *token = parser_peek(p, 0);
 
-    if (token->kind == C_TOKEN_SEMICOLON) return ERROR_OK;
+    if (token->kind == C_TOKEN_SEMICOLON) {
+        result->kind = STATEMENT_EXPRESSION;
+        result->data.expression_statement = nullptr;
+        return parser_consume(p, nullptr);
+    }
 
     if ((token->kind == C_TOKEN_IDENTIFIER && parser_peek(p, 1)->kind == C_TOKEN_COLON) ||
         token->kind == C_TOKEN_KW_CASE || token->kind == C_TOKEN_KW_DEFAULT) {
